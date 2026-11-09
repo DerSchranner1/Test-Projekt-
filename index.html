@@ -2,7 +2,15 @@
 <html lang="de">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1b1b22">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Narrhalla">
   <title>Narrhalla Player</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -66,7 +74,7 @@
       <div class="wave-wrap">
         <canvas id="wave" height="140"></canvas>
       </div>
-      <p class="hint">Klick = Springen · Doppelklick / <kbd>M</kbd> = Marker setzen · Rechtsklick auf Marker = löschen</p>
+      <p class="hint">Tippen = Springen · Doppeltipp / <kbd>M</kbd> = Marker setzen · Marker löschen über die Liste</p>
 
       <div class="transport">
         <button id="prevBtn" class="tbtn" title="Vorheriger Titel">⏮</button>

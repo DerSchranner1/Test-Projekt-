@@ -5,7 +5,16 @@ Reine Browser-App ohne Installation und ohne Build-Schritt.
 
 ## Starten
 
-`index.html` in Chrome, Edge oder Firefox öffnen (Doppelklick genügt). Läuft komplett offline.
+**Am Rechner:** `index.html` in Chrome, Edge oder Firefox öffnen (Doppelklick genügt). Läuft komplett offline.
+
+**Als App auf Android und iPhone/iPad:** Der Player ist eine installierbare Web-App (PWA). Dafür muss er einmal
+über HTTPS erreichbar sein, z. B. per GitHub Pages (Repo → Settings → Pages → Branch auswählen). Danach:
+
+- Android (Chrome): Seite öffnen → Menü ⋮ → „App installieren“ bzw. „Zum Startbildschirm hinzufügen“
+- iPhone/iPad (Safari): Seite öffnen → Teilen → „Zum Home-Bildschirm“
+
+Nach dem ersten Öffnen läuft die App auch ohne Internet. Nach Änderungen am Code die Versionsnummer in `sw.js`
+erhöhen, damit installierte Geräte die neue Fassung laden.
 
 ## Funktionen
 

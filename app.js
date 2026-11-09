@@ -156,6 +156,25 @@ async function addFiles(files) {
 }
 
 /* ---------- Playback ---------- */
+// Lautstärke läuft über einen GainNode, weil iOS audio.volume ignoriert.
+let gainNode;
+function setVol(v) {
+  if (gainNode) gainNode.gain.value = v;
+  else audio.volume = v;
+}
+function ensureGraph() {
+  try {
+    audioCtx ??= new (window.AudioContext || window.webkitAudioContext)();
+    if (!gainNode) {
+      gainNode = audioCtx.createGain();
+      audioCtx.createMediaElementSource(audio).connect(gainNode).connect(audioCtx.destination);
+      audio.volume = 1;
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  } catch (e) {
+    console.warn('Web Audio nicht verfügbar', e);
+  }
+}
 const cueIn = (t) => t?.cueIn || 0;
 const cueOut = (t) => (t && t.cueOut != null ? t.cueOut : t?.duration ?? audio.duration ?? 0);
 
@@ -189,7 +208,8 @@ function play() {
   }
   cancelFade();
   if (audio.currentTime >= cueOut(t) - 0.05) audio.currentTime = cueIn(t);
-  audio.volume = state.volume;
+  ensureGraph();
+  setVol(state.volume);
   audio.play().catch((e) => toast('Wiedergabe blockiert: ' + e.message));
   if (history[0]?.id !== t.id) {
     history.unshift({ id: t.id, at: new Date() });
@@ -265,19 +285,19 @@ function onEnded() {
 function fadeOut(ms = 2500) {
   if (audio.paused || fading) return;
   const start = performance.now();
-  const from = audio.volume;
+  const from = state.volume;
   const tick = (now) => {
     const k = Math.min(1, (now - start) / ms);
-    audio.volume = from * (1 - k);
+    setVol(from * (1 - k));
     if (k < 1) fading = requestAnimationFrame(tick);
-    else { fading = null; audio.pause(); audio.volume = state.volume; }
+    else { fading = null; audio.pause(); setVol(state.volume); }
   };
   fading = requestAnimationFrame(tick);
 }
 function cancelFade() {
   if (fading) cancelAnimationFrame(fading);
   fading = null;
-  audio.volume = state.volume;
+  setVol(state.volume);
 }
 
 audio.addEventListener('ended', onEnded);
@@ -726,7 +746,7 @@ function toggleLoop() {
 
 $('volume').oninput = (e) => {
   state.volume = +e.target.value;
-  if (!fading) audio.volume = state.volume;
+  if (!fading) setVol(state.volume);
   save();
 };
 $('autoNext').onchange = (e) => { state.autoNext = e.target.checked; save(); };
@@ -791,8 +811,12 @@ window.addEventListener('keydown', (e) => {
   }
   $('volume').value = state.volume;
   $('autoNext').checked = state.autoNext;
-  audio.volume = state.volume;
+  setVol(state.volume);
   renderAll();
   if (state.tracks.length) load(state.tracks[0].id, false);
   requestAnimationFrame(frame);
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    navigator.serviceWorker.register('sw.js').catch((e) => console.warn('Service Worker', e));
+  }
+  navigator.storage?.persist?.(); // Browser bitten, die Audiodateien nicht automatisch zu löschen
 })();

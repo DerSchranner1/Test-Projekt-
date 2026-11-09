@@ -230,3 +230,23 @@ dialog form { margin-top: 14px; text-align: right; }
   border-radius: 8px; opacity: 0; transition: .2s; pointer-events: none;
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ---------- Handy / Tablet ---------- */
+@media (max-width: 1000px) {
+  html, body { height: auto; }
+  body { display: block; padding-bottom: env(safe-area-inset-bottom); }
+  .topbar { padding-top: calc(10px + env(safe-area-inset-top)); }
+  .layout { display: flex; flex-direction: column; }
+  .sidebar, .tracks, .deck { overflow: visible; }
+  .deck { order: -1; border-bottom: 1px solid var(--line); }
+  .sidebar { order: 1; }
+  .now-title { font-size: 17px; }
+  .time { font-size: 18px; }
+  .transport { gap: 6px; }
+  .tbtn { width: 44px; height: 44px; font-size: 15px; }
+  .tbtn.big { width: 64px; height: 64px; }
+  .track-list li { padding-top: 12px; padding-bottom: 12px; }
+  .hint { display: none; }
+  #wave { margin-bottom: 4px; touch-action: manipulation; }
+}
+button, .btn { touch-action: manipulation; }
