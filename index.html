@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Narrhalla Player</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo">🎭</span> Narrhalla Player <span class="draft">Draft</span></div>
+    <div class="top-actions">
+      <label class="btn">
+        + Audio laden
+        <input id="fileInput" type="file" accept="audio/*" multiple hidden>
+      </label>
+      <button id="exportBtn" class="btn ghost" title="Setliste (Marker, Gruppen, Cues) als JSON speichern">Export</button>
+      <label class="btn ghost" title="Setliste aus JSON laden (Audiodateien müssen geladen sein)">
+        Import
+        <input id="importInput" type="file" accept="application/json" hidden>
+      </label>
+      <button id="helpBtn" class="btn ghost" title="Tastenkürzel">?</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- Farbgruppen -->
+    <aside class="sidebar">
+      <h2>Farbgruppen</h2>
+      <ul id="groupList" class="group-list"></ul>
+      <form id="groupForm" class="group-form">
+        <input id="groupColor" type="color" value="#e94f37" title="Farbe">
+        <input id="groupName" type="text" placeholder="Neue Gruppe…" maxlength="30">
+        <button class="btn small" type="submit">+</button>
+      </form>
+
+      <h2>Verlauf</h2>
+      <ul id="historyList" class="history-list"></ul>
+    </aside>
+
+    <!-- Titelliste -->
+    <section class="tracks">
+      <div class="tracks-head">
+        <input id="search" type="search" placeholder="Titel suchen…">
+        <label class="toggle" title="Nach Titelende automatisch den nächsten starten">
+          <input id="autoNext" type="checkbox"> Auto-Weiter
+        </label>
+      </div>
+      <ol id="trackList" class="track-list"></ol>
+      <div id="dropHint" class="drop-hint">
+        Audiodateien hierher ziehen<br><small>MP3, WAV, M4A, OGG … – werden lokal im Browser gespeichert</small>
+      </div>
+    </section>
+
+    <!-- Player-Deck -->
+    <section class="deck">
+      <div class="now">
+        <div id="nowColor" class="now-color"></div>
+        <div class="now-text">
+          <div id="nowTitle" class="now-title">Kein Titel geladen</div>
+          <div id="nowGroup" class="now-group">–</div>
+        </div>
+        <div class="time"><span id="timeCur">0:00</span><span class="sep">/</span><span id="timeDur">0:00</span><div id="timeRemain" class="remain">-0:00</div></div>
+      </div>
+
+      <div class="wave-wrap">
+        <canvas id="wave" height="140"></canvas>
+      </div>
+      <p class="hint">Klick = Springen · Doppelklick / <kbd>M</kbd> = Marker setzen · Rechtsklick auf Marker = löschen</p>
+
+      <div class="transport">
+        <button id="prevBtn" class="tbtn" title="Vorheriger Titel">⏮</button>
+        <button id="back5Btn" class="tbtn" title="5 Sekunden zurück (←)">-5s</button>
+        <button id="replayBtn" class="tbtn accent" title="Replay vom Anfang / Cue-In (R)">⟲</button>
+        <button id="playBtn" class="tbtn big" title="Play / Pause (Leertaste)">▶</button>
+        <button id="stopBtn" class="tbtn" title="Stopp (Esc)">■</button>
+        <button id="fwd5Btn" class="tbtn" title="5 Sekunden vor (→)">+5s</button>
+        <button id="nextBtn" class="tbtn" title="Nächster Titel">⏭</button>
+      </div>
+
+      <div class="transport second">
+        <button id="replayMarkerBtn" class="btn ghost" title="Ab letztem Marker wiederholen (Shift+R)">⟲ ab Marker</button>
+        <button id="replayLastBtn" class="btn ghost" title="Zuletzt gespielten Titel nochmal (L)">⟲ letzter Titel</button>
+        <button id="loopBtn" class="btn ghost" title="Titel / Cue-Bereich in Schleife (O)">🔁 Loop</button>
+        <button id="fadeBtn" class="btn ghost" title="Ausblenden &amp; Stopp (F)">Fade-Out</button>
+        <label class="vol">🔊 <input id="volume" type="range" min="0" max="1" step="0.01" value="1"></label>
+      </div>
+
+      <div class="cues">
+        <span class="label">Cue</span>
+        <button id="cueInBtn" class="btn small ghost" title="Startpunkt auf aktuelle Position (I)">In setzen</button>
+        <span id="cueInVal" class="cue-val">0:00.0</span>
+        <button id="cueOutBtn" class="btn small ghost" title="Endpunkt auf aktuelle Position (Shift+O)">Out setzen</button>
+        <span id="cueOutVal" class="cue-val">Ende</span>
+        <button id="cueResetBtn" class="btn small ghost">Zurücksetzen</button>
+      </div>
+
+      <div class="markers">
+        <div class="markers-head">
+          <h2>Marker</h2>
+          <button id="addMarkerBtn" class="btn small">+ Marker (M)</button>
+        </div>
+        <ul id="markerList" class="marker-list"></ul>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="helpDlg">
+    <h2>Tastenkürzel</h2>
+    <table>
+      <tr><td><kbd>Leertaste</kbd></td><td>Play / Pause</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>Stopp</td></tr>
+      <tr><td><kbd>R</kbd></td><td>Replay vom Anfang (Cue-In)</td></tr>
+      <tr><td><kbd>Shift</kbd>+<kbd>R</kbd></td><td>Replay ab letztem Marker</td></tr>
+      <tr><td><kbd>L</kbd></td><td>Letzten Titel nochmal</td></tr>
+      <tr><td><kbd>M</kbd></td><td>Marker an aktueller Position</td></tr>
+      <tr><td><kbd>1</kbd>…<kbd>9</kbd></td><td>Zu Marker 1–9 springen</td></tr>
+      <tr><td><kbd>←</kbd> / <kbd>→</kbd></td><td>5 s zurück / vor</td></tr>
+      <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>Titel in Liste wählen</td></tr>
+      <tr><td><kbd>Enter</kbd></td><td>Gewählten Titel abspielen</td></tr>
+      <tr><td><kbd>F</kbd></td><td>Fade-Out</td></tr>
+      <tr><td><kbd>O</kbd></td><td>Loop an/aus</td></tr>
+      <tr><td><kbd>I</kbd> / <kbd>Shift</kbd>+<kbd>O</kbd></td><td>Cue-In / Cue-Out setzen</td></tr>
+    </table>
+    <form method="dialog"><button class="btn">Schließen</button></form>
+  </dialog>
+
+  <div id="toast" class="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>
