@@ -5,10 +5,13 @@ Eine deutsche Android-Tastatur, die Tippen, Diktieren, Emojis und die Zwischenab
 ## Was sie kann
 
 - **Bessere Spracherkennung (kostenlos):** 🎤 antippen, sprechen, ■ antippen. Die Erkennung läuft über Whisper large-v3 bei Groq: Satzzeichen werden automatisch gesetzt, Namen aus deinem Wörterbuch werden mitgegeben, typische Whisper-Fehler bei Stille („Untertitel im Auftrag des ZDF“) werden herausgefiltert. Ohne Groq-Schlüssel nutzt sie die Android-Spracherkennung.
-- **Keine Autokorrektur, sondern Markieren und Vorschlagen:** Es wird nichts automatisch geändert. Unbekannte Wörter werden rot unterstrichen, oben erscheinen Korrekturen zum Antippen. Mit „+“ nimmst du ein Wort ins Wörterbuch auf.
+- **Wischen zum Schreiben:** Finger über die Buchstaben ziehen. Die Erkennung läuft auf dem Handy, oben erscheinen Alternativen, ⌫ löscht das ganze gewischte Wort. Ein- und ausschaltbar unter Einstellungen → Tippen & Korrektur.
+- **Autokorrektur wählbar:** Standardmäßig aus. Eingeschaltet ersetzt sie nur eindeutige Tippfehler, ⌫ direkt danach macht die Korrektur rückgängig.
+- **GIFs und Sticker:** Über ☺ erreichst du die Reiter GIF und Sticker. Es gibt Suche und Themen (Haha, Danke, Liebe …). Die GIFs kommen von GIPHY und brauchen einen kostenlosen Schlüssel. Dazu kommen eigene Sticker aus der Galerie und Emoji-Sticker. Alles wird als echtes Bild eingefügt, wenn die App das unterstützt.
+- **Ohne Autokorrektur: Markieren und Vorschlagen:** Es wird nichts automatisch geändert. Unbekannte Wörter werden rot unterstrichen, oben erscheinen Korrekturen zum Antippen. Mit „+“ nimmst du ein Wort ins Wörterbuch auf.
 - **Gute Wortvorschläge auf dem Handy, ohne Internet:** 105.000 Wörter (Deutsch und Englisch) mit richtiger Großschreibung, ß und Umlauten. Die Tastatur kennt Nachbartasten („hallp“ → „hallo“) und ähnlich klingende Buchstaben („bescheit“ → „Bescheid“). Sie lernt deine eigenen Wörter und sagt das nächste Wort voraus.
 - **Zwischenablage-Verlauf:** 📋 zeigt alles, was du kopiert hast. 📌 heftet Einträge dauerhaft an. Passwörter werden nicht gespeichert. Frisch kopierte Codes, Links, E-Mails und Telefonnummern erscheinen direkt als Vorschlag zum Einfügen.
-- **Emojis:** ☺ öffnet sechs Kategorien, zuletzt benutzte Emojis stehen vorne. Beim Tippen werden passende Emojis vorgeschlagen („danke“ → 🙏).
+- **Emojis:** ☺ öffnet sieben Kategorien, zuletzt benutzte Emojis stehen vorne. Beim Tippen werden passende Emojis vorgeschlagen („danke“ → 🙏).
 - **Bedienung:**
   - Leertaste gedrückt halten und wischen bewegt den Cursor.
   - Auf ⌫ nach links wischen löscht ganze Wörter.

@@ -18,6 +18,7 @@ import android.widget.PopupWindow
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.sqrt
 
 enum class ShiftState { OFF, ON, LOCK }
 
@@ -36,10 +37,14 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
         fun onSpaceLongPress()
         fun onEmojiLongPress()
         fun onDeleteWord()
+        fun onGesture(path: List<GestureDecoder.Pt>)
     }
 
     var listener: Listener? = null
     var haptics = true
+    /** Wischen zum Schreiben aktiv (nur auf der Buchstaben-Tastatur). */
+    var gestureEnabled = false
+    var gestureTrail = true
 
     var rows: KeyRows = emptyList()
         set(value) {
@@ -75,6 +80,15 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
         color = theme.hint
         textSize = sp(10f)
     }
+    private val trailPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
+        color = theme.accent
+        alpha = 190
+        strokeWidth = dp(5f)
+    }
+    private val trailPath = android.graphics.Path()
     private val radius = dp(7f)
     private val gapX = dp(3f)
     private val gapY = dp(5f)
@@ -86,6 +100,10 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
         var spaceDrag = false
         var deleteSwipe = false
         var lastCursorX = downX
+        var downY = 0f
+        var gesturePossible = false
+        var gesture = false
+        val points = ArrayList<GestureDecoder.Pt>()
     }
 
     private val touches = mutableMapOf<Int, Touch>()
@@ -159,6 +177,20 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
         }
     }
 
+    /** Mitte jeder Buchstabentaste – für die Wisch-Erkennung. */
+    fun letterCenters(): Map<Char, GestureDecoder.Pt> {
+        val m = HashMap<Char, GestureDecoder.Pt>()
+        for (row in rows) for (k in row) if (isLetter(k)) {
+            m[k.label[0].lowercaseChar()] = GestureDecoder.Pt(k.bounds.centerX(), k.bounds.centerY())
+        }
+        return m
+    }
+
+    fun letterKeyWidth(): Float =
+        rows.flatten().firstOrNull { isLetter(it) }?.let { it.bounds.width() + 2 * gapX } ?: dp(36f)
+
+    private fun isLetter(k: Key) = k.type == KeyType.CHAR && k.label.length == 1 && k.label[0].isLetter()
+
     private fun findKey(x: Float, y: Float): Key? {
         if (rows.isEmpty()) return null
         val r = ((y - dp(3f)) / rowHeight()).toInt().coerceIn(0, rows.size - 1)
@@ -175,8 +207,18 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
 
     override fun onDraw(canvas: Canvas) {
         canvas.drawColor(theme.background)
-        val pressed = touches.values.mapNotNull { if (it.consumed) null else it.key }.toSet()
+        val pressed = touches.values.mapNotNull { if (it.consumed || it.gesture) null else it.key }.toSet()
         for (row in rows) for (k in row) drawKey(canvas, k, k in pressed)
+        if (gestureTrail) {
+            val g = touches.values.firstOrNull { it.gesture } ?: return
+            trailPath.reset()
+            val pts = g.points
+            val from = maxOf(0, pts.size - 120)
+            for (i in from until pts.size) {
+                if (i == from) trailPath.moveTo(pts[i].x, pts[i].y) else trailPath.lineTo(pts[i].x, pts[i].y)
+            }
+            canvas.drawPath(trailPath, trailPaint)
+        }
     }
 
     private fun drawKey(canvas: Canvas, k: Key, pressed: Boolean) {
@@ -234,6 +276,7 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
         val idx = e.actionIndex
         when (e.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
+                if (touches.values.any { it.gesture }) return true
                 // Schnelles Tippen mit zwei Daumen: vorherige Taste sofort auslösen
                 for (t in touches.values) {
                     if (!t.consumed && !t.longPressed && !t.spaceDrag && !t.deleteSwipe) {
@@ -244,12 +287,21 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
                 cancelTimers()
                 hidePreview()
                 val t = Touch(e.getPointerId(idx), findKey(e.getX(idx), e.getY(idx)), e.getX(idx))
+                t.downY = e.getY(idx)
+                t.gesturePossible = gestureEnabled && touches.isEmpty() && t.key?.let { isLetter(it) } == true
+                if (t.gesturePossible) t.points += GestureDecoder.Pt(e.getX(idx), t.downY)
                 touches[t.id] = t
                 onDown(t)
             }
             MotionEvent.ACTION_MOVE -> {
                 for (i in 0 until e.pointerCount) {
                     val t = touches[e.getPointerId(i)] ?: continue
+                    if (t.gesturePossible) {
+                        for (h in 0 until e.historySize) {
+                            t.points += GestureDecoder.Pt(e.getHistoricalX(i, h), e.getHistoricalY(i, h))
+                        }
+                        t.points += GestureDecoder.Pt(e.getX(i), e.getY(i))
+                    }
                     onMove(t, e.getX(i), e.getY(i))
                 }
             }
@@ -293,6 +345,17 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
     private fun onMove(t: Touch, x: Float, y: Float) {
         if (t.consumed) return
         val k = t.key ?: return
+        if (t.gesture) return
+        if (t.gesturePossible && !t.longPressed) {
+            val dx = x - t.downX
+            val dy = y - t.downY
+            if (sqrt(dx * dx + dy * dy) > letterKeyWidth() * 0.8f) {
+                t.gesture = true
+                cancelTimers()
+                hidePreview()
+                return
+            }
+        }
         if (t.longPressed) {
             if (altsPopup.isShowing) {
                 val i = ((x - altsLeftInView) / altsCellWidth).toInt().coerceIn(0, altsView.items.size - 1)
@@ -331,6 +394,7 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
                 }
             }
             KeyType.CHAR -> {
+                if (gestureEnabled) return
                 // Finger auf benachbarte Taste geschoben: neue Taste übernehmen
                 val nk = findKey(x, y)
                 if (nk != null && nk != k && nk.type == KeyType.CHAR) {
@@ -348,6 +412,11 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
         cancelTimers()
         hidePreview()
         if (t.consumed) return
+        if (t.gesture) {
+            listener?.onGesture(ArrayList(t.points))
+            invalidate()
+            return
+        }
         val k = t.key ?: return
         when {
             t.longPressed -> {

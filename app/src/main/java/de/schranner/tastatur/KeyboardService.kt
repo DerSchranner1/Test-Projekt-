@@ -1,6 +1,11 @@
 package de.schranner.tastatur
 
 import android.Manifest
+import android.content.ClipDescription
+import android.graphics.Bitmap
+import android.view.inputmethod.InputConnection
+import android.view.inputmethod.InputContentInfo
+import java.io.File
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -34,9 +39,9 @@ import android.widget.Toast
 import java.text.BreakIterator
 import java.util.concurrent.Executors
 
-class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.Callback {
+class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.Callback, MediaPanel.Host {
 
-    private enum class Panel { KEYBOARD, EMOJI, CLIPBOARD }
+    private enum class Panel { KEYBOARD, MEDIA, CLIPBOARD }
     private enum class Mode { LETTERS, SYMBOLS, SYMBOLS2, NUMPAD }
 
     /** Ein Eintrag in der Vorschlagsleiste. */
@@ -53,6 +58,9 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     private lateinit var engine: SuggestionEngine
     private lateinit var clip: ClipboardStore
     private lateinit var voice: VoiceInput
+    private lateinit var decoder: GestureDecoder
+    private lateinit var giphy: GiphyClient
+    private lateinit var stickers: StickerStore
     private val main = Handler(Looper.getMainLooper())
     private val worker = Executors.newSingleThreadExecutor()
     private var suggestToken = 0
@@ -67,7 +75,9 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     private lateinit var micButton: TextView
     private val slots = arrayOfNulls<TextView>(3)
     private var shown = arrayOfNulls<Sugg>(3)
-    private var emojiPanel: View? = null
+    private var mediaPanel: MediaPanel? = null
+    private lateinit var searchRow: LinearLayout
+    private lateinit var searchText: TextView
     private var clipPanel: View? = null
     private var clipAdapter: ClipAdapter? = null
     private var panel = Panel.KEYBOARD
@@ -86,6 +96,14 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     private var lastShiftTime = 0L
     private var lastEditTime = 0L
     private var engineCreatedAt = System.currentTimeMillis()
+    /** Alternativen zum zuletzt gewischten Wort. */
+    private var gestureAlts: List<String>? = null
+    private var lastWasGesture = false
+    /** Letzte Autokorrektur (Original, Korrektur) – ⌫ macht sie rückgängig. */
+    private var lastAutocorrect: Pair<String, String>? = null
+    /** GIF-/Sticker-Suche: Tastatur tippt in das Suchfeld statt in die App. */
+    private var searchTarget: MediaPanel.Tab? = null
+    private val searchQuery = StringBuilder()
 
     private fun dp(v: Float) = (v * resources.displayMetrics.density).toInt()
 
@@ -99,6 +117,9 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         clip.onNewClip = { main.post { if (composing.isEmpty()) refreshSuggestions() } }
         clip.start()
         voice = VoiceInput(this, prefs).also { it.callback = this }
+        decoder = GestureDecoder(engine)
+        giphy = GiphyClient(prefs)
+        stickers = StickerStore(this)
     }
 
     override fun onDestroy() {
@@ -113,7 +134,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
 
     override fun onCreateInputView(): View {
         theme = KeyboardTheme(this)
-        emojiPanel = null
+        mediaPanel = null
         clipPanel = null
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -132,6 +153,10 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         composing.setLength(0)
         correctionTarget = null
         lastAutoSpace = false
+        gestureAlts = null
+        lastWasGesture = false
+        lastAutocorrect = null
+        endSearch()
         keyboard.haptics = prefs.vibrate
         keyboard.keyHeightPercent = prefs.keyHeightPercent
 
@@ -210,6 +235,8 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
             Mode.NUMPAD -> Layouts.numpad(field == FieldKind.PHONE)
         }
         if (mode != Mode.LETTERS) keyboard.shift = ShiftState.OFF
+        keyboard.gestureEnabled = prefs.gestureTyping && mode == Mode.LETTERS && (suggestionsOn || searchTarget != null)
+        keyboard.gestureTrail = prefs.gestureTrail
     }
 
     private fun enterLabel(info: EditorInfo): String {
@@ -227,8 +254,22 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     // ================================================================== Tastatur-Ereignisse
 
     override fun onChar(text: String) {
+        if (searchTarget != null) {
+            searchQuery.append(text)
+            updateSearchUi()
+            if (keyboard.shift == ShiftState.ON) keyboard.shift = ShiftState.OFF
+            return
+        }
         val ic = currentInputConnection ?: return
         lastEditTime = SystemClock.uptimeMillis()
+        lastAutocorrect = null
+        if (lastWasGesture && composing.isNotEmpty() && text.singleOrNull()?.isLetter() == true) {
+            // Nach einem gewischten Wort beginnt ein neues Wort
+            commitWord()
+            ic.commitText(" ", 1)
+        }
+        gestureAlts = null
+        lastWasGesture = false
         val ch = text.singleOrNull()
         val wordChar = ch != null && (ch.isLetterOrDigit() || ((ch == '\'' || ch == '-') && composing.isNotEmpty()))
         if (wordChar && suggestionsOn) {
@@ -242,7 +283,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
             ic.setComposingText(composing, 1)
             lastAutoSpace = false
         } else {
-            commitWord()
+            commitWord(autocorrect = ch != null && ch in ".,!?;:)")
             val punct = ch != null && ch in ".,!?;:"
             val before = ic.getTextBeforeCursor(1, 0)
             if (punct && lastAutoSpace && before?.toString() == " ") {
@@ -264,6 +305,20 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     }
 
     override fun onAction(type: KeyType) {
+        if (searchTarget != null) {
+            when (type) {
+                KeyType.DELETE -> {
+                    if (searchQuery.isNotEmpty()) searchQuery.setLength(searchQuery.length - 1)
+                    updateSearchUi(); return
+                }
+                KeyType.SPACE -> { searchQuery.append(' '); updateSearchUi(); return }
+                KeyType.ENTER -> { runSearch(); return }
+                KeyType.EMOJI -> return
+                else -> {}
+            }
+        }
+        if (type != KeyType.DELETE && type != KeyType.SHIFT) lastAutocorrect = null
+        if (type != KeyType.DELETE && type != KeyType.SHIFT) { lastWasGesture = false; gestureAlts = null }
         when (type) {
             KeyType.SHIFT -> {
                 val now = SystemClock.uptimeMillis()
@@ -283,7 +338,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
                 mode = Mode.LETTERS
                 applyLayout(); updateAutoShift()
             }
-            KeyType.EMOJI -> showPanel(Panel.EMOJI)
+            KeyType.EMOJI -> showPanel(Panel.MEDIA)
             KeyType.CHAR -> {}
         }
     }
@@ -292,7 +347,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         val ic = currentInputConnection ?: return
         lastEditTime = SystemClock.uptimeMillis()
         val now = SystemClock.uptimeMillis()
-        if (composing.isEmpty() && suggestionsOn && now - lastSpaceTime < 600) {
+        if (composing.isEmpty() && suggestionsOn && prefs.doubleSpacePeriod && now - lastSpaceTime < 600) {
             // Doppelte Leertaste -> Punkt
             val before = ic.getTextBeforeCursor(2, 0)?.toString() ?: ""
             if (before.length == 2 && before[1] == ' ' && before[0].isLetterOrDigit()) {
@@ -304,7 +359,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
                 return
             }
         }
-        commitWord()
+        commitWord(autocorrect = true)
         ic.commitText(" ", 1)
         lastSpaceTime = now
         lastAutoSpace = false
@@ -315,7 +370,8 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
 
     private fun handleEnter() {
         val ic = currentInputConnection ?: return
-        commitWord()
+        commitWord(autocorrect = true)
+        lastAutocorrect = null
         val ei = currentInputEditorInfo
         val action = ei.imeOptions and EditorInfo.IME_MASK_ACTION
         val noAction = ei.imeOptions and EditorInfo.IME_FLAG_NO_ENTER_ACTION != 0
@@ -336,6 +392,20 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         correctionTarget = null
         lastAutoSpace = false
         lastSpaceTime = 0L
+        val undo = lastAutocorrect
+        lastAutocorrect = null
+        if (undo != null && composing.isEmpty() && undoAutocorrect(undo)) {
+            updateAutoShift(); refreshSuggestions(); return
+        }
+        if (lastWasGesture && composing.isNotEmpty()) {
+            // Gewischtes Wort komplett löschen
+            composing.setLength(0)
+            ic.commitText("", 1)
+            lastWasGesture = false
+            gestureAlts = null
+            updateAutoShift(); refreshSuggestions(); return
+        }
+        gestureAlts = null
         if (composing.isNotEmpty()) {
             // Ganzes Zeichen löschen (auch Emoji / zusammengesetzte Zeichen)
             composing.setLength(composing.length - lastGraphemeLength(composing.toString()))
@@ -409,17 +479,32 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).showInputMethodPicker()
     }
 
-    override fun onEmojiLongPress() = openSettings(false)
+    override fun onEmojiLongPress() = openSettings(null, false)
 
     // ================================================================== Wörter & Vorschläge
 
-    /** Fertiges Wort übernehmen. Unbekannte Wörter werden rot markiert – nicht automatisch geändert. */
-    private fun commitWord() {
+    /**
+     * Fertiges Wort übernehmen. Unbekannte Wörter werden rot markiert.
+     * Ist die Autokorrektur eingeschaltet, werden eindeutige Tippfehler bei Leertaste/Satzzeichen ersetzt.
+     */
+    private fun commitWord(autocorrect: Boolean = false) {
         if (composing.isEmpty()) return
         val ic = currentInputConnection ?: return
         val w = composing.toString()
         composing.setLength(0)
         val prev = composingPrev
+        val fromGesture = lastWasGesture
+        lastWasGesture = false
+        gestureAlts = null
+        if (autocorrect && prefs.autocorrect && !fromGesture) {
+            val fix = engine.autocorrectFor(w, prev)
+            if (fix != null && fix != w) {
+                ic.commitText(fix, 1)
+                lastAutocorrect = w to fix
+                engine.learn(fix, prev, composingSentenceStart)
+                return
+            }
+        }
         if (prefs.markTypos && w.length > 1 && w.any { it.isLetter() } && !engine.isKnown(w)) {
             val corr = engine.correctionsFor(w, prev)
             val sp = SpannableString(w)
@@ -459,8 +544,15 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         val targetPrev = correctionPrev
         val clipText = recentClip()
 
-        if (!suggestionsOn) {
+        if (searchTarget != null) return
+        if (!suggestionsOn || !prefs.showSuggestions) {
             show(listOfNotNull(clipText?.let { Sugg.Paste(it) }))
+            return
+        }
+        val alts = gestureAlts
+        if (alts != null && typed.isNotEmpty()) {
+            val others = alts.filter { !it.equals(typed, true) }
+            show(listOfNotNull(others.getOrNull(0)?.let { Sugg.Word(it) }, Sugg.Word(typed), others.getOrNull(1)?.let { Sugg.Word(it) }))
             return
         }
         if (typed.isEmpty() && target == null) {
@@ -625,6 +717,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     private fun updateAutoShift() {
         if (!::keyboard.isInitialized || mode != Mode.LETTERS || keyboard.shift == ShiftState.LOCK) return
         if (composing.isNotEmpty()) return
+        if (!prefs.autoCaps) { keyboard.shift = ShiftState.OFF; return }
         val ei = currentInputEditorInfo ?: return
         val ic = currentInputConnection ?: return
         val caps = if (field == FieldKind.TEXT && suggestionsOn) ic.getCursorCapsMode(ei.inputType) else 0
@@ -646,7 +739,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         if (voice.isActive) { voice.stop(); return }
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             Toast.makeText(this, "Bitte Mikrofon erlauben", Toast.LENGTH_LONG).show()
-            openSettings(true)
+            openSettings(SettingsActivity.PAGE_VOICE, true)
             return
         }
         commitWord()
@@ -720,9 +813,10 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         micButton.text = "🎤"
     }
 
-    private fun openSettings(askMic: Boolean) {
+    private fun openSettings(page: String?, askMic: Boolean) {
         startActivity(Intent(this, SettingsActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            if (page != null) putExtra(SettingsActivity.EXTRA_PAGE, page)
             if (askMic) putExtra(SettingsActivity.EXTRA_ASK_MIC, true)
         })
     }
@@ -794,6 +888,25 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         voiceRow.addView(barButton("■") { voice.stop() }.apply { setTextColor(theme.recording) },
             LinearLayout.LayoutParams(dp(52f), ViewGroup.LayoutParams.MATCH_PARENT))
 
+        searchRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            visibility = View.GONE
+        }
+        searchRow.addView(barButton("✕") { endSearch(); showPanel(Panel.MEDIA) },
+            LinearLayout.LayoutParams(dp(48f), ViewGroup.LayoutParams.MATCH_PARENT))
+        searchText = TextView(this).apply {
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+            maxLines = 1
+            ellipsize = TextUtils.TruncateAt.START
+            setPadding(dp(12f), dp(6f), dp(12f), dp(6f))
+            background = GradientDrawable().apply { setColor(theme.key); cornerRadius = dp(18f).toFloat() }
+        }
+        searchRow.addView(searchText, LinearLayout.LayoutParams(0, dp(36f), 1f).apply { gravity = Gravity.CENTER_VERTICAL })
+        searchRow.addView(barButton("Suchen") { runSearch() }.apply {
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f); setTextColor(theme.accent); setTypeface(null, Typeface.BOLD)
+        }, LinearLayout.LayoutParams(dp(76f), ViewGroup.LayoutParams.MATCH_PARENT))
+        frame.addView(searchRow, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         frame.addView(suggRow, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         frame.addView(voiceRow, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         return frame
@@ -808,15 +921,16 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         val h = panelHeight()
         panel = p
         keyboard.visibility = if (p == Panel.KEYBOARD) View.VISIBLE else View.GONE
-        emojiPanel?.visibility = View.GONE
+        mediaPanel?.visibility = View.GONE
         clipPanel?.visibility = View.GONE
         when (p) {
-            Panel.EMOJI -> {
-                val v = emojiPanel ?: buildEmojiPanel().also {
-                    emojiPanel = it
+            Panel.MEDIA -> {
+                val v = mediaPanel ?: MediaPanel(this, theme, giphy, stickers, this).also {
+                    mediaPanel = it
                     content.addView(it, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h))
                 }
                 v.layoutParams.height = h
+                v.refreshRecents()
                 v.visibility = View.VISIBLE
             }
             Panel.CLIPBOARD -> {
@@ -834,79 +948,211 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         content.requestLayout()
     }
 
-    // ---------------------------------------------------------------- Emoji-Bereich
-
-    private var emojiGrid: GridView? = null
-    private var emojiItems: List<String> = emptyList()
-
-    private fun recentEmojis(): List<String> =
-        getSharedPreferences("emoji", MODE_PRIVATE).getString("recent", "")!!.split('\u0001').filter { it.isNotEmpty() }
+    // ---------------------------------------------------------------- Emoji, GIFs, Sticker
 
     private fun addRecentEmoji(e: String) {
-        val list = (listOf(e) + recentEmojis().filter { it != e }).take(32)
-        getSharedPreferences("emoji", MODE_PRIVATE).edit().putString("recent", list.joinToString("\u0001")).apply()
+        val sp = getSharedPreferences("emoji", MODE_PRIVATE)
+        val old = sp.getString("recent", "")!!.split('\u0001').filter { it.isNotEmpty() && it != e }
+        sp.edit().putString("recent", (listOf(e) + old).take(32).joinToString("\u0001")).apply()
     }
 
-    private fun buildEmojiPanel(): View {
-        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        val grid = GridView(this).apply {
-            numColumns = GridView.AUTO_FIT
-            columnWidth = dp(44f)
-            stretchMode = GridView.STRETCH_COLUMN_WIDTH
-            verticalSpacing = dp(2f)
-            setPadding(dp(4f), dp(4f), dp(4f), dp(4f))
-            clipToPadding = false
+    override fun commitEmoji(e: String) {
+        commitWord()
+        currentInputConnection?.commitText(e, 1)
+        addRecentEmoji(e)
+    }
+
+    override fun deleteChar() = handleDelete()
+
+    override fun backToKeyboard() = showPanel(Panel.KEYBOARD)
+
+    override fun haptic(v: View) {
+        if (prefs.vibrate) v.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+    }
+
+    override fun openSettings(page: String) = openSettings(page, false)
+
+    /** Unterstützt das Eingabefeld Bilder dieses Typs? */
+    private fun supportsMime(mime: String): Boolean {
+        val types = currentInputEditorInfo?.contentMimeTypes ?: return false
+        return types.any { ClipDescription.compareMimeTypes(mime, it) }
+    }
+
+    /** Bild als echtes Bild (nicht als Link) in die App einfügen. */
+    private fun commitImage(uri: android.net.Uri, mime: String, desc: String, link: String?): Boolean {
+        val ic = currentInputConnection ?: return false
+        if (!supportsMime(mime)) return false
+        commitWord()
+        val info = InputContentInfo(uri, ClipDescription(desc, arrayOf(mime)), link?.let { android.net.Uri.parse(it) })
+        return try {
+            ic.commitContent(info, InputConnection.INPUT_CONTENT_GRANT_READ_URI_PERMISSION, null)
+        } catch (_: Exception) { false }
+    }
+
+    private fun shareDir() = File(cacheDir, "share").apply { mkdirs() }
+
+    private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+
+    override fun commitGif(item: GiphyClient.Item, sticker: Boolean) {
+        if (!supportsMime("image/gif")) {
+            // App kann keine GIFs empfangen: Link einfügen
+            commitWord()
+            currentInputConnection?.commitText(item.pageUrl + " ", 1)
+            toast("Diese App kann keine GIFs empfangen – Link eingefügt")
+            return
         }
-        emojiGrid = grid
-        val adapter = object : BaseAdapter() {
-            override fun getCount() = emojiItems.size
-            override fun getItem(position: Int) = emojiItems[position]
-            override fun getItemId(position: Int) = position.toLong()
-            override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
-                val tv = (convertView as? TextView) ?: TextView(this@KeyboardService).apply {
-                    gravity = Gravity.CENTER
-                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 28f)
-                    layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(46f))
+        toast(if (sticker) "Sticker wird gesendet …" else "GIF wird eingefügt …")
+        ImageLoader.run {
+            try {
+                val bytes = ImageLoader.cached(item.fullUrl) ?: Net.get(item.fullUrl)
+                // Alte Dateien aufräumen
+                shareDir().listFiles()?.filter { System.currentTimeMillis() - it.lastModified() > 3600_000 }?.forEach { it.delete() }
+                val f = File(shareDir(), "giphy_${item.id.filter { it.isLetterOrDigit() }}.gif")
+                f.writeBytes(bytes)
+                main.post {
+                    if (!commitImage(MediaProvider.uriFor("share", f.name), "image/gif", "GIF", item.pageUrl)) {
+                        currentInputConnection?.commitText(item.pageUrl + " ", 1)
+                    }
                 }
-                tv.text = emojiItems[position]
-                return tv
+            } catch (_: Exception) {
+                main.post { toast("GIF konnte nicht geladen werden") }
             }
         }
-        grid.adapter = adapter
-        grid.setOnItemClickListener { _, view, position, _ ->
-            val e = emojiItems[position]
-            commitWord()
-            currentInputConnection?.commitText(e, 1)
-            addRecentEmoji(e)
-            if (keyboard.haptics) view.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
-        }
-        root.addView(grid, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+    }
 
-        val tabs = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setBackgroundColor(theme.specialKey)
+    override fun commitStickerFile(f: File) {
+        val mime = MediaProvider.mimeOf(f.name)
+        if (!commitImage(MediaProvider.uriFor("stickers", f.name), mime, "Sticker", null)) {
+            toast("Diese App kann keine Sticker/Bilder empfangen")
         }
-        val tabViews = mutableListOf<TextView>()
-        fun select(i: Int) {
-            emojiItems = if (i == 0) recentEmojis().ifEmpty { EmojiData.categories[0].emojis }
-            else EmojiData.categories[i - 1].emojis
-            adapter.notifyDataSetChanged()
-            grid.setSelection(0)
-            tabViews.forEachIndexed { j, tv -> tv.alpha = if (j == i) 1f else 0.45f }
+    }
+
+    override fun commitEmojiSticker(e: String) {
+        val (fmt, ext, mime) = when {
+            supportsMime("image/png") -> Triple(Bitmap.CompressFormat.PNG, "png", "image/png")
+            supportsMime("image/webp") -> Triple(Bitmap.CompressFormat.WEBP_LOSSLESS, "webp", "image/webp")
+            else -> {
+                commitEmoji(e)
+                toast("Diese App kann keine Sticker empfangen – Emoji eingefügt")
+                return
+            }
         }
-        tabs.addView(barButton("ABC") { showPanel(Panel.KEYBOARD) }.apply {
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f); setTypeface(null, Typeface.BOLD)
-        }, LinearLayout.LayoutParams(0, dp(44f), 1.4f))
-        val icons = listOf("🕘") + EmojiData.categories.map { it.icon }
-        icons.forEachIndexed { i, icon ->
-            val tv = barButton(icon) { select(i) }.apply { setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f) }
-            tabViews += tv
-            tabs.addView(tv, LinearLayout.LayoutParams(0, dp(44f), 1f))
+        val name = "emoji_" + e.codePoints().toArray().joinToString("_") { Integer.toHexString(it) } + "." + ext
+        val f = File(shareDir(), name)
+        if (!f.exists()) StickerStore.renderEmoji(e, fmt, f)
+        if (!commitImage(MediaProvider.uriFor("share", f.name), mime, "Sticker", null)) commitEmoji(e)
+        else addRecentEmoji(e)
+    }
+
+    // ---------------------------------------------------------------- Suche (GIF/Sticker)
+
+    override fun startSearch(tab: MediaPanel.Tab) {
+        searchTarget = tab
+        searchQuery.setLength(0)
+        showPanel(Panel.KEYBOARD)
+        mode = Mode.LETTERS
+        applyLayout()
+        keyboard.shift = ShiftState.OFF
+        suggRow.visibility = View.GONE
+        voiceRow.visibility = View.GONE
+        searchRow.visibility = View.VISIBLE
+        updateSearchUi()
+    }
+
+    private fun updateSearchUi() {
+        val target = if (searchTarget == MediaPanel.Tab.STICKER) "Sticker" else "GIFs"
+        searchText.text = if (searchQuery.isEmpty()) "🔍 $target suchen …" else "🔍 $searchQuery▏"
+        searchText.setTextColor(if (searchQuery.isEmpty()) theme.hint else theme.text)
+    }
+
+    private fun runSearch() {
+        val t = searchTarget ?: return
+        val q = searchQuery.toString().trim()
+        endSearch()
+        showPanel(Panel.MEDIA)
+        mediaPanel?.search(t, q)
+    }
+
+    private fun endSearch() {
+        if (searchTarget == null) return
+        searchTarget = null
+        searchQuery.setLength(0)
+        if (::searchRow.isInitialized) {
+            searchRow.visibility = View.GONE
+            suggRow.visibility = View.VISIBLE
         }
-        tabs.addView(barButton("⌫") { handleDelete() }, LinearLayout.LayoutParams(0, dp(44f), 1.2f))
-        root.addView(tabs, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44f)))
-        select(if (recentEmojis().isEmpty()) 1 else 0)
-        return root
+        applyLayout()
+    }
+
+    // ---------------------------------------------------------------- Wischen zum Schreiben
+
+    override fun onGesture(path: List<GestureDecoder.Pt>) {
+        val centers = keyboard.letterCenters()
+        val keyW = keyboard.letterKeyWidth()
+        val prev = if (composing.isNotEmpty()) composing.toString() else contextBefore().first
+        worker.execute {
+            val words = decoder.decode(path, centers, keyW, prev)
+            val cased = words.map { engine.displayForm(it) }
+            main.post { applyGesture(cased) }
+        }
+    }
+
+    private fun applyGesture(words: List<String>) {
+        if (words.isEmpty()) {
+            toast("Wort nicht erkannt")
+            return
+        }
+        if (searchTarget != null) {
+            if (searchQuery.isNotEmpty() && !searchQuery.endsWith(" ")) searchQuery.append(' ')
+            searchQuery.append(words[0])
+            updateSearchUi()
+            return
+        }
+        val ic = currentInputConnection ?: return
+        lastEditTime = SystemClock.uptimeMillis()
+        lastAutocorrect = null
+        correctionTarget = null
+        commitWord()
+        val before = ic.getTextBeforeCursor(1, 0)?.toString() ?: ""
+        if (before.isNotEmpty() && !before.last().isWhitespace() && before.last() !in "([{\"'„‚«") {
+            ic.commitText(" ", 1)
+        }
+        val ctx = contextBefore()
+        composingPrev = ctx.first
+        composingSentenceStart = ctx.second
+        fun cased(w: String) = when {
+            keyboard.shift == ShiftState.LOCK -> w.uppercase()
+            keyboard.shift == ShiftState.ON || ctx.second -> w.replaceFirstChar { it.uppercase() }
+            else -> w
+        }
+        val list = words.map { cased(it) }.distinct()
+        composing.setLength(0)
+        composing.append(list[0])
+        ic.setComposingText(composing, 1)
+        gestureAlts = list
+        lastWasGesture = true
+        lastAutoSpace = false
+        if (keyboard.shift == ShiftState.ON) keyboard.shift = ShiftState.OFF
+        refreshSuggestions()
+    }
+
+    /** Autokorrektur rückgängig machen (⌫ direkt danach). */
+    private fun undoAutocorrect(undo: Pair<String, String>): Boolean {
+        val ic = currentInputConnection ?: return false
+        val (orig, fix) = undo
+        val before = ic.getTextBeforeCursor(fix.length + 2, 0)?.toString() ?: return false
+        val idx = before.lastIndexOf(fix)
+        if (idx < 0) return false
+        val tail = before.substring(idx + fix.length)
+        if (tail.length > 1 || tail.any { it.isLetterOrDigit() }) return false
+        ic.beginBatchEdit()
+        ic.deleteSurroundingText(before.length - idx, 0)
+        ic.commitText(orig, 1)
+        ic.endBatchEdit()
+        engine.forget(fix)
+        engine.learn(orig, null, false)
+        toast("Autokorrektur rückgängig gemacht")
+        return true
     }
 
     // ---------------------------------------------------------------- Zwischenablage
@@ -968,7 +1214,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         header.addView(barButton("Leeren") {
             clip.clearUnpinned(); clipAdapter?.notifyDataSetChanged()
         }.apply { setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f) }, LinearLayout.LayoutParams(dp(72f), dp(40f)))
-        header.addView(barButton("⚙") { openSettings(false) }, LinearLayout.LayoutParams(dp(44f), dp(40f)))
+        header.addView(barButton("⚙") { openSettings(null, false) }, LinearLayout.LayoutParams(dp(44f), dp(40f)))
         root.addView(header)
 
         val list = ListView(this).apply {

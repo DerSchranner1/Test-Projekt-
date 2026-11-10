@@ -209,6 +209,51 @@ class SuggestionEngine(
         save()
     }
 
+    /**
+     * Echte Autokorrektur (nur wenn in den Einstellungen eingeschaltet): liefert eine Korrektur
+     * nur, wenn sie eindeutig ist – sonst null.
+     */
+    @Synchronized
+    fun autocorrectFor(word: String, prev: String?): String? {
+        if (!loaded || word.length < 2 || isKnown(word)) return null
+        if (word.length > 1 && word.all { !it.isLetter() || it.isUpperCase() }) return null
+        val low = word.lowercase()
+        val ranked = corrections(low)
+            .map { (w, d) -> Triple(w, d, score(w, prev) - d * 4.5f) }
+            .sortedByDescending { it.third }
+        val best = ranked.firstOrNull() ?: return null
+        val maxD = if (low.length <= 4) 0.7f else 1.3f
+        if (best.second > maxD) return null
+        val second = ranked.getOrNull(1)
+        if (second != null && best.third - second.third < 1.0f) return null
+        return matchCase(display(best.first), word)
+    }
+
+    /** Kandidaten fürs Wischen: Anfangs- und Endbuchstabe passen. Liefert Kleinschreibung. */
+    @Synchronized
+    fun gestureCandidates(first: Set<Char>, last: Set<Char>): List<String> {
+        if (!loaded) return emptyList()
+        val out = ArrayList<String>()
+        val buckets = first.map { baseChar(it) }.toSet()
+        for (b in buckets) {
+            val list = byFirst[b] ?: continue
+            for (w in list) {
+                if (w.length < 2 || w.length > 24) continue
+                if (w[0] !in first || w[w.length - 1] !in last) continue
+                if (!dict.containsKey(w) && (userWords[w] ?: 0) < LEARN_THRESHOLD) continue
+                out += w
+            }
+        }
+        return out
+    }
+
+    /** Häufigkeits-/Kontext-Punktzahl eines Worts (Kleinschreibung). */
+    @Synchronized
+    fun rank(low: String, prev: String?): Float = score(low, prev)
+
+    @Synchronized
+    fun displayForm(low: String): String = display(low)
+
     /** Ein gelerntes Wort wurde doch korrigiert – Zähler wieder senken. */
     @Synchronized
     fun forget(word: String) {
