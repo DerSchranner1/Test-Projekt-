@@ -1,0 +1,509 @@
+package de.schranner.tastatur
+
+import android.annotation.SuppressLint
+import android.content.Context
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.Typeface
+import android.graphics.drawable.ColorDrawable
+import android.os.Handler
+import android.os.Looper
+import android.util.TypedValue
+import android.view.Gravity
+import android.view.HapticFeedbackConstants
+import android.view.MotionEvent
+import android.view.View
+import android.widget.PopupWindow
+import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
+
+enum class ShiftState { OFF, ON, LOCK }
+
+/**
+ * Zeichnet die Tasten selbst und kümmert sich um Berührungen:
+ * Mehrfinger-Tippen, langes Drücken für Sonderzeichen, Löschen mit Wiederholung
+ * und Cursor-Steuerung durch Wischen auf der Leertaste.
+ */
+@SuppressLint("ViewConstructor")
+class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(context) {
+
+    interface Listener {
+        fun onChar(text: String)
+        fun onAction(type: KeyType)
+        fun onCursorMove(steps: Int)
+        fun onSpaceLongPress()
+        fun onEmojiLongPress()
+        fun onDeleteWord()
+    }
+
+    var listener: Listener? = null
+    var haptics = true
+
+    var rows: KeyRows = emptyList()
+        set(value) {
+            field = value
+            requestLayout()
+            layoutKeys()
+            invalidate()
+        }
+
+    var shift = ShiftState.OFF
+        set(value) {
+            if (field != value) { field = value; invalidate() }
+        }
+
+    var enterLabel = "⏎"
+        set(value) { field = value; invalidate() }
+
+    var spaceLabel = "Deutsch"
+        set(value) { field = value; invalidate() }
+
+    var keyHeightPercent = 100
+        set(value) { field = value; requestLayout() }
+
+    private val handler = Handler(Looper.getMainLooper())
+    private val density = resources.displayMetrics.density
+    private fun dp(v: Float) = v * density
+    private fun sp(v: Float) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, v, resources.displayMetrics)
+
+    private val keyPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER }
+    private val hintPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textAlign = Paint.Align.RIGHT
+        color = theme.hint
+        textSize = sp(10f)
+    }
+    private val radius = dp(7f)
+    private val gapX = dp(3f)
+    private val gapY = dp(5f)
+
+    // ---- Berührungen ----
+    private class Touch(val id: Int, var key: Key?, val downX: Float) {
+        var consumed = false
+        var longPressed = false
+        var spaceDrag = false
+        var deleteSwipe = false
+        var lastCursorX = downX
+    }
+
+    private val touches = mutableMapOf<Int, Touch>()
+    private var longPressTouch: Touch? = null
+    private val longPressRunnable = Runnable { onLongPress() }
+    private val repeatRunnable = object : Runnable {
+        override fun run() {
+            listener?.onAction(KeyType.DELETE)
+            handler.postDelayed(this, REPEAT_INTERVAL)
+        }
+    }
+
+    // ---- Popups ----
+    private val previewText = android.widget.TextView(context).apply {
+        gravity = Gravity.CENTER
+        setTextColor(theme.text)
+        textSize = 28f
+        background = roundRect(theme.popup)
+        elevation = dp(4f)
+    }
+    private val previewPopup = PopupWindow(previewText).apply {
+        isClippingEnabled = false
+        isTouchable = false
+        setBackgroundDrawable(ColorDrawable(0))
+    }
+    private val altsView = AltsView(context, theme)
+    private val altsPopup = PopupWindow(altsView).apply {
+        isClippingEnabled = false
+        isTouchable = false
+        setBackgroundDrawable(ColorDrawable(0))
+    }
+    private var altsLeftInView = 0f
+    private var altsCellWidth = 0f
+
+    private fun roundRect(color: Int) = android.graphics.drawable.GradientDrawable().apply {
+        setColor(color)
+        cornerRadius = dp(10f)
+    }
+
+    // ---------------------------------------------------------------- Layout
+
+    private fun rowHeight(): Float = dp(54f) * keyHeightPercent / 100f
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        val w = MeasureSpec.getSize(widthMeasureSpec)
+        val h = (rows.size * rowHeight() + dp(6f)).toInt()
+        setMeasuredDimension(w, h)
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        layoutKeys()
+    }
+
+    private fun layoutKeys() {
+        val w = width.toFloat()
+        if (w <= 0f) return
+        val rh = rowHeight()
+        val maxWeight = rows.maxOfOrNull { r -> r.sumOf { it.weight.toDouble() } }?.toFloat() ?: return
+        rows.forEachIndexed { r, row ->
+            val total = row.sumOf { it.weight.toDouble() }.toFloat()
+            // Reihen mit weniger Tasten behalten die Tastenbreite und werden zentriert
+            val unit = w / max(total, if (total >= maxWeight - 1.01f) total else maxWeight)
+            var x = (w - unit * total) / 2f
+            val top = dp(3f) + r * rh
+            for (k in row) {
+                val kw = unit * k.weight
+                k.bounds.set(x + gapX, top + gapY / 2f, x + kw - gapX, top + rh - gapY / 2f)
+                x += kw
+            }
+        }
+    }
+
+    private fun findKey(x: Float, y: Float): Key? {
+        if (rows.isEmpty()) return null
+        val r = ((y - dp(3f)) / rowHeight()).toInt().coerceIn(0, rows.size - 1)
+        return rows[r].minByOrNull { k ->
+            when {
+                x < k.bounds.left -> k.bounds.left - x
+                x > k.bounds.right -> x - k.bounds.right
+                else -> 0f
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------- Zeichnen
+
+    override fun onDraw(canvas: Canvas) {
+        canvas.drawColor(theme.background)
+        val pressed = touches.values.mapNotNull { if (it.consumed) null else it.key }.toSet()
+        for (row in rows) for (k in row) drawKey(canvas, k, k in pressed)
+    }
+
+    private fun drawKey(canvas: Canvas, k: Key, pressed: Boolean) {
+        val special = k.type != KeyType.CHAR && k.type != KeyType.SPACE
+        keyPaint.color = when {
+            pressed -> theme.keyPressed
+            k.type == KeyType.ENTER -> theme.accent
+            k.type == KeyType.SHIFT && shift == ShiftState.LOCK -> theme.accent
+            special -> theme.specialKey
+            else -> theme.key
+        }
+        canvas.drawRoundRect(k.bounds, radius, radius, keyPaint)
+
+        var label = k.label
+        textPaint.typeface = Typeface.DEFAULT
+        textPaint.color = theme.text
+        textPaint.textSize = sp(23f)
+        when (k.type) {
+            KeyType.CHAR -> {
+                if (shift != ShiftState.OFF && label.length == 1 && label != "ß") label = label.uppercase()
+                if (label.length > 1) textPaint.textSize = sp(17f)
+            }
+            KeyType.SHIFT -> {
+                label = when (shift) { ShiftState.OFF -> "⇧"; ShiftState.ON -> "⬆"; ShiftState.LOCK -> "⇪" }
+                if (shift == ShiftState.LOCK) textPaint.color = theme.accentText
+            }
+            KeyType.ENTER -> {
+                label = enterLabel
+                textPaint.color = theme.accentText
+                textPaint.textSize = if (label.length > 2) sp(15f) else sp(22f)
+            }
+            KeyType.SPACE -> {
+                label = spaceLabel
+                textPaint.color = theme.hint
+                textPaint.textSize = sp(13f)
+            }
+            KeyType.SYMBOLS, KeyType.SYMBOLS2, KeyType.LETTERS -> {
+                textPaint.textSize = sp(15f)
+                textPaint.typeface = Typeface.DEFAULT_BOLD
+            }
+            KeyType.DELETE -> textPaint.textSize = sp(21f)
+            KeyType.EMOJI -> textPaint.textSize = sp(22f)
+        }
+        val cy = k.bounds.centerY() - (textPaint.descent() + textPaint.ascent()) / 2f
+        canvas.drawText(label, k.bounds.centerX(), cy, textPaint)
+        k.hint?.let {
+            canvas.drawText(it, k.bounds.right - dp(4f), k.bounds.top + hintPaint.textSize + dp(1f), hintPaint)
+        }
+    }
+
+    // ---------------------------------------------------------------- Touch
+
+    @SuppressLint("ClickableViewAccessibility")
+    override fun onTouchEvent(e: MotionEvent): Boolean {
+        val idx = e.actionIndex
+        when (e.actionMasked) {
+            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
+                // Schnelles Tippen mit zwei Daumen: vorherige Taste sofort auslösen
+                for (t in touches.values) {
+                    if (!t.consumed && !t.longPressed && !t.spaceDrag && !t.deleteSwipe) {
+                        fire(t.key)
+                        t.consumed = true
+                    }
+                }
+                cancelTimers()
+                hidePreview()
+                val t = Touch(e.getPointerId(idx), findKey(e.getX(idx), e.getY(idx)), e.getX(idx))
+                touches[t.id] = t
+                onDown(t)
+            }
+            MotionEvent.ACTION_MOVE -> {
+                for (i in 0 until e.pointerCount) {
+                    val t = touches[e.getPointerId(i)] ?: continue
+                    onMove(t, e.getX(i), e.getY(i))
+                }
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
+                val t = touches.remove(e.getPointerId(idx))
+                if (t != null) onUp(t)
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                touches.clear()
+                cancelTimers()
+                hidePreview()
+                hideAlts()
+            }
+        }
+        invalidate()
+        return true
+    }
+
+    private fun onDown(t: Touch) {
+        val k = t.key ?: return
+        feedback()
+        when (k.type) {
+            KeyType.DELETE -> {
+                listener?.onAction(KeyType.DELETE)
+                handler.postDelayed(repeatRunnable, REPEAT_DELAY)
+            }
+            KeyType.SHIFT -> {
+                listener?.onAction(KeyType.SHIFT)
+                t.consumed = true
+            }
+            KeyType.CHAR -> {
+                showPreview(k)
+                scheduleLongPress(t, LONG_PRESS)
+            }
+            KeyType.SPACE -> scheduleLongPress(t, LONG_PRESS_SPACE)
+            KeyType.EMOJI -> scheduleLongPress(t, LONG_PRESS_SPACE)
+            else -> {}
+        }
+    }
+
+    private fun onMove(t: Touch, x: Float, y: Float) {
+        if (t.consumed) return
+        val k = t.key ?: return
+        if (t.longPressed) {
+            if (altsPopup.isShowing) {
+                val i = ((x - altsLeftInView) / altsCellWidth).toInt().coerceIn(0, altsView.items.size - 1)
+                altsView.selected = i
+            }
+            return
+        }
+        when (k.type) {
+            KeyType.SPACE -> {
+                if (!t.spaceDrag && abs(x - t.downX) > dp(14f)) {
+                    t.spaceDrag = true
+                    cancelTimers()
+                    t.lastCursorX = x
+                }
+                if (t.spaceDrag) {
+                    val step = dp(11f)
+                    val steps = ((x - t.lastCursorX) / step).toInt()
+                    if (steps != 0) {
+                        listener?.onCursorMove(steps)
+                        t.lastCursorX += steps * step
+                        feedback()
+                    }
+                }
+            }
+            KeyType.DELETE -> {
+                if (!t.deleteSwipe && t.downX - x > dp(40f)) {
+                    // Nach links wischen auf ⌫ löscht ganze Wörter
+                    t.deleteSwipe = true
+                    cancelTimers()
+                    t.lastCursorX = x
+                    listener?.onDeleteWord()
+                } else if (t.deleteSwipe && t.lastCursorX - x > dp(35f)) {
+                    t.lastCursorX = x
+                    listener?.onDeleteWord()
+                    feedback()
+                }
+            }
+            KeyType.CHAR -> {
+                // Finger auf benachbarte Taste geschoben: neue Taste übernehmen
+                val nk = findKey(x, y)
+                if (nk != null && nk != k && nk.type == KeyType.CHAR) {
+                    t.key = nk
+                    cancelTimers()
+                    showPreview(nk)
+                    scheduleLongPress(t, LONG_PRESS)
+                }
+            }
+            else -> {}
+        }
+    }
+
+    private fun onUp(t: Touch) {
+        cancelTimers()
+        hidePreview()
+        if (t.consumed) return
+        val k = t.key ?: return
+        when {
+            t.longPressed -> {
+                if (altsPopup.isShowing) {
+                    val s = altsView.items.getOrNull(altsView.selected)
+                    hideAlts()
+                    if (s != null) listener?.onChar(applyShift(s))
+                }
+            }
+            t.spaceDrag || t.deleteSwipe -> {}
+            k.type == KeyType.DELETE -> {}
+            else -> fire(k)
+        }
+    }
+
+    private fun fire(k: Key?) {
+        k ?: return
+        when (k.type) {
+            KeyType.CHAR -> listener?.onChar(applyShift(k.label))
+            KeyType.SHIFT, KeyType.DELETE -> {}
+            else -> listener?.onAction(k.type)
+        }
+    }
+
+    private fun applyShift(s: String): String =
+        if (shift != ShiftState.OFF && s.length == 1 && s != "ß") s.uppercase() else s
+
+    private fun scheduleLongPress(t: Touch, delay: Long) {
+        longPressTouch = t
+        handler.postDelayed(longPressRunnable, delay)
+    }
+
+    private fun onLongPress() {
+        val t = longPressTouch ?: return
+        if (t.consumed || touches[t.id] !== t) return
+        val k = t.key ?: return
+        when (k.type) {
+            KeyType.SPACE -> { t.consumed = true; listener?.onSpaceLongPress() }
+            KeyType.EMOJI -> { t.consumed = true; listener?.onEmojiLongPress() }
+            KeyType.CHAR -> {
+                if (k.alts.isEmpty()) return
+                t.longPressed = true
+                hidePreview()
+                feedback()
+                showAlts(k)
+            }
+            else -> {}
+        }
+    }
+
+    private fun cancelTimers() {
+        handler.removeCallbacks(longPressRunnable)
+        handler.removeCallbacks(repeatRunnable)
+    }
+
+    private fun feedback() {
+        if (haptics) performHapticFeedback(
+            HapticFeedbackConstants.KEYBOARD_TAP,
+            HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING,
+        )
+    }
+
+    // ---------------------------------------------------------------- Popups
+
+    private fun showPreview(k: Key) {
+        if (windowToken == null) return
+        val w = (k.bounds.width() + dp(16f)).toInt()
+        val h = (k.bounds.height() * 1.25f).toInt()
+        previewText.text = applyShift(k.label)
+        val loc = IntArray(2)
+        getLocationInWindow(loc)
+        val x = loc[0] + k.bounds.centerX().toInt() - w / 2
+        val y = loc[1] + k.bounds.top.toInt() - h - dp(4f).toInt()
+        try {
+            if (previewPopup.isShowing) previewPopup.update(x, y, w, h)
+            else {
+                previewPopup.width = w; previewPopup.height = h
+                previewPopup.showAtLocation(this, Gravity.NO_GRAVITY, x, y)
+            }
+        } catch (_: Exception) { }
+    }
+
+    private fun hidePreview() {
+        if (previewPopup.isShowing) previewPopup.dismiss()
+    }
+
+    private fun showAlts(k: Key) {
+        if (windowToken == null) return
+        val items = listOf(k.label) + k.alts
+        altsView.items = items.map { applyShift(it) }
+        altsCellWidth = max(k.bounds.width(), dp(34f))
+        val w = (altsCellWidth * items.size).toInt()
+        val h = (k.bounds.height() * 1.1f).toInt()
+        var left = k.bounds.centerX() - altsCellWidth / 2f
+        left = min(left, width - w.toFloat()).coerceAtLeast(0f)
+        altsLeftInView = left
+        // Vorauswahl: erstes Sonderzeichen (z. B. Ziffer oder Umlaut)
+        altsView.selected = if (items.size > 1) 1 else 0
+        val loc = IntArray(2)
+        getLocationInWindow(loc)
+        try {
+            altsPopup.width = w; altsPopup.height = h
+            altsPopup.showAtLocation(this, Gravity.NO_GRAVITY,
+                loc[0] + left.toInt(), loc[1] + k.bounds.top.toInt() - h - dp(4f).toInt())
+        } catch (_: Exception) { }
+    }
+
+    private fun hideAlts() {
+        if (altsPopup.isShowing) altsPopup.dismiss()
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        cancelTimers()
+        hidePreview()
+        hideAlts()
+    }
+
+    /** Zeile mit Sonderzeichen, die beim langen Drücken erscheint. */
+    private class AltsView(context: Context, val theme: KeyboardTheme) : View(context) {
+        var items: List<String> = emptyList()
+            set(v) { field = v; invalidate() }
+        var selected = 0
+            set(v) { if (field != v) { field = v; invalidate() } }
+        private val d = context.resources.displayMetrics.density
+        private val bg = Paint(Paint.ANTI_ALIAS_FLAG)
+        private val tp = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            textAlign = Paint.Align.CENTER
+            textSize = 22f * context.resources.displayMetrics.scaledDensity
+        }
+        private val r = RectF()
+
+        override fun onDraw(canvas: Canvas) {
+            if (items.isEmpty()) return
+            bg.color = theme.popup
+            r.set(0f, 0f, width.toFloat(), height.toFloat())
+            canvas.drawRoundRect(r, 10 * d, 10 * d, bg)
+            val cw = width.toFloat() / items.size
+            items.forEachIndexed { i, s ->
+                if (i == selected) {
+                    bg.color = theme.popupSelected
+                    r.set(i * cw + 2 * d, 2 * d, (i + 1) * cw - 2 * d, height - 2 * d)
+                    canvas.drawRoundRect(r, 8 * d, 8 * d, bg)
+                    tp.color = theme.accentText
+                } else tp.color = theme.text
+                tp.textSize = (if (s.length > 2) 15f else 22f) * resources.displayMetrics.scaledDensity
+                val cy = height / 2f - (tp.descent() + tp.ascent()) / 2f
+                canvas.drawText(s, i * cw + cw / 2f, cy, tp)
+            }
+        }
+    }
+
+    companion object {
+        const val LONG_PRESS = 330L
+        const val LONG_PRESS_SPACE = 650L
+        const val REPEAT_DELAY = 400L
+        const val REPEAT_INTERVAL = 45L
+    }
+}
