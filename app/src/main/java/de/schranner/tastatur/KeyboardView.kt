@@ -89,9 +89,22 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
         strokeWidth = dp(5f)
     }
     private val trailPath = android.graphics.Path()
-    private val radius = dp(7f)
-    private val gapX = dp(3f)
-    private val gapY = dp(5f)
+    private val radius = dp(6f)
+    private val gapX = dp(2.5f)
+    private val gapY = dp(7f)
+    private val topPad = dp(4f)
+
+    private fun icon(id: Int) = context.getDrawable(id)!!.mutate()
+    private val icShift = icon(R.drawable.ic_shift)
+    private val icShiftOn = icon(R.drawable.ic_shift_on)
+    private val icShiftLock = icon(R.drawable.ic_shift_lock)
+    private val icDelete = icon(R.drawable.ic_backspace)
+    private val icEmoji = icon(R.drawable.ic_emoji)
+    private val icEnter = icon(R.drawable.ic_enter)
+    private val icSearch = icon(R.drawable.ic_search)
+    private val icSend = icon(R.drawable.ic_send)
+    private val icDone = icon(R.drawable.ic_done)
+    private val icNext = icon(R.drawable.ic_next)
 
     // ---- Berührungen ----
     private class Touch(val id: Int, var key: Key?, val downX: Float) {
@@ -145,12 +158,35 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
 
     // ---------------------------------------------------------------- Layout
 
-    private fun rowHeight(): Float = dp(54f) * keyHeightPercent / 100f
+    private fun rowHeight(): Float = dp(49f) * keyHeightPercent / 100f
+
+    // Die Zahlenreihe ist etwas niedriger als die Buchstabenreihen (wie bei Gboard).
+    private fun baseHeight(r: List<Key>, all: KeyRows) =
+        if (all.size >= 5 && r === all[0] && r.all { it.label.length == 1 && it.label[0].isDigit() }) rowHeight() * 0.82f
+        else rowHeight()
+
+    private fun sumHeights(all: KeyRows) = all.sumOf { baseHeight(it, all).toDouble() }.toFloat()
+
+    /**
+     * Referenz-Layout (Buchstaben): Zahlen-/Symbolseiten werden auf dieselbe Höhe gestreckt,
+     * damit die Tastatur beim Umschalten nicht springt.
+     */
+    var referenceRows: KeyRows? = null
+        set(value) { field = value; requestLayout() }
+
+    private fun heightOf(row: List<Key>): Float {
+        val base = baseHeight(row, rows)
+        val ref = referenceRows ?: return base
+        val own = sumHeights(rows)
+        return if (own > 0f) base * sumHeights(ref) / own else base
+    }
+
+    private fun totalHeight() =
+        (referenceRows?.let { sumHeights(it) } ?: sumHeights(rows)) + topPad * 2
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val w = MeasureSpec.getSize(widthMeasureSpec)
-        val h = (rows.size * rowHeight() + dp(6f)).toInt()
-        setMeasuredDimension(w, h)
+        setMeasuredDimension(w, totalHeight().toInt())
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -161,19 +197,20 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
     private fun layoutKeys() {
         val w = width.toFloat()
         if (w <= 0f) return
-        val rh = rowHeight()
+        var top = topPad
         val maxWeight = rows.maxOfOrNull { r -> r.sumOf { it.weight.toDouble() } }?.toFloat() ?: return
-        rows.forEachIndexed { r, row ->
+        rows.forEach { row ->
             val total = row.sumOf { it.weight.toDouble() }.toFloat()
             // Reihen mit weniger Tasten behalten die Tastenbreite und werden zentriert
-            val unit = w / max(total, if (total >= maxWeight - 1.01f) total else maxWeight)
+            val unit = w / maxWeight
             var x = (w - unit * total) / 2f
-            val top = dp(3f) + r * rh
+            val rh = heightOf(row)
             for (k in row) {
                 val kw = unit * k.weight
                 k.bounds.set(x + gapX, top + gapY / 2f, x + kw - gapX, top + rh - gapY / 2f)
                 x += kw
             }
+            top += rh
         }
     }
 
@@ -193,7 +230,12 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
 
     private fun findKey(x: Float, y: Float): Key? {
         if (rows.isEmpty()) return null
-        val r = ((y - dp(3f)) / rowHeight()).toInt().coerceIn(0, rows.size - 1)
+        var r = rows.size - 1
+        var top = topPad
+        for ((i, row) in rows.withIndex()) {
+            top += heightOf(row)
+            if (y < top) { r = i; break }
+        }
         return rows[r].minByOrNull { k ->
             when {
                 x < k.bounds.left -> k.bounds.left - x
@@ -235,32 +277,44 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
         var label = k.label
         textPaint.typeface = Typeface.DEFAULT
         textPaint.color = theme.text
-        textPaint.textSize = sp(23f)
+        textPaint.textSize = sp(21f)
+        val iconSize = dp(22f)
+        fun drawIcon(d: android.graphics.drawable.Drawable, color: Int, size: Float = iconSize) {
+            val cx = k.bounds.centerX().toInt()
+            val cy = k.bounds.centerY().toInt()
+            val h = (size / 2).toInt()
+            d.setBounds(cx - h, cy - h, cx + h, cy + h)
+            d.setTint(color)
+            d.draw(canvas)
+        }
         when (k.type) {
             KeyType.CHAR -> {
                 if (shift != ShiftState.OFF && label.length == 1 && label != "ß") label = label.uppercase()
-                if (label.length > 1) textPaint.textSize = sp(17f)
+                if (label.length > 1) textPaint.textSize = sp(16f)
+                if (rows.size >= 5 && k in rows[0] && baseHeight(rows[0], rows) < rowHeight()) textPaint.textSize = sp(18f)
             }
             KeyType.SHIFT -> {
-                label = when (shift) { ShiftState.OFF -> "⇧"; ShiftState.ON -> "⬆"; ShiftState.LOCK -> "⇪" }
-                if (shift == ShiftState.LOCK) textPaint.color = theme.accentText
+                val d = when (shift) { ShiftState.OFF -> icShift; ShiftState.ON -> icShiftOn; ShiftState.LOCK -> icShiftLock }
+                drawIcon(d, if (shift == ShiftState.LOCK) theme.accentText else theme.text)
+                return
             }
+            KeyType.DELETE -> { drawIcon(icDelete, theme.text); return }
+            KeyType.EMOJI -> { drawIcon(icEmoji, theme.text); return }
             KeyType.ENTER -> {
-                label = enterLabel
-                textPaint.color = theme.accentText
-                textPaint.textSize = if (label.length > 2) sp(15f) else sp(22f)
+                val d = when (enterLabel) {
+                    "🔍" -> icSearch; "➤" -> icSend; "✓" -> icDone; "➜", "⇥" -> icNext; else -> icEnter
+                }
+                drawIcon(d, theme.accentText)
+                return
             }
             KeyType.SPACE -> {
                 label = spaceLabel
                 textPaint.color = theme.hint
-                textPaint.textSize = sp(13f)
+                textPaint.textSize = sp(12f)
             }
             KeyType.SYMBOLS, KeyType.SYMBOLS2, KeyType.LETTERS -> {
-                textPaint.textSize = sp(15f)
-                textPaint.typeface = Typeface.DEFAULT_BOLD
+                textPaint.textSize = sp(14f)
             }
-            KeyType.DELETE -> textPaint.textSize = sp(21f)
-            KeyType.EMOJI -> textPaint.textSize = sp(22f)
         }
         val cy = k.bounds.centerY() - (textPaint.descent() + textPaint.ascent()) / 2f
         canvas.drawText(label, k.bounds.centerX(), cy, textPaint)

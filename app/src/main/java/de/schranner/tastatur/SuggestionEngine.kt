@@ -417,9 +417,9 @@ class SuggestionEngine(
         /** Nachbartasten anhand der echten Tastenpositionen (QWERTZ). */
         private val NEIGHBORS: Map<Char, String> = run {
             val pos = HashMap<Char, Pair<Float, Float>>()
-            "qwertzuiopü".forEachIndexed { i, c -> pos[c] = (i + 0.5f) to 0f }
-            "asdfghjklöä".forEachIndexed { i, c -> pos[c] = (i + 0.5f) to 1f }
-            "yxcvbnmß".forEachIndexed { i, c -> pos[c] = (i + 2f) to 2f }
+            "qwertzuiop".forEachIndexed { i, c -> pos[c] = (i + 0.5f) to 0f }
+            "asdfghjkl".forEachIndexed { i, c -> pos[c] = (i + 1f) to 1f }
+            "yxcvbnm".forEachIndexed { i, c -> pos[c] = (i + 2f) to 2f }
             val m = HashMap<Char, String>()
             for ((c, p) in pos) {
                 m[c] = pos.filter { (o, q) ->

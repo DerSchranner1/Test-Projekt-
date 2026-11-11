@@ -72,7 +72,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     private lateinit var voiceRow: LinearLayout
     private lateinit var voiceStatus: TextView
     private lateinit var levelView: LevelView
-    private lateinit var micButton: TextView
+    private lateinit var micButton: View
     private val slots = arrayOfNulls<TextView>(3)
     private var shown = arrayOfNulls<Sugg>(3)
     private var mediaPanel: MediaPanel? = null
@@ -140,7 +140,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(theme.background)
         }
-        root.addView(buildBar(), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(46f)))
+        root.addView(buildBar(), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(42f)))
         keyboard = KeyboardView(this, theme).also { it.listener = this }
         content = FrameLayout(this)
         content.addView(keyboard, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
@@ -234,6 +234,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
             Mode.SYMBOLS2 -> Layouts.symbols2()
             Mode.NUMPAD -> Layouts.numpad(field == FieldKind.PHONE)
         }
+        keyboard.referenceRows = if (mode == Mode.NUMPAD) null else Layouts.letters(prefs.numberRow, field)
         if (mode != Mode.LETTERS) keyboard.shift = ShiftState.OFF
         keyboard.gestureEnabled = prefs.gestureTyping && mode == Mode.LETTERS && (suggestionsOn || searchTarget != null)
         keyboard.gestureTrail = prefs.gestureTrail
@@ -810,7 +811,6 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         if (!::voiceRow.isInitialized) return
         voiceRow.visibility = View.GONE
         suggRow.visibility = View.VISIBLE
-        micButton.text = "🎤"
     }
 
     private fun openSettings(page: String?, askMic: Boolean) {
@@ -832,6 +832,14 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         setOnClickListener { onClick() }
     }
 
+    private fun iconButton(res: Int, onClick: () -> Unit) = android.widget.ImageView(this).apply {
+        setImageResource(res)
+        setColorFilter(theme.hint)
+        scaleType = android.widget.ImageView.ScaleType.CENTER
+        background = rippleBg()
+        setOnClickListener { onClick() }
+    }
+
     private fun rippleBg() = android.graphics.drawable.RippleDrawable(
         android.content.res.ColorStateList.valueOf(theme.keyPressed), null,
         GradientDrawable().apply { setColor(0xFFFFFFFF.toInt()); cornerRadius = dp(8f).toFloat() },
@@ -840,14 +848,12 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     private fun buildBar(): View {
         val frame = FrameLayout(this)
         suggRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        suggRow.addView(barButton("📋") { showPanel(if (panel == Panel.CLIPBOARD) Panel.KEYBOARD else Panel.CLIPBOARD) },
+        suggRow.addView(iconButton(R.drawable.ic_clipboard) { showPanel(if (panel == Panel.CLIPBOARD) Panel.KEYBOARD else Panel.CLIPBOARD) },
             LinearLayout.LayoutParams(dp(48f), ViewGroup.LayoutParams.MATCH_PARENT))
         for (i in 0..2) {
-            if (i > 0) suggRow.addView(View(this).apply { setBackgroundColor(theme.divider) },
-                LinearLayout.LayoutParams(dp(1f), dp(22f)))
             val tv = TextView(this).apply {
                 gravity = Gravity.CENTER
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 17f)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
                 setTextColor(theme.barText)
                 maxLines = 1
                 ellipsize = TextUtils.TruncateAt.END
@@ -866,7 +872,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
             slots[i] = tv
             suggRow.addView(tv, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
         }
-        micButton = barButton("🎤") { onMicTap() }
+        micButton = iconButton(R.drawable.ic_mic) { onMicTap() }
         suggRow.addView(micButton, LinearLayout.LayoutParams(dp(52f), ViewGroup.LayoutParams.MATCH_PARENT))
 
         voiceRow = LinearLayout(this).apply {

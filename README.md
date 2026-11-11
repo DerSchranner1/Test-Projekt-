@@ -4,8 +4,11 @@ Eine deutsche Android-Tastatur, die Tippen, Diktieren, Emojis und die Zwischenab
 
 ## Was sie kann
 
+- **Schlicht und dunkel:** Nur Dark Mode, im Stil von Gboard. Je Reihe 10 Tasten, eine eigene Zahlenreihe oben, einfarbige Symbole.
+- **Umlaute per langem Druck:** Langes Drücken auf a, o, u oder s wählt direkt ä, ö, ü oder ß vor. Loslassen genügt.
+
 - **Bessere Spracherkennung (kostenlos):** 🎤 antippen, sprechen, ■ antippen. Die Erkennung läuft über Whisper large-v3 bei Groq: Satzzeichen werden automatisch gesetzt, Namen aus deinem Wörterbuch werden mitgegeben, typische Whisper-Fehler bei Stille („Untertitel im Auftrag des ZDF“) werden herausgefiltert. Ohne Groq-Schlüssel nutzt sie die Android-Spracherkennung.
-- **Wischen zum Schreiben:** Finger über die Buchstaben ziehen. Die Erkennung läuft auf dem Handy, oben erscheinen Alternativen, ⌫ löscht das ganze gewischte Wort. Ein- und ausschaltbar unter Einstellungen → Tippen & Korrektur.
+- **Wischen zum Schreiben:** Finger über die Buchstaben ziehen. Die Erkennung läuft auf dem Handy, oben erscheinen Alternativen, ⌫ löscht das ganze gewischte Wort. Ein- und ausschaltbar in den Einstellungen.
 - **Autokorrektur wählbar:** Standardmäßig aus. Eingeschaltet ersetzt sie nur eindeutige Tippfehler, ⌫ direkt danach macht die Korrektur rückgängig.
 - **GIFs und Sticker:** Über ☺ erreichst du die Reiter GIF und Sticker. Es gibt Suche und Themen (Haha, Danke, Liebe …). Die GIFs kommen von GIPHY und brauchen einen kostenlosen Schlüssel. Dazu kommen eigene Sticker aus der Galerie und Emoji-Sticker. Alles wird als echtes Bild eingefügt, wenn die App das unterstützt.
 - **Ohne Autokorrektur: Markieren und Vorschlagen:** Es wird nichts automatisch geändert. Unbekannte Wörter werden rot unterstrichen, oben erscheinen Korrekturen zum Antippen. Mit „+“ nimmst du ein Wort ins Wörterbuch auf.
@@ -15,16 +18,15 @@ Eine deutsche Android-Tastatur, die Tippen, Diktieren, Emojis und die Zwischenab
 - **Bedienung:**
   - Leertaste gedrückt halten und wischen bewegt den Cursor.
   - Auf ⌫ nach links wischen löscht ganze Wörter.
-  - Lang drücken gibt Umlaute und Ziffern.
+  - Lang drücken gibt Umlaute und Sonderzeichen.
   - Zweimal Leertaste setzt einen Punkt.
   - Zweimal ⇧ schaltet die Feststelltaste ein.
-  - Helles und dunkles Design wechseln automatisch mit dem System.
 
 ## Installieren
 
 1. Auf dem Handy die neueste APK herunterladen: **Releases → „KlarTastatur – neueste Version“ → `KlarTastatur.apk`**. Jeder Push baut sie automatisch neu (GitHub Actions).
 2. Die APK öffnen. Wenn Android fragt, die Installation aus dieser Quelle erlauben.
-3. Die App „KlarTastatur“ öffnen und den drei Schritten folgen: Tastatur aktivieren, auswählen, Mikrofon erlauben.
+3. Die App „KlarTastatur“ öffnen und den drei Schritten folgen: Tastatur aktivieren, auswählen, Mikrofon erlauben. Es gibt nur wenige Einstellungen, alle auf einer Seite: Wischen, Autokorrektur, Zahlenreihe, Vibration und die beiden kostenlosen Schlüssel.
 4. Für die gute Spracherkennung auf [console.groq.com/keys](https://console.groq.com/keys) einen kostenlosen Schlüssel erstellen und in der App einfügen.
 
 ## Selbst bauen

@@ -11,7 +11,7 @@ class Key(
     val alts: List<String> = emptyList(),
 ) {
     /** Kleiner Hinweis oben rechts (z. B. Ziffer bei langem Drücken). */
-    val hint: String? = alts.firstOrNull()?.takeIf { it.length == 1 && it[0].isDigit() }
+    val hint: String? = null
     val bounds = RectF()
 }
 
@@ -25,9 +25,9 @@ object Layouts {
         val list = mutableListOf(left)
         list += Key(comma, KeyType.CHAR, 1f, commaAlts(comma))
         if (emoji) list += Key("☺", KeyType.EMOJI, 1f)
-        list += Key(" ", KeyType.SPACE, if (emoji) 4.5f else 5.5f)
+        list += Key(" ", KeyType.SPACE, if (emoji) 4f else 5f)
         list += Key(period, KeyType.CHAR, 1f, listOf(".", "…", "!", "?", ",", "-", ":", ";", "'", "\"").filter { it != period })
-        list += Key("⏎", KeyType.ENTER, 2f)
+        list += Key("⏎", KeyType.ENTER, 1.5f)
         return list
     }
 
@@ -40,20 +40,19 @@ object Layouts {
     fun letters(numberRow: Boolean, field: FieldKind): KeyRows {
         val rows = mutableListOf<List<Key>>()
         if (numberRow) {
-            rows += "1234567890".map { Key(it.toString(), KeyType.CHAR, 1.1f, numberAlts(it)) }
+            rows += "1234567890".map { Key(it.toString(), KeyType.CHAR, 1f, numberAlts(it)) }
         }
+        // Lang drücken: der Umlaut ist automatisch vorausgewählt (a → ä, o → ö, u → ü, s → ß)
         rows += listOf(
-            c("q", "1"), c("w", "2"), c("e", "3 € é è ê ë"), c("r", "4"), c("t", "5"),
-            c("z", "6"), c("u", "7 ü ú ù û"), c("i", "8 í ì î ï"), c("o", "9 ö ó ò ô œ"),
-            c("p", "0"), c("ü", "u"),
+            c("q"), c("w"), c("e", "é è ê ë €"), c("r"), c("t"),
+            c("z"), c("u", "ü ú ù û"), c("i", "í ì î ï"), c("o", "ö ó ò ô œ ø"), c("p"),
         )
         rows += listOf(
-            c("a", "@ ä á à â æ å"), c("s", "ß $ š"), c("d", "&"), c("f", "_"), c("g", "-"),
-            c("h", "+"), c("j", "("), c("k", ")"), c("l", "/"), c("ö", "o"), c("ä", "a"),
+            c("a", "ä á à â æ å"), c("s", "ß ś š"), c("d"), c("f"), c("g"),
+            c("h"), c("j"), c("k"), c("l"),
         )
         rows += listOf(Key("⇧", KeyType.SHIFT, 1.5f)) +
-            listOf(c("y", "*"), c("x", "\""), c("c", "' ç"), c("v", ":"), c("b", ";"),
-                c("n", "! ñ"), c("m", "?"), c("ß", "s")) +
+            listOf(c("y"), c("x"), c("c", "ç č"), c("v"), c("b"), c("n", "ñ"), c("m")) +
             listOf(Key("⌫", KeyType.DELETE, 1.5f))
         val comma = when (field) { FieldKind.EMAIL -> "@"; FieldKind.URL -> "/"; else -> "," }
         rows += bottomRow(Key("?123", KeyType.SYMBOLS, 1.5f), comma, ".", true)

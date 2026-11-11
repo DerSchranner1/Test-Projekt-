@@ -22,7 +22,7 @@ class Prefs(context: Context) {
         set(v) = sp.edit().putBoolean(KEY_VIBRATE, v).apply()
 
     var numberRow: Boolean
-        get() = sp.getBoolean(KEY_NUMBER_ROW, false)
+        get() = sp.getBoolean(KEY_NUMBER_ROW, true)
         set(v) = sp.edit().putBoolean(KEY_NUMBER_ROW, v).apply()
 
     var markTypos: Boolean

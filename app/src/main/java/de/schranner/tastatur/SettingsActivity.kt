@@ -48,15 +48,7 @@ class SettingsActivity : Activity() {
         scroll.fitsSystemWindows = true
         setContentView(scroll)
 
-        when (intent.getStringExtra(EXTRA_PAGE)) {
-            PAGE_TYPING -> pageTyping()
-            PAGE_VOICE -> pageVoice()
-            PAGE_MEDIA -> pageMedia()
-            PAGE_LOOK -> pageLook()
-            PAGE_DICT -> pageDict()
-            PAGE_TIPS -> pageTips()
-            else -> pageMain()
-        }
+        pageMain()
         if (intent.getBooleanExtra(EXTRA_ASK_MIC, false)) askMic()
     }
 
@@ -64,160 +56,51 @@ class SettingsActivity : Activity() {
 
     private fun pageMain() {
         title("KlarTastatur")
-        text("Deutsche Tastatur mit Wischen, besserer Spracherkennung, Zwischenablage-Verlauf, Emojis, GIFs und Stickern.")
 
         heading("Einrichten")
         stepEnable = button("Tastatur aktivieren") { startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS)) }
         stepSelect = button("Als Tastatur auswählen") {
             (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).showInputMethodPicker()
         }
-        stepMic = button("Mikrofon erlauben (zum Diktieren)") { askMic() }
+        stepMic = button("Mikrofon erlauben") { askMic() }
 
         heading("Einstellungen")
-        entry("⌨️  Tippen & Korrektur", "Wischen, Autokorrektur, Vorschläge, Großschreibung") { open(PAGE_TYPING) }
-        entry("🎤  Spracheingabe", if (prefs.groqKey.isBlank()) "Noch kein Groq-Schlüssel – einrichten" else "Whisper aktiv ✓") { open(PAGE_VOICE) }
-        entry("🎞️  GIFs & Sticker", if (prefs.giphyKey.isBlank()) "GIPHY-Schlüssel, eigene Sticker" else "GIPHY aktiv ✓ – eigene Sticker") { open(PAGE_MEDIA) }
-        entry("🎨  Aussehen & Bedienung", "Zahlenreihe, Tastenhöhe, Vibration") { open(PAGE_LOOK) }
-        entry("📖  Mein Wörterbuch", "Gelernte Wörter ansehen oder löschen") { open(PAGE_DICT) }
-        entry("💡  Tipps", "Alle Gesten und Tricks") { open(PAGE_TIPS) }
-
-        heading("Ausprobieren")
-        testField()
-    }
-
-    private fun pageTyping() {
-        title("Tippen & Korrektur")
-
-        heading("Wischen zum Schreiben")
         switch("Wischen zum Schreiben", prefs.gestureTyping) { prefs.gestureTyping = it }
-        hint("Finger von Buchstabe zu Buchstabe ziehen, ohne abzusetzen. Oben erscheinen Alternativen, ⌫ löscht das ganze gewischte Wort.")
-        switch("Wischspur anzeigen", prefs.gestureTrail) { prefs.gestureTrail = it }
-
-        heading("Korrektur")
         switch("Autokorrektur", prefs.autocorrect) { prefs.autocorrect = it }
-        hint("Eindeutige Tippfehler werden bei Leertaste oder Satzzeichen automatisch ersetzt. ⌫ direkt danach macht die Korrektur rückgängig. Aus: nichts wird automatisch geändert.")
-        switch("Tippfehler rot markieren", prefs.markTypos) { prefs.markTypos = it }
-        hint("Unbekannte Wörter werden rot unterstrichen, Korrekturen erscheinen oben zum Antippen.")
+        hint("Aus: Tippfehler werden nur rot markiert. An: eindeutige Fehler werden ersetzt, ⌫ macht es rückgängig.")
+        switch("Zahlenreihe", prefs.numberRow) { prefs.numberRow = it }
+        switch("Vibration", prefs.vibrate) { prefs.vibrate = it }
 
-        heading("Vorschläge")
-        switch("Wortvorschläge anzeigen", prefs.showSuggestions) { prefs.showSuggestions = it }
-        switch("Emoji-Vorschläge beim Tippen", prefs.emojiSuggestions) { prefs.emojiSuggestions = it }
+        heading("Spracheingabe")
+        hint("Kostenloser Schlüssel von console.groq.com → „API Keys“. Ohne Schlüssel: Android-Spracherkennung.")
+        link("Schlüssel holen") { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://console.groq.com/keys"))) }
+        keyField("Groq-Schlüssel (gsk_…)", prefs.groqKey) { prefs.groqKey = it }
 
-        heading("Automatisch")
-        switch("Großschreibung am Satzanfang", prefs.autoCaps) { prefs.autoCaps = it }
-        switch("Zweimal Leertaste = Punkt", prefs.doubleSpacePeriod) { prefs.doubleSpacePeriod = it }
-
-        heading("Ausprobieren")
-        testField()
-    }
-
-    private fun pageVoice() {
-        title("Spracheingabe")
-        text("Für die beste Erkennung nutzt die Tastatur Whisper (large-v3) über den Dienst Groq. Das ist kostenlos (großzügiges Tageslimit), du brauchst nur einen eigenen Schlüssel:\n\n" +
-            "1. Auf console.groq.com mit Google-Konto anmelden\n" +
-            "2. „API Keys“ → „Create API Key“\n" +
-            "3. Schlüssel kopieren und unten einfügen\n\n" +
-            "Ohne Schlüssel wird die normale Android-Spracherkennung verwendet. Beim Diktieren mit Schlüssel wird die Aufnahme an Groq geschickt.")
-        button("console.groq.com öffnen") {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://console.groq.com/keys")))
-        }
-        keyField("gsk_…", prefs.groqKey) { prefs.groqKey = it }
-        heading("Optionen")
-        stepMic = button("Mikrofon erlauben") { askMic() }
-        switch("Sprache automatisch erkennen (statt nur Deutsch)", prefs.voiceLanguage == "auto") {
-            prefs.voiceLanguage = if (it) "auto" else "de"
-        }
-    }
-
-    private fun pageMedia() {
-        title("GIFs & Sticker")
-        heading("GIFs und GIPHY-Sticker")
-        text("GIFs kommen von GIPHY (Googles Tenor wurde 2026 abgeschaltet). Dafür brauchst du einen kostenlosen Schlüssel:\n\n" +
-            "1. developers.giphy.com öffnen und kostenloses Konto anlegen\n" +
-            "2. „Create an App“ → „API“ wählen → Namen eingeben\n" +
-            "3. Den „API Key“ kopieren und unten einfügen\n\n" +
-            "Der kostenlose Schlüssel erlaubt 100 Suchen pro Stunde – für den Alltag genug.")
-        button("developers.giphy.com öffnen") {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://developers.giphy.com/dashboard/")))
-        }
-        keyField("GIPHY API Key", prefs.giphyKey) { prefs.giphyKey = it }
-
-        heading("Eigene Sticker")
-        text("Nimm beliebige Bilder aus deiner Galerie als Sticker (auch animierte GIFs). Sie liegen nur auf deinem Handy. In der Tastatur: ☺ → Sticker → Eigene. Lang drücken löscht einen Sticker.")
-        stickerInfo = text("")
+        heading("GIFs & Sticker")
+        hint("Für GIFs: kostenloser Schlüssel von developers.giphy.com → „Create an App“ → „API“.")
+        link("Schlüssel holen") { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://developers.giphy.com/dashboard/"))) }
+        keyField("GIPHY-Schlüssel", prefs.giphyKey) { prefs.giphyKey = it }
+        stickerInfo = hint("")
         updateStickerInfo()
-        button("Bilder als Sticker hinzufügen") {
+        button("Eigene Sticker aus Galerie hinzufügen") {
             startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                 type = "image/*"
                 addCategory(Intent.CATEGORY_OPENABLE)
                 putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
             }, REQ_STICKERS)
         }
-        button("Alle eigenen Sticker löschen") {
-            StickerStore(this).clear(); updateStickerInfo()
-        }
-        hint("Emoji-Sticker (große Emojis als Bild) gibt es ohne Einrichtung. Ob eine App GIFs oder Sticker als Bild annimmt, entscheidet die App – sonst wird ein Link bzw. das Emoji eingefügt.")
-    }
 
-    private fun pageLook() {
-        title("Aussehen & Bedienung")
-        switch("Zahlenreihe immer anzeigen", prefs.numberRow) { prefs.numberRow = it }
-        switch("Vibration beim Tippen", prefs.vibrate) { prefs.vibrate = it }
-        text("Tastenhöhe")
-        col.addView(SeekBar(this).apply {
-            max = 50
-            progress = prefs.keyHeightPercent - 80
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) { prefs.keyHeightPercent = 80 + p }
-                override fun onStartTrackingTouch(s: SeekBar?) {}
-                override fun onStopTrackingTouch(s: SeekBar?) {}
-            })
-        })
-        hint("Helles und dunkles Design folgen automatisch der Systemeinstellung.")
         heading("Ausprobieren")
         testField()
     }
 
-    private fun pageDict() {
-        title("Mein Wörterbuch")
-        text("Die Tastatur lernt Wörter, die du mindestens zweimal schreibst, und merkt sich, welches Wort du oft nach welchem schreibst. Alles bleibt auf deinem Handy.")
-        val engine = SuggestionEngine(this)
-        val dictInfo = text("Wird geladen …")
-        Thread {
-            engine.loadAsync()
-            while (!engine.isReady()) Thread.sleep(50)
-            val words = engine.userWordList()
-            runOnUiThread {
-                dictInfo.text = if (words.isEmpty()) "Noch keine eigenen Wörter gelernt."
-                else "${words.size} eigene Wörter: " + words.take(150).joinToString(", ") + if (words.size > 150) " …" else ""
-            }
-        }.start()
-        button("Gelernte Wörter löschen") {
-            engine.clearUserData()
-            getSharedPreferences("settings", MODE_PRIVATE).edit()
-                .putLong("user_data_cleared", System.currentTimeMillis()).apply()
-            dictInfo.text = "Gelöscht."
-        }
-        text("\nWörterbuch: wordfreq (CC BY-SA 4.0) und igerman98 (GPL).").apply {
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-        }
-    }
-
-    private fun pageTips() {
-        title("Tipps")
-        text("• Wischen: Finger über die Buchstaben ziehen\n" +
-            "• Leertaste gedrückt halten und wischen: Cursor bewegen\n" +
-            "• Auf ⌫ nach links wischen: ganze Wörter löschen\n" +
-            "• Taste lang drücken: Umlaute, Ziffern, Sonderzeichen\n" +
-            "• Zweimal Leertaste: Punkt\n" +
-            "• Zweimal ⇧: Feststelltaste\n" +
-            "• Rot markiertes Wort: Korrektur oben antippen – oder „+“ zum Wörterbuch hinzufügen\n" +
-            "• Vorschlag lang drücken: Wort ins Wörterbuch aufnehmen\n" +
-            "• 📋 oben links: Zwischenablage, 📌 heftet an\n" +
-            "• ☺: Emojis, GIFs und Sticker\n" +
-            "• ☺ lang drücken: Einstellungen\n" +
-            "• Leertaste lang drücken: Tastatur wechseln")
-    }
+    private fun link(label: String, onClick: () -> Unit) = col.addView(TextView(this).apply {
+        text = label
+        setTextColor(android.graphics.Color.parseColor("#A8C7FA"))
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+        setPadding(0, dp(2f), 0, dp(6f))
+        setOnClickListener { onClick() }
+    })
 
     // ================================================================== Ablauf
 
@@ -250,7 +133,7 @@ class SettingsActivity : Activity() {
 
     private fun updateStickerInfo() {
         val n = StickerStore(this).list().size
-        stickerInfo?.text = if (n == 0) "Noch keine eigenen Sticker." else "$n eigene Sticker."
+        stickerInfo?.text = if (n == 0) "Noch keine eigenen Sticker." else "$n eigene Sticker (in der Tastatur lang drücken zum Löschen)."
     }
 
     private fun refreshSteps() {
@@ -282,10 +165,6 @@ class SettingsActivity : Activity() {
             Toast.makeText(this, "Mikrofon erlaubt ✓ – jetzt kannst du diktieren", Toast.LENGTH_SHORT).show()
             finish()
         }
-    }
-
-    private fun open(page: String) {
-        startActivity(Intent(this, SettingsActivity::class.java).putExtra(EXTRA_PAGE, page))
     }
 
     // ================================================================== Bausteine
@@ -323,29 +202,6 @@ class SettingsActivity : Activity() {
         setOnClickListener { onClick() }
     }.also {
         col.addView(it, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-    }
-
-    /** Eintrag, der eine Unterseite öffnet. */
-    private fun entry(label: String, sub: String, onClick: () -> Unit) {
-        val box = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(4f), dp(12f), dp(4f), dp(12f))
-            isClickable = true
-            val tv = TypedValue()
-            theme.resolveAttribute(android.R.attr.selectableItemBackground, tv, true)
-            setBackgroundResource(tv.resourceId)
-            setOnClickListener { onClick() }
-        }
-        box.addView(TextView(this).apply {
-            text = "$label  ›"
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 17f)
-        })
-        box.addView(TextView(this).apply {
-            text = sub
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
-            alpha = 0.65f
-        })
-        col.addView(box)
     }
 
     private fun keyField(hintText: String, value: String, save: (String) -> Unit) {

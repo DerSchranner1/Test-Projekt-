@@ -10,9 +10,10 @@ class GestureDecoderTest {
 
     private val keyW = 100f
     private val centers: Map<Char, GestureDecoder.Pt> = HashMap<Char, GestureDecoder.Pt>().apply {
-        "qwertzuiopü".forEachIndexed { i, c -> put(c, GestureDecoder.Pt((i + 0.5f) * keyW, 50f)) }
-        "asdfghjklöä".forEachIndexed { i, c -> put(c, GestureDecoder.Pt((i + 0.5f) * keyW, 150f)) }
-        "yxcvbnmß".forEachIndexed { i, c -> put(c, GestureDecoder.Pt((i + 2f) * keyW, 250f)) }
+        // Wie auf der Tastatur: 10 / 9 (eingerückt) / 7 Buchstaben, Umlaute per langem Druck
+        "qwertzuiop".forEachIndexed { i, c -> put(c, GestureDecoder.Pt((i + 0.5f) * keyW, 50f)) }
+        "asdfghjkl".forEachIndexed { i, c -> put(c, GestureDecoder.Pt((i + 1f) * keyW, 150f)) }
+        "yxcvbnm".forEachIndexed { i, c -> put(c, GestureDecoder.Pt((i + 2f) * keyW, 250f)) }
     }
 
     private val engine = SuggestionEngine(
@@ -23,7 +24,7 @@ class GestureDecoderTest {
 
     /** Wischspur wie von einem echten Finger: zittrig, Ecken leicht abgerundet. */
     private fun swipe(word: String, rnd: Random, noise: Float): List<GestureDecoder.Pt> {
-        val keys = word.lowercase().map { centers[it]!! }
+        val keys = word.lowercase().map { centers[it] ?: centers[SuggestionEngine.baseChar(it)]!! }
         val out = ArrayList<GestureDecoder.Pt>()
         fun jitter() = (rnd.nextFloat() - 0.5f) * 2 * noise
         val offX = jitter() * 0.8f
