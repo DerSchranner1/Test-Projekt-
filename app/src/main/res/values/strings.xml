@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Lärmwächter</string>
+
+    <!-- Units -->
+    <string name="unit_seconds">%1$d s</string>
+    <string name="unit_minutes">%1$d min</string>
+    <string name="unit_hours">%1$d h</string>
+    <string name="unit_hours_minutes">%1$d h %2$d min</string>
+    <string name="unit_under_minute">unter 1 min</string>
+    <string name="unit_unlimited">unbegrenzt</string>
+    <string name="unit_db">dB(A)</string>
+    <string name="span_instant">sofort</string>
+
+    <!-- Notifications -->
+    <string name="channel_monitor">Überwachung läuft</string>
+    <string name="channel_alert_sound">Lärmwarnung mit Ton</string>
+    <string name="channel_alert_silent">Lärmwarnung ohne Ton</string>
+    <string name="channel_status">Hinweise</string>
+    <string name="notif_monitor_title">Lärmwächter aktiv</string>
+    <string name="notif_waiting">Erste Messung läuft …</string>
+    <string name="notif_mic_unavailable">Mikrofon gerade nicht verfügbar</string>
+    <string name="notif_level">Zuletzt %1$d dB(A) · Ø %2$s: %3$d dB(A)</string>
+    <string name="action_stop">Stoppen</string>
+    <string name="alert_title_instant">Zu laut: %1$d dB(A)</string>
+    <string name="alert_title_average">Zu laut: Ø %1$d dB(A) über %2$s</string>
+    <string name="alert_text">Bei dieser Lautstärke gelten höchstens %1$s pro Tag als unbedenklich. Abstand nehmen oder Gehörschutz tragen.</string>
+    <string name="dose_alert_title">Tagesdosis erreicht</string>
+    <string name="dose_alert_text" formatted="false">Dein Gehör hat heute 100 % der empfohlenen Lärmmenge abbekommen. Gönn ihm Ruhe.</string>
+    <string name="restart_title">Lärmwächter ist aus</string>
+    <string name="restart_text">Tippen, um die Überwachung wieder zu starten.</string>
+
+    <!-- Level card -->
+    <string name="level_off">Überwachung ist aus</string>
+    <string name="level_waiting">Erste Messung läuft …</string>
+    <string name="level_no_value">–</string>
+    <string name="level_over_range">Über dem Messbereich – der echte Wert liegt höher.</string>
+    <string name="level_average">Ø %1$s: %2$d dB(A)</string>
+    <string name="level_instant_mode">Warnung bei einzelner lauter Messung</string>
+    <string name="status_quiet">Unbedenklich</string>
+    <string name="status_near">Nahe an deiner Schwelle</string>
+    <string name="status_loud">Zu laut</string>
+    <string name="status_mic_unavailable">Mikrofon gerade nicht verfügbar (z. B. während eines Anrufs)</string>
+    <string name="button_start">Überwachung starten</string>
+    <string name="button_stop">Überwachung stoppen</string>
+
+    <!-- Dose card -->
+    <string name="dose_title">Tagesdosis</string>
+    <string name="dose_value">%1$d %%</string>
+    <string name="dose_caption" formatted="false">100 % entsprechen 8 Stunden bei 85 dB(A). Je 3 dB mehr halbiert sich die Zeit.</string>
+
+    <!-- Energy card -->
+    <string name="energy_title">Akkuverbrauch (Schätzung)</string>
+    <string name="energy_single">ca. %1$s %% Akku pro Tag</string>
+    <string name="energy_range">ca. %1$s %% Akku pro Tag in ruhiger Umgebung, bis ca. %2$s %% bei Dauerlärm</string>
+    <string name="energy_duty">Mikrofon aktiv: %1$s %% der Zeit. Dazwischen schläft das Telefon.</string>
+    <string name="energy_duty_awake">Mikrofon aktiv: %1$s %% der Zeit. Bei so kurzen Abständen bleibt der Prozessor wach.</string>
+    <string name="energy_disclaimer">Gerechnet mit typischen Werten für einen 4500-mAh-Akku. Der echte Verbrauch hängt vom Gerät ab und steht in den Akku-Einstellungen von Android.</string>
+
+    <!-- Hints -->
+    <string name="hint_permission_title">Mikrofon-Zugriff fehlt</string>
+    <string name="hint_permission_text">Ohne Mikrofon kann die App nichts messen. Erlaube den Zugriff in den App-Einstellungen.</string>
+    <string name="hint_permission_button">App-Einstellungen öffnen</string>
+    <string name="hint_battery_title">Pünktlich messen, auch im Ruhezustand</string>
+    <string name="hint_battery_text">Liegt das Telefon lange still, verschiebt Android die Messungen. Nimm die App von der Akku-Optimierung aus, damit sie pünktlich aufwachen darf. Sie verbraucht dadurch nicht mehr.</string>
+    <string name="hint_battery_button">Ausnahme erlauben</string>
+    <string name="hint_alarm_title">Telefon kann nicht schlafen</string>
+    <string name="hint_alarm_text">Ohne die Berechtigung „Wecker und Erinnerungen“ muss der Prozessor zwischen den Messungen wach bleiben. Das kostet deutlich mehr Akku.</string>
+    <string name="hint_alarm_button">Berechtigung erteilen</string>
+
+    <!-- Settings -->
+    <string name="section_warning">Warnung</string>
+    <string name="setting_threshold">Warnen ab</string>
+    <string name="setting_threshold_value">%1$d dB(A)</string>
+    <string name="setting_threshold_help">Unbedenklich für höchstens %1$s pro Tag.</string>
+    <string name="setting_duration">Lärm muss anhalten für</string>
+    <string name="setting_cooldown">Pause zwischen zwei Warnungen</string>
+    <string name="setting_vibrate">Vibrieren</string>
+    <string name="setting_sound">Ton abspielen</string>
+    <string name="setting_dose_warning" formatted="false">Bei 100 % Tagesdosis warnen</string>
+
+    <string name="section_measuring">Messung und Akku</string>
+    <string name="setting_interval">Abstand zwischen zwei Messungen</string>
+    <string name="setting_measure">Dauer einer Messung</string>
+    <string name="setting_measure_value">%1$s s</string>
+    <string name="setting_adaptive">Bei Lärm öfter messen</string>
+    <string name="setting_adaptive_help">Ab %1$d dB(A) wird alle %2$s gemessen statt alle %3$s. So bleibt es im Stillen sparsam und bei Lärm genau.</string>
+    <string name="setting_adaptive_off_help">Der Abstand bleibt immer gleich.</string>
+
+    <string name="section_calibration">Kalibrierung</string>
+    <string name="setting_calibration">Korrektur</string>
+    <string name="setting_calibration_value">%1$s dB</string>
+    <string name="setting_calibration_help">Handy-Mikrofone sind nicht geeicht und weichen oft um einige dB ab. Vergleiche mit einem Schallpegelmesser oder einer Apple Watch und gleiche den Unterschied hier aus.</string>
+
+    <string name="privacy_note">Es wird nichts aufgenommen oder gespeichert. Die App berechnet nur die Lautstärke und hat keinen Internetzugriff.</string>
+</resources>
