@@ -37,10 +37,17 @@ jobs:
 
       - name: APK bauen
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleRelease --no-daemon
 
       - name: APK benennen
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk narrhalla-player.apk
+        run: cp android/app/build/outputs/apk/release/app-release.apk narrhalla-player.apk
+
+      - name: APK prüfen (Signatur und Ausrichtung)
+        run: |
+          BT="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
+          "$BT/zipalign" -c -P 16 -v 4 narrhalla-player.apk | tail -1
+          "$BT/apksigner" verify --verbose narrhalla-player.apk
+          "$BT/aapt2" dump badging narrhalla-player.apk | head -3
 
       - uses: actions/upload-artifact@v4
         with:
@@ -55,5 +62,5 @@ jobs:
           gh release create apk-latest narrhalla-player.apk \
             --target "$GITHUB_SHA" \
             --title "Narrhalla Player – Android (Build ${{ github.run_number }})" \
-            --notes "Automatisch gebaute Test-APK (Debug-Signatur). Auf dem Handy herunterladen und installieren; dazu muss „Installation aus unbekannten Quellen“ für den Browser erlaubt sein." \
+            --notes "Automatisch gebaute APK. Neue Versionen lassen sich über die alte installieren. Auf dem Handy herunterladen und installieren; dazu muss „Installation aus unbekannten Quellen“ für den Browser erlaubt sein." \
             --prerelease
