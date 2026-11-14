@@ -17,9 +17,10 @@ import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import java.io.File
 
-/** Bereich für Emojis, GIFs und Sticker. */
+/** Bereich für Emojis (alle, mit Suche und Hauttönen), GIFs und Sticker. */
 @SuppressLint("ViewConstructor")
 class MediaPanel(
     context: Context,
@@ -30,13 +31,15 @@ class MediaPanel(
 ) : LinearLayout(context) {
 
     enum class Tab { EMOJI, GIF, STICKER }
-    private enum class StickerSource { OWN, EMOJI, GIPHY }
+    private enum class StickerSource { ANIMATED, EMOJI, OWN, GIPHY }
 
     interface Host {
         fun commitEmoji(e: String)
         fun commitGif(item: GiphyClient.Item, sticker: Boolean)
         fun commitStickerFile(f: File)
         fun commitEmojiSticker(e: String)
+        /** Animiertes Emoji als GIF senden (funktioniert ohne Schlüssel). */
+        fun commitAnimatedEmoji(e: String)
         fun deleteChar()
         fun backToKeyboard()
         fun startSearch(tab: Tab)
@@ -45,23 +48,30 @@ class MediaPanel(
     }
 
     private val main = Handler(Looper.getMainLooper())
+    private val store = context.getSharedPreferences("emoji", Context.MODE_PRIVATE)
     private fun dp(v: Float) = (v * resources.displayMetrics.density).toInt()
 
     var tab = Tab.EMOJI
         private set
     private var emojiCategory = 0
-    private var stickerSource = StickerSource.EMOJI
+    private var emojiQuery: String? = null
+    private var stickerSource = StickerSource.ANIMATED
     private var gifQuery: String? = null
     private var stickerQuery: String? = null
     private var loadToken = 0
 
     // Inhalte
-    private var emojiItems: List<String> = emptyList()
+    private var emojiItems: List<EmojiData.Emoji> = emptyList()
     private var gifItems: List<GiphyClient.Item> = emptyList()
     private var ownItems: List<File> = emptyList()
+    /** Große Emojis im Raster (Emoji-Sticker oder animierte Emojis). */
+    private var glyphItems: List<String> = emptyList()
+    private var glyphAnimated = false
 
     private val tabViews = HashMap<Tab, TextView>()
     private val emojiGrid = GridView(context)
+    private val variantRow = LinearLayout(context)
+    private val variantScroll = HorizontalScrollView(context)
     private val mediaBox = LinearLayout(context)
     private val chipRow = LinearLayout(context)
     private val status = TextView(context)
@@ -75,67 +85,151 @@ class MediaPanel(
     fun select(t: Tab) {
         tab = t
         tabViews.forEach { (k, v) -> styleChip(v, k == t) }
+        hideVariants()
         emojiGrid.visibility = if (t == Tab.EMOJI) VISIBLE else GONE
         mediaBox.visibility = if (t == Tab.EMOJI) GONE else VISIBLE
         emojiCats.visibility = if (t == Tab.EMOJI) VISIBLE else INVISIBLE
         when (t) {
-            Tab.EMOJI -> selectEmojiCategory(emojiCategory)
-            Tab.GIF -> { buildGifChips(); loadGiphy("gifs", gifQuery) }
+            Tab.EMOJI -> if (emojiQuery != null) showEmojiSearch() else selectEmojiCategory(emojiCategory)
+            Tab.GIF -> showGifs()
             Tab.STICKER -> { buildStickerChips(); showStickerSource() }
         }
     }
 
     /** Ergebnis der Suche aus der Tastatur. */
     fun search(t: Tab, query: String) {
-        if (t == Tab.GIF) gifQuery = query.ifBlank { null }
-        else { stickerQuery = query.ifBlank { null }; stickerSource = StickerSource.GIPHY }
+        val q = query.trim().ifEmpty { null }
+        when (t) {
+            Tab.EMOJI -> emojiQuery = q
+            Tab.GIF -> gifQuery = q
+            Tab.STICKER -> { stickerQuery = q; stickerSource = StickerSource.GIPHY }
+        }
         select(t)
     }
 
     fun refreshRecents() {
-        if (tab == Tab.EMOJI && emojiCategory == 0) selectEmojiCategory(0)
+        if (tab == Tab.EMOJI && emojiQuery == null && emojiCategory == 0) selectEmojiCategory(0)
     }
 
     private fun selectEmojiCategory(i: Int) {
+        EmojiData.ensureLoaded(context)
+        emojiQuery = null
         emojiCategory = i
-        emojiItems = if (i == 0) recentEmojis().ifEmpty { EmojiData.categories[0].emojis }
-        else EmojiData.categories[i - 1].emojis
+        emojiItems = if (i == 0) {
+            recentEmojis().map { EmojiData.Emoji(it, false, emptyList(), "") }
+                .ifEmpty { EmojiData.categories[0].emojis }
+        } else EmojiData.categories[i - 1].emojis
         emojiAdapter.notifyDataSetChanged()
         emojiGrid.setSelection(0)
         emojiCatViews.forEachIndexed { j, tv -> tv.alpha = if (j == i) 1f else 0.45f }
     }
 
-    private fun buildGifChips() {
+    private fun showEmojiSearch() {
+        EmojiData.ensureLoaded(context)
+        val q = emojiQuery ?: return
+        emojiItems = EmojiData.search(q)
+        emojiAdapter.notifyDataSetChanged()
+        emojiGrid.setSelection(0)
+        emojiCatViews.forEach { it.alpha = 0.45f }
+        if (emojiItems.isEmpty()) Toast.makeText(context, "Kein Emoji für „$q“ gefunden", Toast.LENGTH_SHORT).show()
+    }
+
+    // ---- Hauttöne und andere Varianten (langes Drücken)
+
+    private fun preferred(e: EmojiData.Emoji): String =
+        if (e.alternates.isEmpty()) e.text else store.getString("v_" + e.text, e.text) ?: e.text
+
+    private fun showVariants(e: EmojiData.Emoji): Boolean {
+        val options = (listOf(e.text) + e.alternates).filter { EmojiData.isSupported(it) }
+        if (options.size < 2) return false
+        variantRow.removeAllViews()
+        for (o in options) {
+            variantRow.addView(TextView(context).apply {
+                text = o
+                gravity = Gravity.CENTER
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 28f)
+                setOnClickListener {
+                    // Die Wahl merken: beim nächsten Mal steht diese Variante im Raster
+                    store.edit().putString("v_" + e.text, o).apply()
+                    host.commitEmoji(o); host.haptic(it)
+                    hideVariants()
+                    emojiAdapter.notifyDataSetChanged()
+                }
+            }, LayoutParams(dp(48f), dp(46f)))
+        }
+        variantScroll.scrollTo(0, 0)
+        variantScroll.visibility = VISIBLE
+        return true
+    }
+
+    private fun hideVariants() { variantScroll.visibility = GONE }
+
+    // ---- GIFs
+
+    private fun showGifs() {
         chipRow.removeAllViews()
+        if (!giphy.hasKey()) {
+            // Ohne GIPHY-Schlüssel: animierte Emojis funktionieren sofort
+            addChip("✨ Animierte Emojis", true) {}
+            addChip("＋ GIFs aus Filmen und Memes", false) { host.openSettings(SettingsActivity.PAGE_MEDIA) }
+            showAnimated(null)
+            return
+        }
         addChip("🔍 " + (gifQuery ?: "GIFs suchen"), gifQuery != null) { host.startSearch(Tab.GIF) }
         addChip("🔥 Trends", gifQuery == null) { gifQuery = null; select(Tab.GIF) }
         for (q in GIF_TOPICS) addChip(q, gifQuery == q) { gifQuery = q; select(Tab.GIF) }
+        loadGiphy("gifs", gifQuery)
     }
+
+    private fun showAnimated(hint: String?) {
+        EmojiData.ensureLoaded(context)
+        ownItems = emptyList()
+        gifItems = emptyList()
+        glyphItems = EmojiData.animated().map { it.text }
+        glyphAnimated = true
+        attribution.visibility = GONE
+        mediaGrid.numColumns = 6
+        status.setOnClickListener(null)
+        showStatus(hint)
+        mediaAdapter.notifyDataSetChanged()
+        mediaGrid.setSelection(0)
+    }
+
+    // ---- Sticker
 
     private fun buildStickerChips() {
         chipRow.removeAllViews()
-        addChip("⭐ Eigene", stickerSource == StickerSource.OWN) { stickerSource = StickerSource.OWN; select(Tab.STICKER) }
+        addChip("✨ Animiert", stickerSource == StickerSource.ANIMATED) { stickerSource = StickerSource.ANIMATED; select(Tab.STICKER) }
         addChip("😀 Emoji", stickerSource == StickerSource.EMOJI) { stickerSource = StickerSource.EMOJI; select(Tab.STICKER) }
-        addChip("🔍 " + (stickerQuery ?: "GIPHY-Sticker"), stickerSource == StickerSource.GIPHY) {
-            if (stickerSource == StickerSource.GIPHY) host.startSearch(Tab.STICKER)
-            else { stickerSource = StickerSource.GIPHY; select(Tab.STICKER) }
+        addChip("⭐ Eigene", stickerSource == StickerSource.OWN) { stickerSource = StickerSource.OWN; select(Tab.STICKER) }
+        if (giphy.hasKey()) {
+            addChip("🔍 " + (stickerQuery ?: "GIPHY"), stickerSource == StickerSource.GIPHY) {
+                if (stickerSource == StickerSource.GIPHY) host.startSearch(Tab.STICKER)
+                else { stickerSource = StickerSource.GIPHY; select(Tab.STICKER) }
+            }
         }
         addChip("＋ Hinzufügen", false) { host.openSettings(SettingsActivity.PAGE_MEDIA) }
     }
 
     private fun showStickerSource() {
+        if (stickerSource == StickerSource.GIPHY && !giphy.hasKey()) stickerSource = StickerSource.ANIMATED
         when (stickerSource) {
+            StickerSource.ANIMATED -> showAnimated(null)
             StickerSource.OWN -> {
                 ownItems = stickers.list()
                 gifItems = emptyList()
+                glyphItems = emptyList()
                 attribution.visibility = GONE
                 mediaGrid.numColumns = 4
                 showStatus(if (ownItems.isEmpty()) "Noch keine eigenen Sticker.\nTippe auf „＋ Hinzufügen“, um Bilder aus deiner Galerie zu übernehmen." else null)
                 mediaAdapter.notifyDataSetChanged()
             }
             StickerSource.EMOJI -> {
+                EmojiData.ensureLoaded(context)
                 ownItems = emptyList()
                 gifItems = emptyList()
+                glyphItems = stickerEmojis()
+                glyphAnimated = false
                 attribution.visibility = GONE
                 mediaGrid.numColumns = 5
                 showStatus(null)
@@ -148,14 +242,10 @@ class MediaPanel(
     private fun loadGiphy(kind: String, query: String?) {
         ownItems = emptyList()
         gifItems = emptyList()
+        glyphItems = emptyList()
         mediaGrid.numColumns = if (kind == "gifs") 3 else 4
         attribution.visibility = VISIBLE
         mediaAdapter.notifyDataSetChanged()
-        if (!giphy.hasKey()) {
-            showStatus("Für GIFs und GIPHY-Sticker brauchst du einen kostenlosen GIPHY-Schlüssel.\nTippe hier, um ihn in den Einstellungen einzutragen.")
-            status.setOnClickListener { host.openSettings(SettingsActivity.PAGE_MEDIA) }
-            return
-        }
         status.setOnClickListener(null)
         showStatus("Lädt …")
         val token = ++loadToken
@@ -164,7 +254,8 @@ class MediaPanel(
             main.post {
                 if (token != loadToken) return@post
                 if (result == null) {
-                    showStatus("Konnte nicht laden – Internet oder GIPHY-Schlüssel prüfen.")
+                    showStatus("Konnte nicht laden. Bitte Internet und GIPHY-Schlüssel prüfen (hier tippen).")
+                    status.setOnClickListener { host.openSettings(SettingsActivity.PAGE_MEDIA) }
                 } else {
                     gifItems = result
                     showStatus(if (result.isEmpty()) "Nichts gefunden." else null)
@@ -182,10 +273,11 @@ class MediaPanel(
 
     private fun onMediaClick(pos: Int) {
         when {
-            tab == Tab.GIF -> gifItems.getOrNull(pos)?.let { host.commitGif(it, false) }
-            stickerSource == StickerSource.GIPHY -> gifItems.getOrNull(pos)?.let { host.commitGif(it, true) }
-            stickerSource == StickerSource.OWN -> ownItems.getOrNull(pos)?.let { host.commitStickerFile(it) }
-            stickerSource == StickerSource.EMOJI -> stickerEmojis().getOrNull(pos)?.let { host.commitEmojiSticker(it) }
+            glyphItems.isNotEmpty() -> glyphItems.getOrNull(pos)?.let {
+                if (glyphAnimated) host.commitAnimatedEmoji(it) else host.commitEmojiSticker(it)
+            }
+            ownItems.isNotEmpty() -> ownItems.getOrNull(pos)?.let { host.commitStickerFile(it) }
+            else -> gifItems.getOrNull(pos)?.let { host.commitGif(it, tab == Tab.STICKER) }
         }
     }
 
@@ -193,7 +285,7 @@ class MediaPanel(
         if (tab == Tab.STICKER && stickerSource == StickerSource.OWN) {
             ownItems.getOrNull(pos)?.let {
                 it.delete()
-                android.widget.Toast.makeText(context, "Sticker gelöscht", android.widget.Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Sticker gelöscht", Toast.LENGTH_SHORT).show()
                 showStickerSource()
             }
             return true
@@ -202,7 +294,8 @@ class MediaPanel(
     }
 
     private fun stickerEmojis(): List<String> =
-        (recentEmojis() + EmojiData.categories[0].emojis.take(60) + EmojiData.categories[2].emojis.take(30)).distinct()
+        (recentEmojis() + EmojiData.categories[0].emojis.take(80).map { it.text } +
+            EmojiData.categories[7].emojis.take(30).map { it.text }).distinct()
 
     // ------------------------------------------------------------------ Adapter
 
@@ -213,33 +306,33 @@ class MediaPanel(
         override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
             val tv = (convertView as? TextView) ?: TextView(context).apply {
                 gravity = Gravity.CENTER
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 28f)
-                layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(46f))
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f)
+                layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44f))
             }
-            tv.text = emojiItems[position]
+            tv.text = preferred(emojiItems[position])
             return tv
         }
     }
 
     private val mediaAdapter = object : BaseAdapter() {
-        private fun emojiMode() = tab == Tab.STICKER && stickerSource == StickerSource.EMOJI
+        private fun glyphMode() = glyphItems.isNotEmpty()
         override fun getCount() = when {
-            emojiMode() -> stickerEmojis().size
+            glyphMode() -> glyphItems.size
             ownItems.isNotEmpty() -> ownItems.size
             else -> gifItems.size
         }
         override fun getItem(position: Int): Any = position
         override fun getItemId(position: Int) = position.toLong()
         override fun getViewTypeCount() = 2
-        override fun getItemViewType(position: Int) = if (emojiMode()) 0 else 1
+        override fun getItemViewType(position: Int) = if (glyphMode()) 0 else 1
         override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
-            if (emojiMode()) {
+            if (glyphMode()) {
                 val tv = (convertView as? TextView) ?: TextView(context).apply {
                     gravity = Gravity.CENTER
-                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 40f)
-                    layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(64f))
+                    layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56f))
                 }
-                tv.text = stickerEmojis()[position]
+                tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, if (glyphAnimated) 32f else 38f)
+                tv.text = glyphItems[position]
                 return tv
             }
             val iv = (convertView as? ImageView) ?: ImageView(context).apply {
@@ -259,8 +352,7 @@ class MediaPanel(
     // ------------------------------------------------------------------ Bausteine
 
     fun recentEmojis(): List<String> =
-        context.getSharedPreferences("emoji", Context.MODE_PRIVATE).getString("recent", "")!!
-            .split('\u0001').filter { it.isNotEmpty() }
+        store.getString("recent", "")!!.split('\u0001').filter { it.isNotEmpty() }
 
     private fun addChip(label: String, active: Boolean, onClick: () -> Unit) {
         val c = chip(label, onClick)
@@ -296,27 +388,47 @@ class MediaPanel(
     init {
         orientation = VERTICAL
         setBackgroundColor(theme.background)
+        EmojiData.ensureLoaded(context)
 
-        // --- Reiter oben
+        // --- Reiter oben: Suche, Emoji, GIF, Sticker
         val tabs = LinearLayout(context).apply { orientation = HORIZONTAL; gravity = Gravity.CENTER }
-        for ((t, label) in listOf(Tab.EMOJI to "😀 Emoji", Tab.GIF to "GIF", Tab.STICKER to "Sticker")) {
-            val tv = chip(label) { select(t) }
+        val searchChip = chip("🔍") {
+            if (tab == Tab.GIF && !giphy.hasKey()) host.startSearch(Tab.EMOJI) else host.startSearch(tab)
+        }
+        styleChip(searchChip, false)
+        tabs.addView(searchChip, LayoutParams(dp(48f), dp(32f)).apply { setMargins(dp(4f), dp(4f), dp(2f), dp(2f)) })
+        for ((t, label) in listOf(Tab.EMOJI to "Emoji", Tab.GIF to "GIF", Tab.STICKER to "Sticker")) {
+            val tv = chip(label) { emojiQuery = null; select(t) }
             tabViews[t] = tv
-            tabs.addView(tv, LayoutParams(0, dp(32f), 1f).apply { setMargins(dp(4f), dp(4f), dp(4f), dp(2f)) })
+            tabs.addView(tv, LayoutParams(0, dp(32f), 1f).apply { setMargins(dp(3f), dp(4f), dp(3f), dp(2f)) })
         }
         addView(tabs)
+
+        // --- Varianten (Hauttöne), erscheint bei langem Druck auf ein Emoji
+        variantRow.orientation = HORIZONTAL
+        variantScroll.isHorizontalScrollBarEnabled = false
+        variantScroll.background = GradientDrawable().apply { setColor(theme.popup); cornerRadius = dp(10f).toFloat() }
+        variantScroll.addView(variantRow)
+        variantScroll.visibility = GONE
+        addView(variantScroll, LayoutParams(LayoutParams.MATCH_PARENT, dp(46f)).apply { setMargins(dp(6f), dp(2f), dp(6f), dp(2f)) })
 
         // --- Inhalt
         val contentFrame = FrameLayout(context)
         emojiGrid.apply {
             numColumns = GridView.AUTO_FIT
-            columnWidth = dp(44f)
+            columnWidth = dp(42f)
             stretchMode = GridView.STRETCH_COLUMN_WIDTH
             setPadding(dp(4f), 0, dp(4f), dp(4f))
             clipToPadding = false
             adapter = emojiAdapter
             setOnItemClickListener { _, v, pos, _ ->
-                host.commitEmoji(emojiItems[pos]); host.haptic(v)
+                hideVariants()
+                host.commitEmoji(preferred(emojiItems[pos])); host.haptic(v)
+            }
+            setOnItemLongClickListener { _, v, pos, _ ->
+                val shown = showVariants(emojiItems[pos])
+                if (shown) host.haptic(v)
+                shown
             }
         }
         contentFrame.addView(emojiGrid)
@@ -330,8 +442,8 @@ class MediaPanel(
         status.apply {
             gravity = Gravity.CENTER
             setTextColor(theme.hint)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
-            setPadding(dp(16f), dp(8f), dp(16f), dp(8f))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            setPadding(dp(16f), dp(4f), dp(16f), dp(6f))
         }
         mediaBox.addView(status, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
         mediaGrid.apply {
@@ -357,24 +469,29 @@ class MediaPanel(
         contentFrame.addView(mediaBox)
         addView(contentFrame, LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f))
 
-        // --- Leiste unten
+        // --- Leiste unten: zurück, Emoji-Gruppen, löschen
         val bottom = LinearLayout(context).apply {
             orientation = HORIZONTAL
             setBackgroundColor(theme.specialKey)
         }
         bottom.addView(button("ABC") { host.backToKeyboard() }.apply {
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f); setTypeface(null, Typeface.BOLD)
-        }, LayoutParams(dp(56f), dp(44f)))
+        }, LayoutParams(dp(52f), dp(42f)))
         emojiCats.orientation = HORIZONTAL
         val icons = listOf("🕘") + EmojiData.categories.map { it.icon }
         icons.forEachIndexed { i, icon ->
-            val tv = button(icon) { selectEmojiCategory(i) }.apply { setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f) }
+            val tv = button(icon) { selectEmojiCategory(i) }.apply { setTextSize(TypedValue.COMPLEX_UNIT_SP, 17f) }
             emojiCatViews += tv
-            emojiCats.addView(tv, LayoutParams(0, dp(44f), 1f))
+            emojiCats.addView(tv, LayoutParams(0, dp(42f), 1f))
         }
-        bottom.addView(emojiCats, LayoutParams(0, dp(44f), 1f))
-        bottom.addView(button("⌫") { host.deleteChar() }, LayoutParams(dp(56f), dp(44f)))
-        addView(bottom, LayoutParams(LayoutParams.MATCH_PARENT, dp(44f)))
+        bottom.addView(emojiCats, LayoutParams(0, dp(42f), 1f))
+        bottom.addView(ImageView(context).apply {
+            setImageResource(R.drawable.ic_backspace)
+            setColorFilter(theme.text)
+            scaleType = ImageView.ScaleType.CENTER
+            setOnClickListener { host.deleteChar() }
+        }, LayoutParams(dp(52f), dp(42f)))
+        addView(bottom, LayoutParams(LayoutParams.MATCH_PARENT, dp(42f)))
 
         selectEmojiCategory(if (recentEmojis().isEmpty()) 1 else 0)
         select(Tab.EMOJI)

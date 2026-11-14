@@ -17,9 +17,11 @@ class Prefs(context: Context) {
         get() = sp.getString(KEY_VOICE_LANG, "de") ?: "de"
         set(v) = sp.edit().putString(KEY_VOICE_LANG, v).apply()
 
-    var vibrate: Boolean
-        get() = sp.getBoolean(KEY_VIBRATE, true)
-        set(v) = sp.edit().putBoolean(KEY_VIBRATE, v).apply()
+    /** Vibration beim Tippen: Stärke 0..100 (0 = aus). */
+    var vibration: Int
+        get() = if (sp.contains(KEY_VIBRATION)) sp.getInt(KEY_VIBRATION, 40).coerceIn(0, 100)
+        else if (sp.getBoolean(KEY_VIBRATE, true)) 40 else 0      // alte Ein/Aus-Einstellung übernehmen
+        set(v) = sp.edit().putInt(KEY_VIBRATION, v.coerceIn(0, 100)).apply()
 
     var numberRow: Boolean
         get() = sp.getBoolean(KEY_NUMBER_ROW, true)
@@ -105,6 +107,7 @@ class Prefs(context: Context) {
         const val KEY_GROQ = "groq_key"
         const val KEY_VOICE_LANG = "voice_lang"
         const val KEY_VIBRATE = "vibrate"
+        const val KEY_VIBRATION = "vibration_strength"
         const val KEY_NUMBER_ROW = "number_row"
         const val KEY_MARK_TYPOS = "mark_typos"
         const val KEY_EMOJI_SUGG = "emoji_suggestions"

@@ -6,6 +6,7 @@ import android.content.Intent
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -23,14 +24,18 @@ import kotlin.math.sqrt
  * Diktieren.
  * - Mit (kostenlosem) Groq-Schlüssel: Aufnahme auf dem Handy, Erkennung mit Whisper large-v3 –
  *   deutlich genauer als die eingebaute Erkennung, inkl. Satzzeichen.
- * - Ohne Schlüssel: Android-Spracherkennung als Ersatz.
+ * - Ohne Schlüssel: die Spracherkennung des Handys – wenn möglich auf dem Gerät, als Dauerdiktat
+ *   mit Zwischenergebnissen und automatischen Satzzeichen.
  */
 class VoiceInput(private val context: Context, private val prefs: Prefs) {
 
     interface Callback {
         fun onListening(engineName: String)
         fun onLevel(level: Float)
+        /** Zwischenstand, während noch gesprochen wird. */
         fun onPartial(text: String)
+        /** Ein fertiger Abschnitt; es wird weiter zugehört (Dauerdiktat). */
+        fun onSegment(text: String)
         fun onProcessing()
         fun onResult(text: String)
         fun onError(message: String)
@@ -212,22 +217,49 @@ class VoiceInput(private val context: Context, private val prefs: Prefs) {
 
     // ------------------------------------------------------------- Android-Erkennung
 
-    private fun startAndroid() {
-        if (!SpeechRecognizer.isRecognitionAvailable(context)) {
-            callback?.onError("Keine Spracherkennung verfügbar – Groq-Schlüssel eintragen")
+    private var gotAnything = false
+
+    /**
+     * Versuch 0: Erkennung auf dem Gerät als Dauerdiktat mit automatischen Satzzeichen (Android 13+).
+     * Versuch 1: normale Erkennung mit automatischen Satzzeichen.
+     * Versuch 2: normale Erkennung ohne Extras.
+     * Unterstützt das Handy eine Stufe nicht, wird automatisch die nächste genommen.
+     */
+    private fun startAndroid(attempt: Int = 0) {
+        gotAnything = false
+        val onDevice = attempt == 0 && Build.VERSION.SDK_INT >= 33 &&
+            try { SpeechRecognizer.isOnDeviceRecognitionAvailable(context) } catch (_: Exception) { false }
+        if (attempt == 0 && !onDevice) { startAndroid(1); return }
+        if (!onDevice && !SpeechRecognizer.isRecognitionAvailable(context)) {
+            callback?.onError("Auf diesem Handy ist keine Spracherkennung installiert")
             return
         }
         cancelled = false
-        val sr = SpeechRecognizer.createSpeechRecognizer(context)
+        val sr = try {
+            if (onDevice && Build.VERSION.SDK_INT >= 31) SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
+            else SpeechRecognizer.createSpeechRecognizer(context)
+        } catch (e: Exception) {
+            if (attempt < 2) startAndroid(attempt + 1) else callback?.onError("Spracherkennung fehlgeschlagen")
+            return
+        }
         recognizer = sr
+        fun best(b: Bundle?) = b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull() ?: ""
         sr.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) { callback?.onListening("Android") }
             override fun onBeginningOfSpeech() {}
             override fun onRmsChanged(rmsdB: Float) { callback?.onLevel(((rmsdB + 2f) / 12f).coerceIn(0f, 1f)) }
             override fun onBufferReceived(buffer: ByteArray?) {}
-            override fun onEndOfSpeech() { callback?.onProcessing() }
+            override fun onEndOfSpeech() { if (!onDevice) callback?.onProcessing() }
             override fun onError(error: Int) {
                 finishAndroid()
+                if (cancelled) return
+                val heardNothing = error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT
+                val hopeless = error == SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS || error == SpeechRecognizer.ERROR_AUDIO
+                if (!gotAnything && !heardNothing && !hopeless && attempt < 2) {
+                    startAndroid(attempt + 1)
+                    return
+                }
+                if (gotAnything && heardNothing) { callback?.onIdle(); return }
                 callback?.onError(
                     when (error) {
                         SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Nichts erkannt – bitte nochmal"
@@ -238,25 +270,53 @@ class VoiceInput(private val context: Context, private val prefs: Prefs) {
                 )
             }
             override fun onResults(results: Bundle?) {
-                val text = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull() ?: ""
+                val text = best(results)
                 finishAndroid()
-                if (text.isBlank()) callback?.onError("Nichts erkannt – bitte nochmal") else callback?.onResult(text)
+                when {
+                    text.isNotBlank() -> callback?.onResult(text)
+                    gotAnything -> callback?.onIdle()
+                    else -> callback?.onError("Nichts erkannt – bitte nochmal")
+                }
             }
             override fun onPartialResults(partialResults: Bundle?) {
-                partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
-                    ?.let { callback?.onPartial(it) }
+                val text = best(partialResults)
+                if (text.isNotBlank()) { gotAnything = true; callback?.onPartial(text) }
+            }
+            override fun onSegmentResults(segmentResults: Bundle) {
+                val text = best(segmentResults)
+                if (text.isNotBlank()) { gotAnything = true; callback?.onSegment(text) }
+            }
+            override fun onEndOfSegmentedSession() {
+                finishAndroid()
+                callback?.onIdle()
             }
             override fun onEvent(eventType: Int, params: Bundle?) {}
         })
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, if (prefs.voiceLanguage == "auto") "de-DE" else "de-DE")
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "de-DE")
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 2500L)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 2500L)
+            val silence = if (onDevice) 6000L else 2500L
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, silence)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, silence)
+            if (attempt < 2 && Build.VERSION.SDK_INT >= 33) {
+                // Satzzeichen und Großschreibung automatisch; eigene Wörter (Namen) bevorzugen
+                putExtra(RecognizerIntent.EXTRA_ENABLE_FORMATTING, RecognizerIntent.FORMATTING_OPTIMIZE_QUALITY)
+                if (vocabulary.isNotEmpty()) {
+                    putStringArrayListExtra(RecognizerIntent.EXTRA_BIASING_STRINGS, ArrayList(vocabulary.take(40)))
+                }
+                if (onDevice) {
+                    // Dauerdiktat: Pausen beenden die Aufnahme nicht, Abschnitte kommen einzeln an
+                    putExtra(
+                        RecognizerIntent.EXTRA_SEGMENTED_SESSION,
+                        RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS,
+                    )
+                }
+            }
         }
         try { sr.startListening(intent) } catch (e: Exception) {
-            finishAndroid(); callback?.onError("Spracherkennung fehlgeschlagen")
+            finishAndroid()
+            if (attempt < 2) startAndroid(attempt + 1) else callback?.onError("Spracherkennung fehlgeschlagen")
         }
     }
 

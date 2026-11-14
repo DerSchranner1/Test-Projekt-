@@ -41,7 +41,8 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
     }
 
     var listener: Listener? = null
-    var haptics = true
+    /** Vibration beim Tippen (Stärke stellt die Tastatur ein). */
+    var haptics: Haptics? = null
     /** Wischen zum Schreiben aktiv (nur auf der Buchstaben-Tastatur). */
     var gestureEnabled = false
     var gestureTrail = true
@@ -571,12 +572,7 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
         handler.removeCallbacks(repeatRunnable)
     }
 
-    private fun feedback() {
-        if (haptics) performHapticFeedback(
-            HapticFeedbackConstants.KEYBOARD_TAP,
-            HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING,
-        )
-    }
+    private fun feedback() { haptics?.tap() }
 
     // ---------------------------------------------------------------- Popups
 

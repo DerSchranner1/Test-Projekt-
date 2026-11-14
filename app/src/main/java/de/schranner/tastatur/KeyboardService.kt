@@ -71,6 +71,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     private lateinit var engine: SuggestionEngine
     private lateinit var clip: ClipboardStore
     private lateinit var voice: VoiceInput
+    private lateinit var haptics: Haptics
     private lateinit var decoder: GestureDecoder
     private lateinit var giphy: GiphyClient
     private lateinit var stickers: StickerStore
@@ -97,6 +98,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     private var resizeOverlay: View? = null
     private lateinit var root: LinearLayout
     private lateinit var mainCol: LinearLayout
+    private lateinit var bar: View
     private lateinit var sideLeft: View
     private lateinit var sideRight: View
     private lateinit var toolRow: LinearLayout
@@ -143,7 +145,10 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     override fun onCreate() {
         super.onCreate()
         prefs = Prefs(this)
-        engine = SuggestionEngine(this).also { it.loadAsync() }
+        engine = EngineHolder.get(this)
+        haptics = Haptics(this)
+        // Emoji-Daten im Hintergrund vorbereiten (für Vorschläge und den Emoji-Bereich)
+        worker.execute { EmojiData.ensureLoaded(this) }
         clip = ClipboardStore(this)
         clip.onNewClip = { main.post { if (composing.isEmpty()) refreshSuggestions() } }
         clip.start()
@@ -176,7 +181,8 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         }
         val hRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         mainCol = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        mainCol.addView(buildBar(), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(BAR_DP)))
+        bar = buildBar()
+        mainCol.addView(bar, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(BAR_DP)))
         keyboard = KeyboardView(this, theme).also { it.listener = this }
         content = FrameLayout(this)
         content.addView(keyboard, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
@@ -229,7 +235,8 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         endResize()
         toolbarForced = null
         selecting = false
-        keyboard.haptics = prefs.vibrate
+        haptics.strength = prefs.vibration
+        keyboard.haptics = haptics
         keyboard.keyHeightPercent = prefs.keyHeightPercent
         keyboard.spaceLabel = "DE · EN"
         applyOneHanded()
@@ -342,6 +349,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
             return
         }
         val ic = currentInputConnection ?: return
+        keepVoicePartial()
         lastEditTime = SystemClock.uptimeMillis()
         lastAutocorrect = null
         toolbarForced = null
@@ -401,6 +409,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
                 else -> {}
             }
         }
+        if (type != KeyType.SHIFT) keepVoicePartial()
         if (type != KeyType.DELETE && type != KeyType.SHIFT) lastAutocorrect = null
         if (type != KeyType.DELETE && type != KeyType.SHIFT) { lastWasGesture = false; gestureAlts = null }
         when (type) {
@@ -597,7 +606,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
             try {
                 sp.setSpan(
                     SuggestionSpan(this, corr.take(5).toTypedArray(),
-                        SuggestionSpan.FLAG_MISSPELLED or SuggestionSpan.FLAG_EASY_CORRECT),
+                        SuggestionSpan.FLAG_MISSPELLED),   // rote Markierung des Systems
                     0, w.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
                 )
             } catch (_: Exception) { }
@@ -677,7 +686,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
                     rest.firstOrNull { it != best }?.let { items += Sugg.Word(it) }
                 }
                 if (prefs.emojiSuggestions) {
-                    EmojiData.keywords[typed.lowercase()]?.let { e ->
+                    EmojiData.suggestionFor(typed)?.let { e ->
                         if (items.size >= 3) items[2] = Sugg.Emoji(e) else items += Sugg.Emoji(e)
                     }
                 }
@@ -846,8 +855,55 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
 
     override fun onLevel(level: Float) { levelView.level = level }
 
+    // Diktierter Text erscheint schon beim Sprechen im Textfeld (als vorläufiger Text).
+    private var voiceLive = false
+    private var voicePrefix = ""
+    private var voiceSentenceStart = false
+
+    private fun beginVoiceSegment() {
+        val ic = currentInputConnection ?: return
+        val before = ic.getTextBeforeCursor(1, 0)?.toString() ?: ""
+        voicePrefix = if (before.isNotEmpty() && !before.last().isWhitespace()) " " else ""
+        voiceSentenceStart = contextBefore().start
+        voiceLive = true
+    }
+
+    private fun shapeVoice(text: String): String =
+        VoiceText.fitToContext(VoiceText.spokenPunctuation(text), voiceSentenceStart) { engine.dictionaryForm(it) }
+
+    /** Vorläufigen Diktat-Text stehen lassen (z. B. wenn der Nutzer dazwischen tippt). */
+    private fun keepVoicePartial() {
+        if (!voiceLive) return
+        voiceLive = false
+        currentInputConnection?.finishComposingText()
+    }
+
     override fun onPartial(text: String) {
         voiceStatus.text = text
+        val ic = currentInputConnection ?: return
+        if (text.isBlank()) return
+        if (!voiceLive) beginVoiceSegment()
+        ic.setComposingText(voicePrefix + shapeVoice(text), 1)
+    }
+
+    private fun commitVoice(text: String) {
+        val ic = currentInputConnection ?: return
+        if (text.isBlank()) { keepVoicePartial(); return }
+        if (!voiceLive) beginVoiceSegment()
+        val t = shapeVoice(text)
+        ic.commitText(voicePrefix + t + if (t.endsWith("\n")) "" else " ", 1)
+        voiceLive = false
+        lastAutoSpace = true
+        // Diktierte Wörter für Vorhersagen lernen
+        var prev: String? = null
+        for (w in Regex("[\\p{L}'-]+").findAll(t).map { it.value }) {
+            engine.learn(w, prev, prev == null); prev = w
+        }
+    }
+
+    override fun onSegment(text: String) {
+        commitVoice(text)
+        voiceStatus.text = "Ich höre weiter zu … tippe ■ zum Beenden"
     }
 
     override fun onProcessing() {
@@ -856,30 +912,14 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     }
 
     override fun onResult(text: String) {
+        commitVoice(text)
         endVoiceUi()
-        val ic = currentInputConnection ?: return
-        var t = text.trim()
-        val before = ic.getTextBeforeCursor(2, 0)?.toString() ?: ""
-        val (_, sentenceStart) = contextBefore()
-        if (!sentenceStart && t.length > 1 && t[0].isUpperCase() && t[1].isLowerCase()) {
-            // Mitten im Satz: erstes Wort nur groß lassen, wenn es ein Hauptwort/Name ist
-            val first = Regex("^[\\p{L}]+").find(t)?.value
-            val form = first?.let { engine.dictionaryForm(it) }
-            if (form != null && form[0].isLowerCase()) t = t.replaceFirstChar { it.lowercase() }
-        }
-        val prefix = if (before.isNotEmpty() && !before.last().isWhitespace()) " " else ""
-        ic.commitText("$prefix$t ", 1)
-        lastAutoSpace = true
-        // Diktierte Wörter für Vorhersagen lernen
-        var prev: String? = null
-        for (w in Regex("[\\p{L}'-]+").findAll(t).map { it.value }) {
-            engine.learn(w, prev, prev == null); prev = w
-        }
         updateAutoShift()
         refreshSuggestions()
     }
 
     override fun onError(message: String) {
+        keepVoicePartial()
         endVoiceUi()
         toolbarForced = false
         updateBar()
@@ -892,7 +932,9 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     }
 
     override fun onIdle() {
+        keepVoicePartial()
         endVoiceUi()
+        updateAutoShift()
         refreshSuggestions()
     }
 
@@ -997,18 +1039,23 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
             gravity = Gravity.CENTER_VERTICAL
             visibility = View.GONE
         }
-        fun tool(v: View) = toolRow.addView(v, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
-        tool(iconButton(R.drawable.ic_apps) { toolbarForced = false; updateBar(); refreshSuggestions() })
-        tool(iconButton(R.drawable.ic_clipboard) { togglePanel(Panel.CLIPBOARD) })
+        // Lang drücken zeigt, was ein Symbol macht
+        fun tool(v: View, tip: String) {
+            v.tooltipText = tip
+            v.contentDescription = tip
+            toolRow.addView(v, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
+        }
+        tool(iconButton(R.drawable.ic_apps) { toolbarForced = false; updateBar(); refreshSuggestions() }, "Wortvorschläge")
+        tool(iconButton(R.drawable.ic_clipboard) { togglePanel(Panel.CLIPBOARD) }, "Zwischenablage")
         tool(barButton("GIF") { openMedia(MediaPanel.Tab.GIF) }.apply {
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f); setTypeface(null, Typeface.BOLD)
-        })
-        tool(iconButton(R.drawable.ic_sticker) { openMedia(MediaPanel.Tab.STICKER) })
-        tool(iconButton(R.drawable.ic_edit) { togglePanel(Panel.EDIT) })
-        tool(iconButton(R.drawable.ic_onehand) { toggleOneHanded() })
-        tool(iconButton(R.drawable.ic_resize) { startResize() })
-        tool(iconButton(R.drawable.ic_settings) { openSettings(null, false) })
-        tool(micView())
+        }, "GIFs")
+        tool(iconButton(R.drawable.ic_sticker) { openMedia(MediaPanel.Tab.STICKER) }, "Sticker")
+        tool(iconButton(R.drawable.ic_edit) { togglePanel(Panel.EDIT) }, "Text bearbeiten")
+        tool(iconButton(R.drawable.ic_onehand) { toggleOneHanded() }, "Einhandmodus")
+        tool(iconButton(R.drawable.ic_resize) { startResize() }, "Größe ändern")
+        tool(iconButton(R.drawable.ic_settings) { openSettings(null, false) }, "Einstellungen")
+        tool(micView().apply { tooltipText = "Diktieren"; contentDescription = "Diktieren" }, "Diktieren")
 
         // Zeile beim Ändern der Größe
         resizeRow = LinearLayout(this).apply {
@@ -1034,7 +1081,10 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
             gravity = Gravity.CENTER_VERTICAL
             visibility = View.GONE
         }
-        voiceRow.addView(barButton("✕") { voice.cancel() }, LinearLayout.LayoutParams(dp(48f), ViewGroup.LayoutParams.MATCH_PARENT))
+        voiceRow.addView(barButton("✕") {
+            if (voiceLive) { voiceLive = false; currentInputConnection?.commitText("", 1) }
+            voice.cancel()
+        }, LinearLayout.LayoutParams(dp(48f), ViewGroup.LayoutParams.MATCH_PARENT))
         levelView = LevelView(this, theme.recording)
         voiceRow.addView(levelView, LinearLayout.LayoutParams(dp(36f), dp(28f)))
         voiceStatus = TextView(this).apply {
@@ -1095,8 +1145,11 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     private fun showPanel(p: Panel) {
         if (!::content.isInitialized) return
         if (p != Panel.KEYBOARD) { commitWord(); endResize() }
-        val h = panelHeight()
+        // Emojis, Zwischenablage und Textbearbeitung nutzen auch den Platz der Vorschlagsleiste –
+        // die Gesamthöhe bleibt gleich, es springt nichts.
+        val h = panelHeight() + dp(BAR_DP)
         panel = p
+        bar.visibility = if (p == Panel.KEYBOARD) View.VISIBLE else View.GONE
         keyboard.visibility = if (p == Panel.KEYBOARD) View.VISIBLE else View.GONE
         mediaPanel?.visibility = View.GONE
         clipPanel?.visibility = View.GONE
@@ -1415,7 +1468,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     override fun backToKeyboard() = showPanel(Panel.KEYBOARD)
 
     override fun haptic(v: View) {
-        if (prefs.vibrate) v.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+        haptics.tap()
     }
 
     override fun openSettings(page: String) = openSettings(page, false)
@@ -1468,6 +1521,40 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         }
     }
 
+    /** Animiertes Emoji (Noto Animated Emoji von Google, CC BY 4.0) als GIF senden – ohne Schlüssel. */
+    override fun commitAnimatedEmoji(e: String) {
+        if (!supportsMime("image/gif")) {
+            commitEmoji(e)
+            toast("Diese App nimmt keine animierten Bilder an – Emoji eingefügt")
+            return
+        }
+        toast("Animation wird geladen …")
+        ImageLoader.run {
+            val hex = e.codePoints().toArray().map { Integer.toHexString(it) }
+            // Erst die volle Zeichenfolge, dann ohne das unsichtbare Darstellungszeichen
+            val names = listOf(hex.joinToString("_"), hex.filter { it != "fe0f" }.joinToString("_")).distinct()
+            var file: File? = null
+            for (n in names) {
+                val f = File(shareDir(), "noto_$n.gif")
+                if (f.exists() && f.length() > 0) { file = f; break }
+                try {
+                    f.writeBytes(Net.get("https://fonts.gstatic.com/s/e/notoemoji/latest/$n/512.gif"))
+                    file = f
+                    break
+                } catch (_: Exception) { f.delete() }
+            }
+            main.post {
+                val f = file
+                if (f == null) {
+                    commitEmoji(e)
+                    toast("Animation nicht verfügbar – Emoji eingefügt")
+                } else if (commitImage(MediaProvider.uriFor("share", f.name), "image/gif", "Animiertes Emoji", null)) {
+                    addRecentEmoji(e)
+                } else commitEmoji(e)
+            }
+        }
+    }
+
     override fun commitStickerFile(f: File) {
         val mime = MediaProvider.mimeOf(f.name)
         if (!commitImage(MediaProvider.uriFor("stickers", f.name), mime, "Sticker", null)) {
@@ -1506,7 +1593,11 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     }
 
     private fun updateSearchUi() {
-        val target = if (searchTarget == MediaPanel.Tab.STICKER) "Sticker" else "GIFs"
+        val target = when (searchTarget) {
+            MediaPanel.Tab.STICKER -> "Sticker"
+            MediaPanel.Tab.EMOJI -> "Emojis"
+            else -> "GIFs"
+        }
         searchText.text = if (searchQuery.isEmpty()) "🔍 $target suchen …" else "🔍 $searchQuery▏"
         searchText.setTextColor(if (searchQuery.isEmpty()) theme.hint else theme.text)
     }

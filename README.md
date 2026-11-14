@@ -12,15 +12,25 @@ Eine dunkle, schlichte Android-Tastatur für Deutsch und Englisch. Sie bringt Ti
 - **Autokorrektur wählbar:** Standardmäßig aus, dann werden Tippfehler nur rot markiert und oben Korrekturen angeboten. Eingeschaltet ersetzt sie eindeutige Fehler, ⌫ macht das rückgängig.
 - **Layouts:** QWERTZ (Umlaute per langem Druck auf a, o, u, s), QWERTZ mit Ä Ö Ü, QWERTY. Eine eigene ß-Taste und die Zahlenreihe sind zuschaltbar.
 
+**Emojis, GIFs und Sticker**
+- **Alle Emojis** in den Gruppen und der Reihenfolge von Gboard. Suche auf Deutsch und Englisch, Hauttöne per langem Druck (die Wahl wird gemerkt). Emojis, die das Handy nicht darstellen kann, werden ausgeblendet.
+- **Animierte Emojis** funktionieren ohne Einrichtung und werden als GIF gesendet.
+- **GIFs aus Filmen und Memes** kommen von GIPHY und brauchen einen kostenlosen Schlüssel. Dazu eigene Sticker aus der Galerie und Emoji-Sticker.
+
 **Werkzeugleiste** (bei leerem Feld sichtbar, sonst über das Kachel-Symbol oben links)
 - **Zwischenablage:** Verlauf mit Anheften. Passwörter werden nicht gespeichert.
-- **GIFs und Sticker:** GIPHY (kostenloser Schlüssel nötig), eigene Sticker aus der Galerie, Emoji-Sticker.
 - **Textbearbeitung:** Cursor-Pfeile, Auswählen, Kopieren, Einfügen, Ausschneiden, Rückgängig.
 - **Einhandmodus:** schmale Tastatur links oder rechts.
 - **Größe ändern:** oben ziehen ändert die Größe, unten ziehen den Abstand zum Rand.
 
 **Diktieren**
-- 🎤 antippen, sprechen, ■ antippen. Die Erkennung läuft über Whisper large-v3 bei Groq (kostenloser Schlüssel) und setzt Satzzeichen automatisch. Ohne Schlüssel nutzt die Tastatur die Android-Spracherkennung.
+- 🎤 antippen und sprechen. Der Text erscheint schon beim Sprechen im Textfeld.
+- **Ohne Einrichtung** nutzt die Tastatur die Spracherkennung des Handys: wenn möglich auf dem Gerät, als Dauerdiktat und mit automatischen Satzzeichen. Gesprochene Satzzeichen („Komma“, „Fragezeichen“, „neue Zeile“) werden umgewandelt.
+- **Mit kostenlosem Groq-Schlüssel** läuft die Erkennung über Whisper large-v3 und ist deutlich genauer.
+
+**Rechtschreibung**
+- Unbekannte Wörter werden rot unterstrichen. Die App bringt außerdem eine Rechtschreibprüfung für das ganze Handy mit, die in den Systemeinstellungen ausgewählt wird.
+- Die Vibration beim Tippen ist per Regler einstellbar.
 
 **Bedienung**
 - Leertaste halten und wischen bewegt den Cursor.
@@ -45,7 +55,7 @@ Treffhilfe bei simuliertem ungenauem Tippen: 6,5 % falsche Tasten ohne, 2,6 % be
 1. Auf dem Handy die neueste APK herunterladen: **Releases → „KlarTastatur – neueste Version“ → `KlarTastatur.apk`**. Jeder Push baut sie automatisch neu (GitHub Actions).
 2. Die APK öffnen. Wenn Android fragt, die Installation aus dieser Quelle erlauben.
 3. Die App „KlarTastatur“ öffnen und den drei Schritten folgen: Tastatur aktivieren, auswählen, Mikrofon erlauben.
-4. Für die gute Spracherkennung auf [console.groq.com/keys](https://console.groq.com/keys) einen kostenlosen Schlüssel erstellen und in der App einfügen. Für GIFs entsprechend auf [developers.giphy.com](https://developers.giphy.com/dashboard/).
+4. Optional: Für die genauere Spracherkennung auf [console.groq.com/keys](https://console.groq.com/keys) einen kostenlosen Schlüssel erstellen und kopieren, für GIFs entsprechend auf [developers.giphy.com](https://developers.giphy.com/dashboard/). Zurück in der App wird der kopierte Schlüssel automatisch übernommen.
 
 ## Selbst bauen und testen
 
@@ -60,9 +70,11 @@ Die Wortdaten in `app/src/main/assets/` entstehen mit den Skripten in `tools/`:
 1. `build_wordlist.py` erzeugt `words.tsv` (Wort, Häufigkeit Deutsch, Häufigkeit Englisch).
 2. `build_ngrams.py` erzeugt `ngrams.tsv` (deutsche Wortfolgen) und korrigiert Schreibweisen.
 3. `build_ngrams_en.py` erzeugt `ngrams_en.tsv` (englische Wortfolgen).
+4. `build_emoji.py` erzeugt `emoji.tsv` und `emoji_words.tsv`.
 
 ## Lizenzen der Wortdaten
 
 - Worthäufigkeiten: [wordfreq](https://github.com/rspeer/wordfreq), Daten unter CC BY-SA 4.0
 - Deutsche Rechtschreibung und Großschreibung: igerman98 / hunspell-de-de (GPL-2+)
 - Wortfolgen: [Tatoeba](https://tatoeba.org) (CC BY 2.0 FR) und [Mozilla Common Voice](https://github.com/common-voice/common-voice) (CC0)
+- Emojis: Reihenfolge und Gruppen aus [googlefonts/emoji-metadata](https://github.com/googlefonts/emoji-metadata) (Apache 2.0), Suchwörter aus Unicode CLDR (Unicode-Lizenz), animierte Emojis von [Noto Animated Emoji](https://googlefonts.github.io/noto-emoji-animation/) (CC BY 4.0)

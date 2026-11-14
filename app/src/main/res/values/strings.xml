@@ -2,4 +2,6 @@
 <resources>
     <string name="app_name">KlarTastatur</string>
     <string name="subtype_de">Deutsch</string>
+    <string name="subtype_en">English</string>
+    <string name="spell_checker">KlarTastatur Rechtschreibprüfung</string>
 </resources>

@@ -36,17 +36,53 @@ class ScreenshotTest {
         KeyboardHarness { it.keyHeightPercent = 140 }.screenshot("6_gross")
     }
 
+    private fun showPanel(h: KeyboardHarness, index: Int) {
+        val panels = org.robolectric.util.ReflectionHelpers.getField<Any>(h.service, "panel").javaClass.enumConstants!!
+        org.robolectric.util.ReflectionHelpers.callInstanceMethod<Any>(
+            h.service, "showPanel",
+            org.robolectric.util.ReflectionHelpers.ClassParameter.from(panels[index].javaClass, panels[index]),
+        )
+        h.settle()
+    }
+
     @Test fun panels() {
         val h = KeyboardHarness()
         h.type("hallo")
-        val edit = org.robolectric.util.ReflectionHelpers.getField<Any>(h.service, "panel").javaClass.enumConstants!!
-        fun show(i: Int) = org.robolectric.util.ReflectionHelpers.callInstanceMethod<Any>(
-            h.service, "showPanel",
-            org.robolectric.util.ReflectionHelpers.ClassParameter.from(edit[i].javaClass, edit[i]),
+        showPanel(h, 3); h.screenshot("11_textbearbeitung")
+        showPanel(h, 2); h.screenshot("12_zwischenablage")
+        showPanel(h, 1); h.screenshot("13_emoji")
+        val media = org.robolectric.util.ReflectionHelpers.getField<MediaPanel>(h.service, "mediaPanel")
+        media.search(MediaPanel.Tab.EMOJI, "katze"); h.settle(); h.screenshot("16_emoji_suche")
+        media.select(MediaPanel.Tab.GIF); h.settle(); h.screenshot("17_gif_ohne_schluessel")
+        media.select(MediaPanel.Tab.STICKER); h.settle(); h.screenshot("18_sticker")
+    }
+
+    @Test fun typoIsUnderlined() {
+        val h = KeyboardHarness()
+        h.type("das ist ein fehelr im text")
+        val v = h.edit
+        v.setTextColor(android.graphics.Color.WHITE)
+        v.setBackgroundColor(android.graphics.Color.parseColor("#17181A"))
+        v.textSize = 22f
+        v.measure(
+            android.view.View.MeasureSpec.makeMeasureSpec(1080, android.view.View.MeasureSpec.EXACTLY),
+            android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED),
         )
-        show(3); h.settle(); h.screenshot("11_textbearbeitung")
-        show(2); h.settle(); h.screenshot("12_zwischenablage")
-        show(1); h.settle(); h.screenshot("13_emoji")
+        v.layout(0, 0, v.measuredWidth, v.measuredHeight)
+        val bmp = android.graphics.Bitmap.createBitmap(v.measuredWidth, v.measuredHeight, android.graphics.Bitmap.Config.ARGB_8888)
+        v.draw(android.graphics.Canvas(bmp))
+        java.io.File("build/screenshots").mkdirs()
+        java.io.File("build/screenshots/15_tippfehler.png").outputStream().use {
+            bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+        }
+        // Rote Pixel = Unterstreichung des Tippfehlers
+        var red = 0
+        for (y in 0 until bmp.height) for (x in 0 until bmp.width) {
+            val c = bmp.getPixel(x, y)
+            if (android.graphics.Color.red(c) > 180 && android.graphics.Color.green(c) < 110 && android.graphics.Color.blue(c) < 110) red++
+        }
+        println("Tippfehler-Markierung: $red rote Pixel")
+        org.junit.Assert.assertTrue(red > 50)
     }
 
     @Test fun settings() {
