@@ -33,10 +33,35 @@ class Prefs(context: Context) {
         get() = sp.getBoolean(KEY_EMOJI_SUGG, true)
         set(v) = sp.edit().putBoolean(KEY_EMOJI_SUGG, v).apply()
 
-    /** Tastenhöhe in Prozent (80..130). */
+    /** Größe der Tastatur in Prozent (100 = Standard). */
     var keyHeightPercent: Int
-        get() = sp.getInt(KEY_HEIGHT, 100)
-        set(v) = sp.edit().putInt(KEY_HEIGHT, v.coerceIn(80, 130)).apply()
+        get() = sp.getInt(KEY_SIZE, 100).coerceIn(SIZE_MIN, SIZE_MAX)
+        set(v) = sp.edit().putInt(KEY_SIZE, v.coerceIn(SIZE_MIN, SIZE_MAX)).apply()
+
+    /** Abstand zum unteren Bildschirmrand in dp (Tastatur „höher setzen“). */
+    var bottomPadDp: Int
+        get() = sp.getInt(KEY_BOTTOM_PAD, 0).coerceIn(0, BOTTOM_MAX)
+        set(v) = sp.edit().putInt(KEY_BOTTOM_PAD, v.coerceIn(0, BOTTOM_MAX)).apply()
+
+    /** Buchstaben-Anordnung: qwertz, qwertz_umlaut oder qwerty. */
+    var layout: String
+        get() = sp.getString(KEY_LAYOUT, "qwertz") ?: "qwertz"
+        set(v) = sp.edit().putString(KEY_LAYOUT, v).apply()
+
+    /** Eigene ß-Taste anzeigen. */
+    var eszettKey: Boolean
+        get() = sp.getBoolean(KEY_ESZETT, false)
+        set(v) = sp.edit().putBoolean(KEY_ESZETT, v).apply()
+
+    /** Stärke der unsichtbaren Treffhilfe in Prozent (0 = aus). */
+    var touchAssist: Int
+        get() = sp.getInt(KEY_TOUCH_ASSIST, 50).coerceIn(0, 100)
+        set(v) = sp.edit().putInt(KEY_TOUCH_ASSIST, v.coerceIn(0, 100)).apply()
+
+    /** Einhandmodus: "off", "left" oder "right". */
+    var oneHanded: String
+        get() = sp.getString(KEY_ONE_HANDED, "off") ?: "off"
+        set(v) = sp.edit().putString(KEY_ONE_HANDED, v).apply()
 
     var giphyKey: String
         get() = sp.getString(KEY_GIPHY, "") ?: ""
@@ -83,6 +108,14 @@ class Prefs(context: Context) {
         const val KEY_NUMBER_ROW = "number_row"
         const val KEY_MARK_TYPOS = "mark_typos"
         const val KEY_EMOJI_SUGG = "emoji_suggestions"
-        const val KEY_HEIGHT = "key_height"
+        const val KEY_SIZE = "key_size"
+        const val KEY_BOTTOM_PAD = "bottom_pad"
+        const val KEY_LAYOUT = "layout"
+        const val KEY_ESZETT = "eszett_key"
+        const val KEY_ONE_HANDED = "one_handed"
+        const val KEY_TOUCH_ASSIST = "touch_assist"
+        const val SIZE_MIN = 75
+        const val SIZE_MAX = 165
+        const val BOTTOM_MAX = 90
     }
 }

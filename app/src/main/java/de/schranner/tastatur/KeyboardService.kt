@@ -14,6 +14,7 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.inputmethodservice.InputMethodService
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -24,14 +25,19 @@ import android.text.TextUtils
 import android.text.style.SuggestionSpan
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.InputDevice
+import android.view.KeyCharacterMap
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowInsets
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.BaseAdapter
 import android.widget.FrameLayout
 import android.widget.GridView
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.TextView
@@ -41,7 +47,14 @@ import java.util.concurrent.Executors
 
 class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.Callback, MediaPanel.Host {
 
-    private enum class Panel { KEYBOARD, MEDIA, CLIPBOARD }
+    companion object {
+        /** So viele Zeichen vor dem Cursor werden für Vorschläge angesehen. */
+        private const val CONTEXT_CHARS = 120
+        /** Höhe der Leiste über den Tasten in dp (wie bei Gboard). */
+        private const val BAR_DP = 43f
+    }
+
+    private enum class Panel { KEYBOARD, MEDIA, CLIPBOARD, EDIT }
     private enum class Mode { LETTERS, SYMBOLS, SYMBOLS2, NUMPAD }
 
     /** Ein Eintrag in der Vorschlagsleiste. */
@@ -72,7 +85,6 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     private lateinit var voiceRow: LinearLayout
     private lateinit var voiceStatus: TextView
     private lateinit var levelView: LevelView
-    private lateinit var micButton: View
     private val slots = arrayOfNulls<TextView>(3)
     private var shown = arrayOfNulls<Sugg>(3)
     private var mediaPanel: MediaPanel? = null
@@ -80,6 +92,16 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     private lateinit var searchText: TextView
     private var clipPanel: View? = null
     private var clipAdapter: ClipAdapter? = null
+    private var editPanel: View? = null
+    private var selectCell: TextView? = null
+    private var resizeOverlay: View? = null
+    private lateinit var root: LinearLayout
+    private lateinit var mainCol: LinearLayout
+    private lateinit var sideLeft: View
+    private lateinit var sideRight: View
+    private lateinit var toolRow: LinearLayout
+    private lateinit var resizeRow: LinearLayout
+    private lateinit var resizeLabel: TextView
     private var panel = Panel.KEYBOARD
 
     // Zustand
@@ -88,6 +110,15 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     private var suggestionsOn = true
     private val composing = StringBuilder()
     private var composingPrev: String? = null
+    private var composingPrev2: String? = null
+    /** Werkzeugleiste statt Vorschlägen: null = automatisch (leeres Feld), sonst vom Nutzer gewählt. */
+    private var toolbarForced: Boolean? = null
+    private var fieldEmpty = true
+    private var voiceUi = false
+    private var resizing = false
+    private var navInset = 0
+    private var selecting = false
+    private var assistToken = 0
     private var composingSentenceStart = false
     private var correctionTarget: String? = null
     private var correctionPrev: String? = null
@@ -136,16 +167,54 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         theme = KeyboardTheme(this)
         mediaPanel = null
         clipPanel = null
-        val root = LinearLayout(this).apply {
+        editPanel = null
+        resizeOverlay = null
+        resizing = false
+        root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(theme.background)
         }
-        root.addView(buildBar(), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(42f)))
+        val hRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        mainCol = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        mainCol.addView(buildBar(), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(BAR_DP)))
         keyboard = KeyboardView(this, theme).also { it.listener = this }
         content = FrameLayout(this)
         content.addView(keyboard, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        root.addView(content, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        mainCol.addView(content, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        // Einhandmodus: schmale Tastatur links oder rechts, daneben ein Streifen mit zwei Knöpfen
+        sideLeft = buildSide(left = true)
+        sideRight = buildSide(left = false)
+        hRow.addView(sideLeft, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 18f))
+        hRow.addView(mainCol, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 82f))
+        hRow.addView(sideRight, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 18f))
+        root.addView(hRow, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        // Platz für die Navigationsleiste lassen (sonst liegen deren Knöpfe auf der untersten Tastenreihe)
+        root.setOnApplyWindowInsetsListener { _, insets ->
+            navInset = bottomInset(insets)
+            applyBottomPadding()
+            insets
+        }
+        applyOneHanded()
+        applyBottomPadding()
+        tintNavigationBar()
         return root
+    }
+
+    private fun bottomInset(insets: WindowInsets): Int =
+        if (Build.VERSION.SDK_INT >= 30) {
+            insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout()).bottom
+        } else {
+            @Suppress("DEPRECATION") insets.systemWindowInsetBottom
+        }
+
+    private fun applyBottomPadding() {
+        if (!::root.isInitialized) return
+        root.setPadding(0, 0, 0, navInset + dp(prefs.bottomPadDp.toFloat()))
+    }
+
+    @Suppress("DEPRECATION")
+    private fun tintNavigationBar() {
+        try { window?.window?.navigationBarColor = theme.background } catch (_: Exception) { }
     }
 
     override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
@@ -157,8 +226,15 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         lastWasGesture = false
         lastAutocorrect = null
         endSearch()
+        endResize()
+        toolbarForced = null
+        selecting = false
         keyboard.haptics = prefs.vibrate
         keyboard.keyHeightPercent = prefs.keyHeightPercent
+        keyboard.spaceLabel = "DE · EN"
+        applyOneHanded()
+        applyBottomPadding()
+        tintNavigationBar()
 
         val cls = info.inputType and InputType.TYPE_MASK_CLASS
         val variation = info.inputType and InputType.TYPE_MASK_VARIATION
@@ -228,13 +304,17 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     }
 
     private fun applyLayout() {
+        val layout = KeyLayout.of(prefs.layout)
+        val eszett = prefs.eszettKey
         keyboard.rows = when (mode) {
-            Mode.LETTERS -> Layouts.letters(prefs.numberRow, field)
+            Mode.LETTERS -> Layouts.letters(prefs.numberRow, field, layout, eszett)
             Mode.SYMBOLS -> Layouts.symbols()
             Mode.SYMBOLS2 -> Layouts.symbols2()
             Mode.NUMPAD -> Layouts.numpad(field == FieldKind.PHONE)
         }
-        keyboard.referenceRows = if (mode == Mode.NUMPAD) null else Layouts.letters(prefs.numberRow, field)
+        keyboard.referenceRows =
+            if (mode == Mode.NUMPAD) null else Layouts.letters(prefs.numberRow, field, layout, eszett)
+        SuggestionEngine.setKeyRows(Layouts.letterRows(layout, eszett))
         if (mode != Mode.LETTERS) keyboard.shift = ShiftState.OFF
         keyboard.gestureEnabled = prefs.gestureTyping && mode == Mode.LETTERS && (suggestionsOn || searchTarget != null)
         keyboard.gestureTrail = prefs.gestureTrail
@@ -264,6 +344,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         val ic = currentInputConnection ?: return
         lastEditTime = SystemClock.uptimeMillis()
         lastAutocorrect = null
+        toolbarForced = null
         if (lastWasGesture && composing.isNotEmpty() && text.singleOrNull()?.isLetter() == true) {
             // Nach einem gewischten Wort beginnt ein neues Wort
             commitWord()
@@ -277,8 +358,10 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
             if (composing.isEmpty()) {
                 correctionTarget = null
                 val ctx = contextBefore()
-                composingPrev = ctx.first
-                composingSentenceStart = ctx.second
+                composingPrev = ctx.prev
+                composingPrev2 = ctx.prev2
+                composingSentenceStart = ctx.start
+                engine.setRecentWords(ctx.recent)
             }
             composing.append(text)
             ic.setComposingText(composing, 1)
@@ -436,7 +519,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         val ic = currentInputConnection ?: return
         val after = ic.getTextAfterCursor(1, 0)?.toString() ?: ""
         if (after.isNotEmpty() && after[0].isLetterOrDigit()) return
-        val before = ic.getTextBeforeCursor(48, 0)?.toString() ?: return
+        val before = ic.getTextBeforeCursor(CONTEXT_CHARS, 0)?.toString() ?: return
         val m = Regex("[\\p{L}\\p{N}'-]+$").find(before) ?: return
         val word = m.value
         if (word.length > 30) return
@@ -447,8 +530,10 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         composing.setLength(0)
         composing.append(word)
         val ctx = contextBefore(before.dropLast(word.length))
-        composingPrev = ctx.first
-        composingSentenceStart = ctx.second
+        composingPrev = ctx.prev
+        composingPrev2 = ctx.prev2
+        composingSentenceStart = ctx.start
+        engine.setRecentWords(ctx.recent)
     }
 
     override fun onDeleteWord() {
@@ -498,7 +583,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         lastWasGesture = false
         gestureAlts = null
         if (autocorrect && prefs.autocorrect && !fromGesture) {
-            val fix = engine.autocorrectFor(w, prev)
+            val fix = engine.autocorrectFor(w, prev, composingPrev2)
             if (fix != null && fix != w) {
                 ic.commitText(fix, 1)
                 lastAutocorrect = w to fix
@@ -527,18 +612,17 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         engine.learn(w, prev, composingSentenceStart)
     }
 
-    /** Liefert (vorheriges Wort, Satzanfang?) für den Text vor dem Cursor. */
-    private fun contextBefore(text: String? = null): Pair<String?, Boolean> {
-        val before = text ?: currentInputConnection?.getTextBeforeCursor(64, 0)?.toString() ?: ""
-        val trimmed = before.trimEnd()
-        if (trimmed.isEmpty()) return null to true
-        if (trimmed.last() in ".!?\n" || before.endsWith("\n")) return null to true
-        val m = Regex("([\\p{L}\\p{N}'-]+)$").find(trimmed)
-        return m?.value to false
+    /** Die Wörter vor dem Cursor (letztes Wort, das davor, Satzanfang?, Sprache). */
+    private fun contextBefore(text: String? = null): TextContext {
+        val before = text ?: currentInputConnection?.getTextBeforeCursor(CONTEXT_CHARS, 0)?.toString() ?: ""
+        return TextContext.parse(before, complete = before.length < CONTEXT_CHARS)
     }
 
     private fun refreshSuggestions() {
         if (!::keyboard.isInitialized || voice.isActive) return
+        fieldEmpty = composing.isEmpty() && (currentInputConnection?.getTextBeforeCursor(1, 0)?.isEmpty() ?: true)
+        updateBar()
+        updateTouchAssist()
         val token = ++suggestToken
         val typed = composing.toString()
         val target = correctionTarget
@@ -557,9 +641,10 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
             return
         }
         if (typed.isEmpty() && target == null) {
-            val (prev, start) = contextBefore()
+            val ctx = contextBefore()
+            engine.setRecentWords(ctx.recent)
             worker.execute {
-                val preds = engine.predictNext(prev, start)
+                val preds = engine.predictNext(ctx.prev, ctx.start, ctx.prev2)
                 main.post {
                     if (token != suggestToken) return@post
                     val items = mutableListOf<Sugg>()
@@ -570,22 +655,26 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
             }
             return
         }
+        val prev = composingPrev
+        val prev2 = composingPrev2
+        val atStart = composingSentenceStart
         worker.execute {
             val items = mutableListOf<Sugg>()
             if (typed.isNotEmpty()) {
-                val list = engine.suggest(typed, composingPrev)
+                val list = engine.suggest(typed, prev, prev2, atStart)
                 val known = engine.isKnown(typed)
                 val best = list.firstOrNull()
-                if (best == null || best.equals(typed, ignoreCase = false) || (known && best.equals(typed, true))) {
+                val rest = list.filter { it != typed }
+                if (best == null || best == typed || (known && best.equals(typed, true))) {
                     // Getipptes Wort passt: in die Mitte, Alternativen links und rechts
-                    val rest = list.filter { it != typed }
                     rest.getOrNull(0)?.let { items += Sugg.Word(it) }
                     items += Sugg.Word(typed, if (known) typed else "„$typed“")
                     rest.getOrNull(1)?.let { items += Sugg.Word(it) }
                 } else {
-                    items += Sugg.Word(typed, "„$typed“")
+                    // Bester Vorschlag in die Mitte, das Getippte bleibt links wählbar
+                    items += Sugg.Word(typed, if (known) typed else "„$typed“")
                     items += Sugg.Word(best)
-                    list.getOrNull(1)?.let { items += Sugg.Word(it) }
+                    rest.firstOrNull { it != best }?.let { items += Sugg.Word(it) }
                 }
                 if (prefs.emojiSuggestions) {
                     EmojiData.keywords[typed.lowercase()]?.let { e ->
@@ -749,8 +838,8 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     }
 
     override fun onListening(engineName: String) {
-        suggRow.visibility = View.GONE
-        voiceRow.visibility = View.VISIBLE
+        voiceUi = true
+        updateBar()
         voiceStatus.text = if (engineName == "Whisper") "Ich höre zu … tippe ■ zum Beenden" else "Ich höre zu …"
         levelView.level = 0f
     }
@@ -792,8 +881,8 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
 
     override fun onError(message: String) {
         endVoiceUi()
-        voiceRow.visibility = View.GONE
-        suggRow.visibility = View.VISIBLE
+        toolbarForced = false
+        updateBar()
         show(emptyList())
         slots[1]?.apply {
             text = message
@@ -808,9 +897,8 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     }
 
     private fun endVoiceUi() {
-        if (!::voiceRow.isInitialized) return
-        voiceRow.visibility = View.GONE
-        suggRow.visibility = View.VISIBLE
+        voiceUi = false
+        updateBar()
     }
 
     private fun openSettings(page: String?, askMic: Boolean) {
@@ -832,12 +920,41 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         setOnClickListener { onClick() }
     }
 
-    private fun iconButton(res: Int, onClick: () -> Unit) = android.widget.ImageView(this).apply {
+    private fun iconButton(res: Int, onClick: () -> Unit) = ImageView(this).apply {
         setImageResource(res)
-        setColorFilter(theme.hint)
-        scaleType = android.widget.ImageView.ScaleType.CENTER
+        setColorFilter(theme.text)
+        scaleType = ImageView.ScaleType.CENTER
         background = rippleBg()
         setOnClickListener { onClick() }
+    }
+
+    /** Mikrofon im Kreis (wie bei Gboard). */
+    private fun micView(): View = FrameLayout(this).apply {
+        val circle = ImageView(this@KeyboardService).apply {
+            setImageResource(R.drawable.ic_mic)
+            setColorFilter(theme.text)
+            scaleType = ImageView.ScaleType.CENTER
+            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(theme.key) }
+        }
+        addView(circle, FrameLayout.LayoutParams(dp(36f), dp(36f), Gravity.CENTER))
+        setOnClickListener { onMicTap() }
+    }
+
+    /** Welche Zeile der Leiste ist sichtbar: Werkzeuge, Vorschläge, Diktat, Suche oder Größe. */
+    private fun updateBar() {
+        if (!::suggRow.isInitialized) return
+        val tools = toolbarForced ?: (composing.isEmpty() && correctionTarget == null && recentClip() == null &&
+            (fieldEmpty || !suggestionsOn || !prefs.showSuggestions))
+        val row = when {
+            resizing -> resizeRow
+            searchTarget != null -> searchRow
+            voiceUi -> voiceRow
+            tools -> toolRow
+            else -> suggRow
+        }
+        for (r in listOf(toolRow, suggRow, voiceRow, searchRow, resizeRow)) {
+            r.visibility = if (r === row) View.VISIBLE else View.GONE
+        }
     }
 
     private fun rippleBg() = android.graphics.drawable.RippleDrawable(
@@ -848,8 +965,8 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     private fun buildBar(): View {
         val frame = FrameLayout(this)
         suggRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        suggRow.addView(iconButton(R.drawable.ic_clipboard) { showPanel(if (panel == Panel.CLIPBOARD) Panel.KEYBOARD else Panel.CLIPBOARD) },
-            LinearLayout.LayoutParams(dp(48f), ViewGroup.LayoutParams.MATCH_PARENT))
+        suggRow.addView(iconButton(R.drawable.ic_apps) { toolbarForced = true; updateBar() },
+            LinearLayout.LayoutParams(dp(46f), ViewGroup.LayoutParams.MATCH_PARENT))
         for (i in 0..2) {
             val tv = TextView(this).apply {
                 gravity = Gravity.CENTER
@@ -872,8 +989,45 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
             slots[i] = tv
             suggRow.addView(tv, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
         }
-        micButton = iconButton(R.drawable.ic_mic) { onMicTap() }
-        suggRow.addView(micButton, LinearLayout.LayoutParams(dp(52f), ViewGroup.LayoutParams.MATCH_PARENT))
+        suggRow.addView(micView(), LinearLayout.LayoutParams(dp(50f), ViewGroup.LayoutParams.MATCH_PARENT))
+
+        // Werkzeugleiste (bei leerem Feld oder über das Kachel-Symbol)
+        toolRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            visibility = View.GONE
+        }
+        fun tool(v: View) = toolRow.addView(v, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
+        tool(iconButton(R.drawable.ic_apps) { toolbarForced = false; updateBar(); refreshSuggestions() })
+        tool(iconButton(R.drawable.ic_clipboard) { togglePanel(Panel.CLIPBOARD) })
+        tool(barButton("GIF") { openMedia(MediaPanel.Tab.GIF) }.apply {
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f); setTypeface(null, Typeface.BOLD)
+        })
+        tool(iconButton(R.drawable.ic_sticker) { openMedia(MediaPanel.Tab.STICKER) })
+        tool(iconButton(R.drawable.ic_edit) { togglePanel(Panel.EDIT) })
+        tool(iconButton(R.drawable.ic_onehand) { toggleOneHanded() })
+        tool(iconButton(R.drawable.ic_resize) { startResize() })
+        tool(iconButton(R.drawable.ic_settings) { openSettings(null, false) })
+        tool(micView())
+
+        // Zeile beim Ändern der Größe
+        resizeRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            visibility = View.GONE
+        }
+        resizeRow.addView(barButton("Zurücksetzen") {
+            setKeyboardSize(100); setBottomPad(0)
+        }.apply { setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f) }, LinearLayout.LayoutParams(dp(120f), ViewGroup.LayoutParams.MATCH_PARENT))
+        resizeLabel = TextView(this).apply {
+            gravity = Gravity.CENTER
+            setTextColor(theme.hint)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+        }
+        resizeRow.addView(resizeLabel, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
+        resizeRow.addView(barButton("Fertig") { endResize() }.apply {
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f); setTextColor(theme.accent); setTypeface(null, Typeface.BOLD)
+        }, LinearLayout.LayoutParams(dp(90f), ViewGroup.LayoutParams.MATCH_PARENT))
 
         voiceRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -914,44 +1068,332 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         }, LinearLayout.LayoutParams(dp(76f), ViewGroup.LayoutParams.MATCH_PARENT))
         frame.addView(searchRow, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         frame.addView(suggRow, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        frame.addView(toolRow, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        frame.addView(resizeRow, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         frame.addView(voiceRow, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         return frame
     }
 
-    private fun panelHeight(): Int =
-        if (keyboard.height > 0) keyboard.height else (4 * dp(54f) * prefs.keyHeightPercent / 100 + dp(6f))
+    private fun panelHeight(): Int {
+        if (keyboard.height <= 0) {
+            keyboard.measure(
+                View.MeasureSpec.makeMeasureSpec(resources.displayMetrics.widthPixels, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+            )
+            return maxOf(keyboard.measuredHeight, dp(170f))
+        }
+        return maxOf(keyboard.height, dp(170f))
+    }
+
+    private fun togglePanel(p: Panel) = showPanel(if (panel == p) Panel.KEYBOARD else p)
+
+    private fun openMedia(tab: MediaPanel.Tab) {
+        showPanel(Panel.MEDIA)
+        mediaPanel?.select(tab)
+    }
 
     private fun showPanel(p: Panel) {
         if (!::content.isInitialized) return
-        if (p != Panel.KEYBOARD) commitWord()
+        if (p != Panel.KEYBOARD) { commitWord(); endResize() }
         val h = panelHeight()
         panel = p
         keyboard.visibility = if (p == Panel.KEYBOARD) View.VISIBLE else View.GONE
         mediaPanel?.visibility = View.GONE
         clipPanel?.visibility = View.GONE
+        editPanel?.visibility = View.GONE
+        fun attach(v: View) {
+            if (v.parent == null) content.addView(v, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h))
+            v.layoutParams.height = h
+            v.visibility = View.VISIBLE
+        }
         when (p) {
             Panel.MEDIA -> {
-                val v = mediaPanel ?: MediaPanel(this, theme, giphy, stickers, this).also {
-                    mediaPanel = it
-                    content.addView(it, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h))
-                }
-                v.layoutParams.height = h
+                val v = mediaPanel ?: MediaPanel(this, theme, giphy, stickers, this).also { mediaPanel = it }
+                attach(v)
                 v.refreshRecents()
-                v.visibility = View.VISIBLE
             }
             Panel.CLIPBOARD -> {
                 clip.capture()
-                val v = clipPanel ?: buildClipPanel().also {
-                    clipPanel = it
-                    content.addView(it, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h))
-                }
-                v.layoutParams.height = h
+                attach(clipPanel ?: buildClipPanel().also { clipPanel = it })
                 clipAdapter?.notifyDataSetChanged()
-                v.visibility = View.VISIBLE
+            }
+            Panel.EDIT -> {
+                selecting = false
+                attach(editPanel ?: buildEditPanel().also { editPanel = it })
+                styleSelectCell()
             }
             Panel.KEYBOARD -> {}
         }
         content.requestLayout()
+    }
+
+    // ---------------------------------------------------------------- Treffhilfe
+
+    /**
+     * Unsichtbare Treffhilfe: berechnet, welche Buchstaben als nächstes wahrscheinlich sind.
+     * Bis das Ergebnis da ist, gilt die normale Trefferfläche.
+     */
+    private fun updateTouchAssist() {
+        keyboard.touchWeights = emptyMap()
+        val strength = prefs.touchAssist / 100f
+        keyboard.touchAssist = strength
+        if (strength <= 0f || !suggestionsOn || mode != Mode.LETTERS || searchTarget != null) return
+        var typed = composing.toString()
+        var prev = composingPrev
+        var prev2 = composingPrev2
+        var start = composingSentenceStart
+        if (typed.isEmpty()) {
+            val ctx = contextBefore()
+            prev = ctx.prev; prev2 = ctx.prev2; start = ctx.start
+        } else if (lastWasGesture) {
+            // Nach einem gewischten Wort beginnt mit dem nächsten Buchstaben ein neues Wort
+            prev2 = prev; prev = typed; typed = ""; start = false
+        }
+        val keys = keyboard.letterKeys()
+        val token = ++assistToken
+        worker.execute {
+            val weights = TouchModel.weights(engine.nextLetters(typed, prev, prev2, start), keys)
+            main.post { if (token == assistToken) keyboard.touchWeights = weights }
+        }
+    }
+
+    // ---------------------------------------------------------------- Größe ändern
+
+    private fun startResize() {
+        if (resizing || !::content.isInitialized) return
+        showPanel(Panel.KEYBOARD)
+        resizing = true
+        val overlay = ResizeOverlay(this)
+        resizeOverlay = overlay
+        content.addView(overlay, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        updateResizeLabel()
+        updateBar()
+    }
+
+    private fun endResize() {
+        if (!resizing) return
+        resizing = false
+        resizeOverlay?.let { content.removeView(it) }
+        resizeOverlay = null
+        updateBar()
+    }
+
+    private fun setKeyboardSize(percent: Int) {
+        prefs.keyHeightPercent = percent
+        keyboard.keyHeightPercent = prefs.keyHeightPercent
+        updateResizeLabel()
+    }
+
+    private fun setBottomPad(dpValue: Int) {
+        prefs.bottomPadDp = dpValue
+        applyBottomPadding()
+        updateResizeLabel()
+    }
+
+    private fun updateResizeLabel() {
+        if (!::resizeLabel.isInitialized) return
+        val pad = prefs.bottomPadDp
+        resizeLabel.text = "Größe ${prefs.keyHeightPercent} %" + if (pad > 0) " · Abstand $pad" else ""
+    }
+
+    /** Liegt beim Ändern der Größe über der Tastatur: oben ziehen = Größe, unten ziehen = Abstand zum Rand. */
+    private inner class ResizeOverlay(context: Context) : View(context) {
+        private val d = resources.displayMetrics.density
+        private val frame = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE; strokeWidth = 2 * d; color = theme.accent
+        }
+        private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = theme.accent }
+        private val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = theme.text; textAlign = Paint.Align.CENTER; textSize = 15 * d
+        }
+        private var dragMode = 0
+        private var startRaw = 0f
+        private var startPercent = 100
+        private var startPad = 0
+        private var heightAt100 = 1f
+
+        override fun onDraw(canvas: Canvas) {
+            canvas.drawColor(0xB3111214.toInt())
+            val m = 3 * d
+            canvas.drawRoundRect(m, m, width - m, height - m, 12 * d, 12 * d, frame)
+            // Griffe oben und unten
+            val gw = 28 * d
+            val gh = 3 * d
+            canvas.drawRoundRect(width / 2f - gw, m - gh, width / 2f + gw, m + gh, gh, gh, fill)
+            canvas.drawRoundRect(width / 2f - gw, height - m - gh, width / 2f + gw, height - m + gh, gh, gh, fill)
+            canvas.drawText("↕  Oben ziehen: Größe", width / 2f, height * 0.36f, text)
+            canvas.drawText("↕  Unten ziehen: Abstand zum Rand", width / 2f, height * 0.70f, text)
+        }
+
+        @android.annotation.SuppressLint("ClickableViewAccessibility")
+        override fun onTouchEvent(e: MotionEvent): Boolean {
+            when (e.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    dragMode = if (e.y < height / 2f) 1 else 2
+                    startRaw = e.rawY
+                    startPercent = prefs.keyHeightPercent
+                    startPad = prefs.bottomPadDp
+                    heightAt100 = (keyboard.height * 100f / startPercent).coerceAtLeast(1f)
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val up = startRaw - e.rawY
+                    if (dragMode == 1) setKeyboardSize(Math.round(startPercent + up / heightAt100 * 100f))
+                    else if (dragMode == 2) setBottomPad(Math.round(startPad + up / d))
+                }
+            }
+            return true
+        }
+    }
+
+    // ---------------------------------------------------------------- Einhandmodus
+
+    private fun buildSide(left: Boolean): View = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        gravity = Gravity.CENTER
+        // Pfeil: Tastatur auf diese Seite holen · Doppelpfeil: wieder volle Breite
+        addView(iconButton(if (left) R.drawable.ic_chevron_left else R.drawable.ic_chevron_right) {
+            prefs.oneHanded = if (left) "left" else "right"; applyOneHanded()
+        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56f)))
+        addView(iconButton(R.drawable.ic_resize) {
+            prefs.oneHanded = "off"; applyOneHanded()
+        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56f)))
+    }
+
+    private fun applyOneHanded() {
+        if (!::sideLeft.isInitialized) return
+        val m = prefs.oneHanded
+        // Tastatur rechts -> freier Streifen links (und umgekehrt)
+        sideLeft.visibility = if (m == "right") View.VISIBLE else View.GONE
+        sideRight.visibility = if (m == "left") View.VISIBLE else View.GONE
+    }
+
+    private fun toggleOneHanded() {
+        prefs.oneHanded = if (prefs.oneHanded == "off") "right" else "off"
+        applyOneHanded()
+    }
+
+    // ---------------------------------------------------------------- Textbearbeitung
+
+    private fun sendKey(code: Int, meta: Int = 0, action: Int? = null) {
+        val ic = currentInputConnection ?: return
+        val t = SystemClock.uptimeMillis()
+        fun ev(a: Int) = KeyEvent(
+            t, t, a, code, 0, meta, KeyCharacterMap.VIRTUAL_KEYBOARD, 0,
+            KeyEvent.FLAG_SOFT_KEYBOARD or KeyEvent.FLAG_KEEP_TOUCH_MODE, InputDevice.SOURCE_KEYBOARD,
+        )
+        if (action == null) { ic.sendKeyEvent(ev(KeyEvent.ACTION_DOWN)); ic.sendKeyEvent(ev(KeyEvent.ACTION_UP)) }
+        else ic.sendKeyEvent(ev(action))
+    }
+
+    /** Cursor bewegen – im Auswahlmodus mit gehaltener Umschalttaste (markiert Text). */
+    private fun moveCursor(code: Int) {
+        if (composing.isNotEmpty()) {
+            composing.setLength(0)
+            currentInputConnection?.finishComposingText()
+        }
+        correctionTarget = null
+        if (selecting) {
+            val m = KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON
+            sendKey(KeyEvent.KEYCODE_SHIFT_LEFT, m, KeyEvent.ACTION_DOWN)
+            sendKey(code, m)
+            sendKey(KeyEvent.KEYCODE_SHIFT_LEFT, 0, KeyEvent.ACTION_UP)
+        } else sendKey(code)
+    }
+
+    private fun menuAction(id: Int, done: String? = null) {
+        commitWord()
+        currentInputConnection?.performContextMenuAction(id)
+        if (done != null) toast(done)
+        if (id != android.R.id.selectAll) { selecting = false; styleSelectCell() }
+    }
+
+    private fun styleSelectCell() {
+        val c = selectCell ?: return
+        c.background = GradientDrawable().apply {
+            setColor(if (selecting) theme.accent else theme.specialKey); cornerRadius = dp(8f).toFloat()
+        }
+        c.setTextColor(if (selecting) theme.accentText else theme.text)
+    }
+
+    /** Knopf, der beim Gedrückthalten wiederholt (Pfeile, Löschen). */
+    @android.annotation.SuppressLint("ClickableViewAccessibility")
+    private fun repeating(v: View, action: () -> Unit) {
+        val r = object : Runnable {
+            override fun run() { action(); main.postDelayed(this, 60) }
+        }
+        v.setOnTouchListener { view, e ->
+            when (e.actionMasked) {
+                MotionEvent.ACTION_DOWN -> { view.isPressed = true; haptic(view); action(); main.postDelayed(r, 400) }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> { view.isPressed = false; main.removeCallbacks(r) }
+            }
+            true
+        }
+    }
+
+    private fun buildEditPanel(): View {
+        val grid = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(4f), dp(4f), dp(4f), dp(4f))
+        }
+        fun bg(color: Int) = android.graphics.drawable.RippleDrawable(
+            android.content.res.ColorStateList.valueOf(theme.keyPressed),
+            GradientDrawable().apply { setColor(color); cornerRadius = dp(8f).toFloat() }, null,
+        )
+        fun label(text: String, size: Float = 14f, color: Int = theme.key) = TextView(this).apply {
+            this.text = text
+            gravity = Gravity.CENTER
+            setTextColor(theme.text)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, size)
+            maxLines = 1
+            background = bg(color)
+        }
+        fun icon(res: Int, color: Int = theme.key) = ImageView(this).apply {
+            setImageResource(res)
+            setColorFilter(theme.text)
+            scaleType = ImageView.ScaleType.CENTER
+            background = bg(color)
+        }
+        fun row(vararg cells: Pair<View, Float>) {
+            val r = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            for ((v, w) in cells) {
+                r.addView(v, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, w).apply {
+                    setMargins(dp(3f), dp(3f), dp(3f), dp(3f))
+                })
+            }
+            grid.addView(r, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        }
+        fun tap(v: View, action: () -> Unit) = v.apply { setOnClickListener { haptic(it); action() } }
+        fun hold(v: View, action: () -> Unit) = v.apply { repeating(this, action) }
+        val f = theme.specialKey
+
+        val select = label("Auswählen", 13f, f)
+        selectCell = select
+        tap(select) { selecting = !selecting; styleSelectCell() }
+
+        row(
+            tap(label("Anfang", 13f, f)) { moveCursor(KeyEvent.KEYCODE_MOVE_HOME) } to 1f,
+            hold(label("↑", 20f)) { moveCursor(KeyEvent.KEYCODE_DPAD_UP) } to 1f,
+            tap(label("Ende", 13f, f)) { moveCursor(KeyEvent.KEYCODE_MOVE_END) } to 1f,
+            tap(label("Alles auswählen", 13f, f)) { menuAction(android.R.id.selectAll) } to 1.5f,
+        )
+        row(
+            hold(label("←", 20f)) { moveCursor(KeyEvent.KEYCODE_DPAD_LEFT) } to 1f,
+            select to 1f,
+            hold(label("→", 20f)) { moveCursor(KeyEvent.KEYCODE_DPAD_RIGHT) } to 1f,
+            tap(label("Kopieren", 13f, f)) { menuAction(android.R.id.copy, "Kopiert") } to 1.5f,
+        )
+        row(
+            tap(icon(R.drawable.ic_undo, f)) { menuAction(android.R.id.undo) } to 1f,
+            hold(label("↓", 20f)) { moveCursor(KeyEvent.KEYCODE_DPAD_DOWN) } to 1f,
+            tap(icon(R.drawable.ic_redo, f)) { menuAction(android.R.id.redo) } to 1f,
+            tap(label("Einfügen", 13f, f)) { menuAction(android.R.id.paste) } to 1.5f,
+        )
+        row(
+            tap(label("ABC", 14f, f)) { showPanel(Panel.KEYBOARD) } to 1f,
+            tap(label("Ausschneiden", 13f, f)) { menuAction(android.R.id.cut, "Ausgeschnitten") } to 2f,
+            hold(icon(R.drawable.ic_backspace, f)) { handleDelete() } to 1.5f,
+        )
+        return grid
     }
 
     // ---------------------------------------------------------------- Emoji, GIFs, Sticker
@@ -1059,9 +1501,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         mode = Mode.LETTERS
         applyLayout()
         keyboard.shift = ShiftState.OFF
-        suggRow.visibility = View.GONE
-        voiceRow.visibility = View.GONE
-        searchRow.visibility = View.VISIBLE
+        updateBar()
         updateSearchUi()
     }
 
@@ -1083,10 +1523,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         if (searchTarget == null) return
         searchTarget = null
         searchQuery.setLength(0)
-        if (::searchRow.isInitialized) {
-            searchRow.visibility = View.GONE
-            suggRow.visibility = View.VISIBLE
-        }
+        updateBar()
         applyLayout()
     }
 
@@ -1095,10 +1532,13 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     override fun onGesture(path: List<GestureDecoder.Pt>) {
         val centers = keyboard.letterCenters()
         val keyW = keyboard.letterKeyWidth()
-        val prev = if (composing.isNotEmpty()) composing.toString() else contextBefore().first
+        val ctx = contextBefore()
+        engine.setRecentWords(ctx.recent)
+        val prev = ctx.prev
+        val prev2 = ctx.prev2
         worker.execute {
-            val words = decoder.decode(path, centers, keyW, prev)
-            val cased = words.map { engine.displayForm(it) }
+            val words = decoder.decode(path, centers, keyW, prev, prev2)
+            val cased = words.map { engine.displayForm(it, prev, prev2) }
             main.post { applyGesture(cased) }
         }
     }
@@ -1124,11 +1564,13 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
             ic.commitText(" ", 1)
         }
         val ctx = contextBefore()
-        composingPrev = ctx.first
-        composingSentenceStart = ctx.second
+        composingPrev = ctx.prev
+        composingPrev2 = ctx.prev2
+        composingSentenceStart = ctx.start
+        engine.setRecentWords(ctx.recent)
         fun cased(w: String) = when {
             keyboard.shift == ShiftState.LOCK -> w.uppercase()
-            keyboard.shift == ShiftState.ON || ctx.second -> w.replaceFirstChar { it.uppercase() }
+            keyboard.shift == ShiftState.ON || ctx.start -> w.replaceFirstChar { it.uppercase() }
             else -> w
         }
         val list = words.map { cased(it) }.distinct()

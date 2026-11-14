@@ -69,7 +69,47 @@ class SettingsActivity : Activity() {
         switch("Autokorrektur", prefs.autocorrect) { prefs.autocorrect = it }
         hint("Aus: Tippfehler werden nur rot markiert. An: eindeutige Fehler werden ersetzt, ⌫ macht es rückgängig.")
         switch("Zahlenreihe", prefs.numberRow) { prefs.numberRow = it }
+        switch("Eigene ß-Taste", prefs.eszettKey) { prefs.eszettKey = it }
         switch("Vibration", prefs.vibrate) { prefs.vibrate = it }
+
+        heading("Treffhilfe")
+        val assistLabel = text("")
+        fun showAssist() {
+            val v = prefs.touchAssist
+            assistLabel.text = if (v == 0) "Aus" else "Stärke: $v %"
+        }
+        showAssist()
+        col.addView(SeekBar(this).apply {
+            max = 100
+            progress = prefs.touchAssist
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(s: SeekBar?, p: Int, fromUser: Boolean) {
+                    prefs.touchAssist = (p + 2) / 5 * 5
+                    showAssist()
+                }
+                override fun onStartTrackingTouch(s: SeekBar?) {}
+                override fun onStopTrackingTouch(s: SeekBar?) {}
+            })
+        })
+        hint("Wie beim iPhone: Buchstaben, die als nächstes wahrscheinlich sind, lassen sich leichter treffen. Die Tasten sehen dabei gleich aus, und wer die Mitte einer Taste trifft, bekommt immer diese Taste.")
+
+        heading("Tastatur-Layout")
+        val group = android.widget.RadioGroup(this)
+        val current = KeyLayout.of(prefs.layout)
+        for (l in KeyLayout.entries) {
+            group.addView(android.widget.RadioButton(this).apply {
+                id = 1000 + l.ordinal
+                text = l.title
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+                isChecked = l == current
+            })
+        }
+        group.setOnCheckedChangeListener { _, id -> prefs.layout = KeyLayout.entries[id - 1000].id }
+        col.addView(group)
+        hint("Größe und Position: in der Tastatur oben links auf das Kachel-Symbol tippen, dann auf den Doppelpfeil. Dort gibt es auch Einhandmodus, Textbearbeitung und Zwischenablage.")
+
+        heading("Sprachen")
+        hint("Deutsch und Englisch gleichzeitig. Die Tastatur erkennt an den letzten Wörtern, in welcher Sprache du gerade schreibst.")
 
         heading("Spracheingabe")
         hint("Kostenloser Schlüssel von console.groq.com → „API Keys“. Ohne Schlüssel: Android-Spracherkennung.")
@@ -92,6 +132,8 @@ class SettingsActivity : Activity() {
 
         heading("Ausprobieren")
         testField()
+
+        hint("\nWortdaten: wordfreq (CC BY-SA 4.0), igerman98 (GPL), Tatoeba (CC BY 2.0 FR), Mozilla Common Voice (CC0).")
     }
 
     private fun link(label: String, onClick: () -> Unit) = col.addView(TextView(this).apply {

@@ -4,22 +4,114 @@ import android.content.Context
 import java.io.File
 import kotlin.math.abs
 import kotlin.math.ln
+import kotlin.math.log10
 import kotlin.math.min
+import kotlin.math.pow
 
 /**
  * Wortvorschläge komplett auf dem Handy, ohne Internet:
- * - Wörterbuch mit ~105.000 Wörtern (Deutsch + Englisch) samt Häufigkeit
+ * - Wörterbuch mit ~115.000 Wörtern (Deutsch + Englisch) samt Häufigkeit je Sprache
+ * - Deutsch und Englisch gleichzeitig: die letzten Wörter bestimmen, welche Sprache gerade zählt
  * - eigenes Wörterbuch, das mitlernt (auch Groß-/Kleinschreibung)
- * - Vorhersage des nächsten Worts aus dem, was du selbst schreibst
+ * - Vorhersage des nächsten Worts: mitgelieferte Wortfolgen (aus ~2 Mio. deutschen Sätzen)
+ *   plus das, was du selbst schreibst
  * - Tippfehler-Erkennung, die die Tastatur-Nachbarschaft und Umlaute kennt
  */
 class SuggestionEngine(
     private val openWords: () -> java.io.InputStream,
     dataDir: File,
+    private val openNgrams: (() -> java.io.InputStream)? = null,
+    private val openNgramsEn: (() -> java.io.InputStream)? = null,
 ) {
-    constructor(context: Context) : this({ context.assets.open("words.tsv") }, context.filesDir)
+    constructor(context: Context) : this(
+        { context.assets.open("words.tsv") }, context.filesDir,
+        { context.assets.open("ngrams.tsv") }, { context.assets.open("ngrams_en.tsv") },
+    )
 
-    private class Entry(var word: String, var score: Float)
+    /**
+     * @param scoreDe/scoreEn Häufigkeit je Sprache: 900 + 100·log10(Anteil), 0 = kommt nicht vor
+     * @param wordEn englische Schreibweise, falls anders („Art“ -> „art“, „i“ -> „I“)
+     */
+    private class Entry(val low: String, var word: String, val scoreDe: Float, val scoreEn: Float, val wordEn: String?)
+
+    /** Folgewörter eines Kontexts („ich“ oder „ich habe“) mit Häufigkeiten. */
+    private class Followers(
+        val total: Int,
+        val words: Array<String>,
+        val counts: IntArray,          // absteigend sortiert
+        val cased: Array<String?>,     // Schreibweise in diesem Zusammenhang, falls abweichend („Dank“)
+    ) {
+        fun index(w: String): Int {
+            for (i in words.indices) if (words[i] == w) return i
+            return -1
+        }
+        fun count(w: String): Int = index(w).let { if (it < 0) 0 else counts[it] }
+    }
+
+    /** Aufgelöster Kontext einer Abfrage (einmal pro Abfrage statt pro Kandidat). */
+    private class Ctx(
+        val user: Map<String, Int>?,
+        val bi: Followers?, val tri: Followers?,        // deutsche Wortfolgen
+        val biEn: Followers?, val triEn: Followers?,    // englische Wortfolgen
+        val en: Float,                                  // Anteil Englisch (0..1)
+    ) {
+        val hasStatic get() = bi != null || biEn != null
+    }
+
+    private fun ctx(prev: String?, prev2: String?, sentenceStart: Boolean = false): Ctx {
+        val en = english
+        val p1 = (if (sentenceStart) START else prev?.lowercase()) ?: return Ctx(null, null, null, null, null, en)
+        val p2 = if (sentenceStart) null else prev2?.lowercase()
+        val de = ngrams
+        val eng = ngramsEn
+        val key3 = if (p2 != null) "$p2 $p1" else null
+        return Ctx(bigrams[p1], de[p1], key3?.let { de[it] }, eng[p1], key3?.let { eng[it] }, en)
+    }
+
+    // ------------------------------------------------------------ Sprache (Deutsch/Englisch)
+
+    /** Geschätzter Anteil Englisch im aktuellen Text. */
+    @Volatile private var english = PRIOR_EN
+
+    /**
+     * Die letzten Wörter vor dem Cursor mitteilen (jüngstes zuletzt). Daraus wird geschätzt,
+     * ob gerade Deutsch oder Englisch geschrieben wird.
+     */
+    fun setRecentWords(words: List<String>) {
+        if (!loaded) return
+        var odds = ln(PRIOR_EN / (1f - PRIOR_EN))
+        var weight = 1f
+        for (w in words.asReversed().take(6)) {
+            val e = dict[w.lowercase()]
+            if (e != null) {
+                val de = if (e.scoreDe > 0f) e.scoreDe else FLOOR_SCORE
+                val en = if (e.scoreEn > 0f) e.scoreEn else FLOOR_SCORE
+                odds += weight * ((en - de) / 100f * LN10).coerceIn(-3f, 3f)
+            }
+            weight *= 0.8f
+        }
+        english = (1f / (1f + kotlin.math.exp(-odds))).coerceIn(0.01f, 0.97f)
+    }
+
+    /** Für Tests und Anzeige: geschätzter Anteil Englisch (0..1). */
+    fun englishShare(): Float = english
+
+    /** Grundhäufigkeit eines Worts als Mischung beider Sprachen (gleiche Skala wie die Einzelwerte). */
+    private fun baseScore(e: Entry, en: Float): Float {
+        val de = e.scoreDe
+        val es = e.scoreEn
+        return when {
+            es <= 0f -> de + 100f * log10(1f - en)
+            de <= 0f -> es + 100f * log10(en)
+            else -> 900f + 100f * log10(
+                (1f - en) * 10.0.pow((de - 900.0) / 100.0).toFloat() + en * 10.0.pow((es - 900.0) / 100.0).toFloat(),
+            )
+        }
+    }
+
+    /** Mitgelieferte Wortfolgen. Schlüssel: „wort“ oder „wort1 wort2“, Satzanfang = „<s>“. */
+    @Volatile private var ngrams: Map<String, Followers> = emptyMap()
+    @Volatile private var ngramsEn: Map<String, Followers> = emptyMap()
 
     @Volatile private var loaded = false
     private val dict = HashMap<String, Entry>(140_000)
@@ -38,23 +130,65 @@ class SuggestionEngine(
         Thread {
             try { load() } catch (_: Throwable) { }
             loaded = true
+            // Wortfolgen danach laden – Tippen funktioniert schon vorher
+            try { loadNgrams() } catch (_: Throwable) { fullyLoaded = true }
         }.apply { priority = Thread.MIN_PRIORITY }.start()
     }
 
     /** Synchron laden (für Tests). */
-    fun loadBlocking() { load(); loaded = true }
+    fun loadBlocking() { load(); loaded = true; loadNgrams() }
+
+    private fun loadNgrams() {
+        openNgrams?.let { ngrams = readNgrams(it, 180_000) }
+        openNgramsEn?.let { ngramsEn = readNgrams(it, 100_000) }
+        fullyLoaded = true
+    }
+
+    @Volatile private var fullyLoaded = false
+
+    /** Wörterbuch UND Wortfolgen geladen? */
+    fun isFullyLoaded() = fullyLoaded
+
+    private fun readNgrams(open: () -> java.io.InputStream, capacity: Int): Map<String, Followers> {
+        val map = HashMap<String, Followers>(capacity)
+        open().bufferedReader(Charsets.UTF_8).useLines { lines ->
+            for (line in lines) {
+                val t1 = line.indexOf('\t')
+                val t2 = line.indexOf('\t', t1 + 1)
+                if (t1 <= 0 || t2 <= 0) continue
+                val total = line.substring(t1 + 1, t2).toIntOrNull() ?: continue
+                val parts = line.substring(t2 + 1).split(' ')
+                val words = ArrayList<String>(parts.size)
+                val cased = ArrayList<String?>(parts.size)
+                val counts = IntArray(parts.size)
+                for (p in parts) {
+                    val c = p.lastIndexOf(':')
+                    if (c <= 0) continue
+                    val raw = p.substring(0, c)
+                    val low = raw.lowercase()
+                    val e = dict[low]
+                    counts[words.size] = p.substring(c + 1).toIntOrNull() ?: continue
+                    words += e?.low ?: low   // dieselbe String-Instanz wie im Wörterbuch (spart Speicher)
+                    cased += if (e != null && e.word != raw) raw else null
+                }
+                map[line.substring(0, t1)] =
+                    Followers(total, words.toTypedArray(), counts.copyOf(words.size), cased.toTypedArray())
+            }
+        }
+        return map
+    }
 
     private fun load() {
         openWords().bufferedReader(Charsets.UTF_8).useLines { lines ->
             for (line in lines) {
-                val tab = line.indexOf('\t')
-                if (tab <= 0) continue
-                val w = line.substring(0, tab)
-                val s = line.substring(tab + 1).toFloatOrNull() ?: continue
+                // Wort <TAB> Häufigkeit Deutsch <TAB> Häufigkeit Englisch [<TAB> englische Schreibweise]
+                val p = line.split('\t')
+                if (p.size < 2) continue
+                val w = p[0]
+                val de = p[1].toFloatOrNull() ?: continue
+                val en = p.getOrNull(2)?.toFloatOrNull() ?: 0f
                 val low = w.lowercase()
-                val e = dict[low]
-                if (e == null) dict[low] = Entry(w, s)
-                else if (s > e.score) e.score = s
+                if (!dict.containsKey(low)) dict[low] = Entry(low, w, de, en, p.getOrNull(3))
             }
         }
         if (userFile.exists()) userFile.forEachLine { line ->
@@ -70,6 +204,7 @@ class SuggestionEngine(
             if (p.size >= 3) bigrams.getOrPut(p[0]) { HashMap() }[p[1]] = p[2].toIntOrNull() ?: 1
         }
         rebuildIndex()
+        computeFirstLetters()
     }
 
     @Synchronized
@@ -101,50 +236,53 @@ class SuggestionEngine(
         return isCompound(low)
     }
 
+    private fun isGerman(low: String) = dict[low]?.let { it.scoreDe > 0f } == true
+
     private fun isCompound(low: String, depth: Int = 0): Boolean {
         if (low.length < 6 || depth > 2) return false
         for (i in 3..low.length - 3) {
             val head = low.substring(0, i)
             val tail = low.substring(i)
-            val headOk = dict.containsKey(head) ||
-                (head.endsWith("s") && head.length > 3 && dict.containsKey(head.dropLast(1)))
+            val headOk = isGerman(head) || (head.endsWith("s") && head.length > 3 && isGerman(head.dropLast(1)))
             if (!headOk) continue
-            if (dict[tail]?.let { it.score > 380 } == true || isCompound(tail, depth + 1)) return true
+            if (dict[tail]?.let { it.scoreDe > 380 } == true || isCompound(tail, depth + 1)) return true
         }
         return false
     }
 
     /** Vorschläge für das gerade getippte (unfertige) Wort. Beste zuerst. */
     @Synchronized
-    fun suggest(typed: String, prev: String?): List<String> {
+    fun suggest(typed: String, prev: String?, prev2: String? = null, sentenceStart: Boolean = false): List<String> {
         if (!loaded || typed.isEmpty()) return emptyList()
         val low = typed.lowercase()
         val scores = HashMap<String, Float>()
+        val c = ctx(prev, prev2, sentenceStart)
 
         // 1) Wortvervollständigung (Präfix)
         synchronized(this) {
+            // Alle Wörter mit diesem Anfang (ohne Obergrenze – sonst fehlen z. B. bei „f“ die
+            // Wörter am Ende des Alphabets wie „für“)
             var i = lowerBound(low)
-            var n = 0
-            while (i < sorted.size && n < 4000 && sorted[i].startsWith(low)) {
+            while (i < sorted.size && sorted[i].startsWith(low)) {
                 val w = sorted[i]
                 val extra = w.length - low.length
-                scores[w] = score(w, prev) - extra * 0.35f - (if (extra > 0) 1.2f else 0f)
-                i++; n++
+                scores[w] = score(w, c) - extra * 0.35f - (if (extra > 0) 1.2f else 0f)
+                i++
             }
         }
         // 2) Tippfehler-Korrektur
         if (low.length >= 2) {
             for ((w, dist) in corrections(low)) {
-                val s = score(w, prev) - dist * 4.5f
+                val s = score(w, c) - dist * 4.5f
                 if (s > (scores[w] ?: Float.NEGATIVE_INFINITY)) scores[w] = s
             }
         }
         // Das getippte Wort selbst etwas bevorzugen, wenn es bekannt ist
-        if (isKnown(typed)) scores[low] = (scores[low] ?: score(low, prev)) + 2.5f
+        if (isKnown(typed)) scores[low] = (scores[low] ?: score(low, c)) + 2.5f
 
         return scores.entries.sortedByDescending { it.value }
             .take(6)
-            .map { matchCase(display(it.key), typed) }
+            .map { matchCase(display(it.key, c), typed) }
             .distinct()
     }
 
@@ -152,26 +290,130 @@ class SuggestionEngine(
     @Synchronized
     fun correctionsFor(word: String, prev: String?): List<String> {
         if (!loaded) return emptyList()
+        val c = ctx(prev, null)
         return corrections(word.lowercase())
-            .map { (w, d) -> w to score(w, prev) - d * 4.5f }
+            .map { (w, d) -> w to score(w, c) - d * 4.5f }
             .sortedByDescending { it.second }
             .take(3)
             .map { matchCase(display(it.first), word) }
     }
 
-    /** Nächstes Wort vorhersagen. */
+    /**
+     * Nächstes Wort vorhersagen.
+     * @param prev letztes Wort, prev2 das Wort davor („<s>“ wenn prev am Satzanfang steht)
+     */
     @Synchronized
-    fun predictNext(prev: String?, sentenceStart: Boolean): List<String> {
+    fun predictNext(prev: String?, sentenceStart: Boolean, prev2: String? = null, n: Int = 3): List<String> {
         if (!loaded) return emptyList()
-        val out = mutableListOf<String>()
-        if (prev != null) {
-            bigrams[prev.lowercase()]?.entries?.sortedByDescending { it.value }?.take(3)?.forEach {
-                out += display(it.key)
+        val c = ctx(prev, prev2, sentenceStart)
+        val userTotal = c.user?.values?.sum() ?: 0
+        val userWeight = if (userTotal > 0) min(0.6f, userTotal / (userTotal + 10f)) else 0f
+
+        val cand = HashSet<String>()
+        c.bi?.words?.let { cand.addAll(it) }
+        c.tri?.words?.let { cand.addAll(it) }
+        c.biEn?.words?.let { cand.addAll(it) }
+        c.triEn?.words?.let { cand.addAll(it) }
+        c.user?.keys?.let { cand.addAll(it) }
+
+        val ranked = cand.map { w ->
+            val pu = if (userTotal > 0) (c.user!![w] ?: 0) / userTotal.toFloat() else 0f
+            w to (1 - userWeight) * staticProb(w, c) + userWeight * pu
+        }.sortedByDescending { it.second }
+
+        val out = ArrayList<String>(n)
+        for ((w, _) in ranked) {
+            if (out.size >= n) break
+            out += display(w, c)
+        }
+        val defaults = when {
+            c.en > 0.5f -> if (sentenceStart) listOf("I", "The", "It") else listOf("and", "the", "to")
+            sentenceStart -> listOf("Ich", "Das", "Hallo")
+            else -> listOf("und", "ich", "die")
+        }
+        for (d in defaults) if (out.size < n && out.none { it.equals(d, true) }) out += d
+        return out.map { if (sentenceStart) it.replaceFirstChar { ch -> ch.uppercase() } else it }
+    }
+
+    /** P(Wort | Kontext) aus den mitgelieferten Wortfolgen beider Sprachen; 0 wenn die Folge nicht vorkommt. */
+    private fun staticProb(low: String, c: Ctx): Float {
+        val de = if (c.bi != null) probIn(low, c.bi, c.tri) else 0f
+        val en = if (c.biEn != null) probIn(low, c.biEn, c.triEn) else 0f
+        return (1f - c.en) * de + c.en * en
+    }
+
+    private fun probIn(low: String, bi: Followers, tri: Followers?): Float {
+        val p2 = bi.count(low) / bi.total.toFloat()
+        if (tri == null) return p2
+        val c3 = tri.count(low)
+        if (c3 > 0) return 0.8f * c3 / tri.total + 0.2f * p2
+        // Nicht unter den häufigsten Folgewörtern des längeren Kontexts:
+        // höchstens so wahrscheinlich wie das seltenste dort gelistete Wort.
+        val bound = tri.counts[tri.counts.size - 1] / tri.total.toFloat()
+        return min(0.4f * p2, 0.8f * bound)
+    }
+
+    /**
+     * Wie wahrscheinlich ist jeder Buchstabe als NÄCHSTER Buchstabe? Für die unsichtbare Treffhilfe
+     * (wahrscheinliche Tasten bekommen eine größere Trefferfläche).
+     * @return Buchstabe -> Anteil (Summe 1), leer wenn nichts bekannt ist
+     */
+    @Synchronized
+    fun nextLetters(prefix: String, prev: String?, prev2: String?, sentenceStart: Boolean): Map<Char, Float> {
+        if (!loaded) return emptyMap()
+        val low = prefix.lowercase()
+        val c = ctx(prev, prev2, sentenceStart)
+        val sums = HashMap<Char, Double>()
+        if (low.isEmpty()) {
+            // Wortanfang: Folgewörter des Kontexts + allgemeine Verteilung der Anfangsbuchstaben
+            var listed = 0.0
+            val seen = HashSet<String>()
+            for (f in listOf(c.tri, c.bi, c.triEn, c.biEn)) {
+                f ?: continue
+                for (w in f.words) {
+                    if (!seen.add(w) || w.isEmpty()) continue
+                    val p = staticProb(w, c).toDouble()
+                    sums[w[0]] = (sums[w[0]] ?: 0.0) + p
+                    listed += p
+                }
+            }
+            val rest = (1.0 - listed).coerceIn(0.15, 1.0)
+            for ((ch, p) in firstLetters) {
+                val mixed = (1f - c.en) * p.first + c.en * p.second
+                sums[ch] = (sums[ch] ?: 0.0) + rest * mixed
+            }
+        } else {
+            var i = lowerBound(low)
+            while (i < sorted.size && sorted[i].startsWith(low)) {
+                val w = sorted[i++]
+                if (w.length <= low.length) continue
+                val ch = w[low.length]
+                if (!ch.isLetter()) continue
+                sums[ch] = (sums[ch] ?: 0.0) + 10.0.pow(score(w, c) / 1.667)
             }
         }
-        val defaults = if (sentenceStart) listOf("Ich", "Hallo", "Danke") else listOf("und", "ich", "die")
-        for (d in defaults) if (out.size < 3 && out.none { it.equals(d, true) }) out += d
-        return out.map { if (sentenceStart) it.replaceFirstChar { c -> c.uppercase() } else it }
+        val total = sums.values.sum()
+        if (total <= 0.0) return emptyMap()
+        return sums.mapValues { (it.value / total).toFloat() }
+    }
+
+    /** Anfangsbuchstabe -> (Anteil Deutsch, Anteil Englisch), einmal beim Laden berechnet. */
+    private var firstLetters: Map<Char, Pair<Float, Float>> = emptyMap()
+
+    private fun computeFirstLetters() {
+        val de = HashMap<Char, Double>()
+        val en = HashMap<Char, Double>()
+        for (e in dict.values) {
+            val ch = e.low.firstOrNull() ?: continue
+            if (!ch.isLetter()) continue
+            if (e.scoreDe > 0f) de[ch] = (de[ch] ?: 0.0) + 10.0.pow((e.scoreDe - 900.0) / 100.0)
+            if (e.scoreEn > 0f) en[ch] = (en[ch] ?: 0.0) + 10.0.pow((e.scoreEn - 900.0) / 100.0)
+        }
+        val td = de.values.sum().coerceAtLeast(1e-9)
+        val te = en.values.sum().coerceAtLeast(1e-9)
+        firstLetters = (de.keys + en.keys).associateWith { ch ->
+            ((de[ch] ?: 0.0) / td).toFloat() to ((en[ch] ?: 0.0) / te).toFloat()
+        }
     }
 
     // ------------------------------------------------------------ Lernen
@@ -189,10 +431,12 @@ class SuggestionEngine(
             if (c == LEARN_THRESHOLD) synchronized(this) { rebuildIndex() }
         } else if (!sentenceStart) {
             // Eigene Schreibweise bekannter Wörter merken (z. B. Firmennamen in Großbuchstaben)
-            if (word != dict[low]!!.word && word != word.lowercase()) userCasing[low] = word
+            val e = dict[low]!!
+            if (word != e.word && word != e.wordEn && word != word.lowercase()) userCasing[low] = word
         }
-        if (prev != null && prev.length < 40) {
-            val m = bigrams.getOrPut(prev.lowercase()) { HashMap() }
+        val key = if (sentenceStart) START else prev?.lowercase()
+        if (key != null && key.length < 40) {
+            val m = bigrams.getOrPut(key) { HashMap() }
             m[low] = (m[low] ?: 0) + 1
         }
         dirty = true
@@ -214,19 +458,20 @@ class SuggestionEngine(
      * nur, wenn sie eindeutig ist – sonst null.
      */
     @Synchronized
-    fun autocorrectFor(word: String, prev: String?): String? {
+    fun autocorrectFor(word: String, prev: String?, prev2: String? = null): String? {
         if (!loaded || word.length < 2 || isKnown(word)) return null
         if (word.length > 1 && word.all { !it.isLetter() || it.isUpperCase() }) return null
         val low = word.lowercase()
+        val c = ctx(prev, prev2)
         val ranked = corrections(low)
-            .map { (w, d) -> Triple(w, d, score(w, prev) - d * 4.5f) }
+            .map { (w, d) -> Triple(w, d, score(w, c) - d * 4.5f) }
             .sortedByDescending { it.third }
         val best = ranked.firstOrNull() ?: return null
         val maxD = if (low.length <= 4) 0.7f else 1.3f
         if (best.second > maxD) return null
         val second = ranked.getOrNull(1)
         if (second != null && best.third - second.third < 1.0f) return null
-        return matchCase(display(best.first), word)
+        return matchCase(display(best.first, c), word)
     }
 
     /** Kandidaten fürs Wischen: Anfangs- und Endbuchstabe passen. Liefert Kleinschreibung. */
@@ -249,10 +494,18 @@ class SuggestionEngine(
 
     /** Häufigkeits-/Kontext-Punktzahl eines Worts (Kleinschreibung). */
     @Synchronized
-    fun rank(low: String, prev: String?): Float = score(low, prev)
+    fun rank(low: String, prev: String?, prev2: String? = null): Float = score(low, ctx(prev, prev2))
+
+    /** Wie [rank], aber für viele Wörter mit demselben Kontext (Wischen). */
+    @Synchronized
+    fun rankAll(words: List<String>, prev: String?, prev2: String? = null): FloatArray {
+        val c = ctx(prev, prev2)
+        return FloatArray(words.size) { score(words[it], c) }
+    }
 
     @Synchronized
-    fun displayForm(low: String): String = display(low)
+    fun displayForm(low: String, prev: String? = null, prev2: String? = null): String =
+        display(low, ctx(prev, prev2))
 
     /** Ein gelerntes Wort wurde doch korrigiert – Zähler wieder senken. */
     @Synchronized
@@ -307,15 +560,37 @@ class SuggestionEngine(
 
     // ------------------------------------------------------------ Intern
 
-    private fun score(low: String, prev: String?): Float {
-        var s = dict[low]?.score?.let { it / 60f } ?: 0f
+    /**
+     * Punktzahl eines Worts: Häufigkeit + eigenes Schreibverhalten + wie gut es zum Kontext passt.
+     * Skala: 1,67 Punkte = Faktor 10 in der Wahrscheinlichkeit.
+     */
+    private fun score(low: String, c: Ctx): Float {
+        val base = dict[low]?.let { baseScore(it, c.en) }
+        var s = base?.let { it / 60f } ?: 0f
         val u = userWords[low] ?: 0
         if (u > 0) s = maxOf(s, 6f) + ln(1f + u) * 1.5f
-        if (prev != null) {
-            val b = bigrams[prev.lowercase()]?.get(low) ?: 0
-            if (b > 0) s += 3f + ln(1f + b) * 2f
+        val b = c.user?.get(low) ?: 0
+        if (b > 0) s += 3f + ln(1f + b) * 2f
+        if (c.hasStatic) {
+            val p = staticProb(low, c)
+            s += if (p > 0f && base != null) {
+                val prior = 10.0.pow((base - 900.0) / 100.0).toFloat()
+                (CONTEXT_WEIGHT * log10(p / prior)).coerceIn(-1f, 8f)
+            } else CONTEXT_MISS
         }
         return s
+    }
+
+    /** Schreibweise: eigene Vorliebe > Schreibweise im Zusammenhang („Vielen Dank“) > Wörterbuch. */
+    private fun display(low: String, c: Ctx): String {
+        userCasing[low]?.let { return it }
+        val english = c.en > 0.5f
+        val first = if (english) c.triEn else c.tri
+        val second = if (english) c.biEn else c.bi
+        first?.let { f -> f.index(low).let { i -> if (i >= 0) f.cased[i]?.let { return it } } }
+        second?.let { f -> f.index(low).let { i -> if (i >= 0) f.cased[i]?.let { return it } } }
+        val e = dict[low] ?: return low
+        return if (english) e.wordEn ?: e.word else e.word
     }
 
     private fun display(low: String): String = userCasing[low] ?: dict[low]?.word ?: low
@@ -401,6 +676,13 @@ class SuggestionEngine(
 
     companion object {
         const val LEARN_THRESHOLD = 2
+        const val START = "<s>"
+        private const val CONTEXT_WEIGHT = 1.67f
+        private const val CONTEXT_MISS = -0.5f
+        /** Ohne Hinweise aus dem Text wird überwiegend Deutsch angenommen. */
+        private const val PRIOR_EN = 0.03f
+        private const val FLOOR_SCORE = 150f
+        private const val LN10 = 2.3026f
 
         /** Buchstaben, die gleich klingen und oft verwechselt werden. */
         private val SOUND_ALIKE = setOf("dt", "bp", "gk", "fv", "sz", "ck", "xs", "yi", "ei")
@@ -414,19 +696,26 @@ class SuggestionEngine(
             else -> c
         }
 
-        /** Nachbartasten anhand der echten Tastenpositionen (QWERTZ). */
-        private val NEIGHBORS: Map<Char, String> = run {
+        /** Nachbartasten anhand der Tastenpositionen (Reihen werden zentriert wie auf der Tastatur). */
+        private fun neighborsOf(rows: List<String>): Map<Char, String> {
+            val widest = rows.maxOf { it.length }
             val pos = HashMap<Char, Pair<Float, Float>>()
-            "qwertzuiop".forEachIndexed { i, c -> pos[c] = (i + 0.5f) to 0f }
-            "asdfghjkl".forEachIndexed { i, c -> pos[c] = (i + 1f) to 1f }
-            "yxcvbnm".forEachIndexed { i, c -> pos[c] = (i + 2f) to 2f }
+            for ((r, row) in rows.withIndex()) {
+                val off = (widest - row.length) / 2f
+                row.forEachIndexed { i, c -> pos[c] = (off + i + 0.5f) to r.toFloat() }
+            }
             val m = HashMap<Char, String>()
             for ((c, p) in pos) {
                 m[c] = pos.filter { (o, q) ->
                     o != c && (p.first - q.first).let { it * it } + (p.second - q.second).let { it * it } <= 2.1f
                 }.keys.joinToString("")
             }
-            m
+            return m
         }
+
+        @Volatile private var NEIGHBORS: Map<Char, String> = neighborsOf(listOf("qwertzuiop", "asdfghjkl", "yxcvbnm"))
+
+        /** Aktuelle Tastenanordnung mitteilen (für die Tippfehler-Erkennung). */
+        fun setKeyRows(rows: List<String>) { NEIGHBORS = neighborsOf(rows) }
     }
 }

@@ -10,9 +10,9 @@ android {
     defaultConfig {
         applicationId = "de.schranner.tastatur"
         minSdk = 29
-        targetSdk = 35
-        versionCode = 3
-        versionName = "0.3"
+        targetSdk = 34
+        versionCode = 4
+        versionName = "0.4"
     }
 
     signingConfigs {
@@ -39,8 +39,17 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+
+    testOptions {
+        unitTests {
+            // Für die Bild-Tests (Tastatur wird ohne Handy gerendert)
+            isIncludeAndroidResources = true
+            all { it.maxHeapSize = "2g" }
+        }
+    }
 }
 
 dependencies {
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.14.1")
 }

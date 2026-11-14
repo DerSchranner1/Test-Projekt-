@@ -17,7 +17,9 @@ class GestureDecoder(private val engine: SuggestionEngine) {
      * @param keyW Breite einer Taste
      * @return beste Wörter (Kleinschreibung), bestes zuerst
      */
-    fun decode(path: List<Pt>, centers: Map<Char, Pt>, keyW: Float, prev: String?): List<String> {
+    fun decode(
+        path: List<Pt>, centers: Map<Char, Pt>, keyW: Float, prev: String?, prev2: String? = null,
+    ): List<String> {
         if (path.size < 2 || centers.isEmpty()) return emptyList()
         val user = resample(path, N)
         val start = path.first()
@@ -28,7 +30,9 @@ class GestureDecoder(private val engine: SuggestionEngine) {
         val userLen = length(path)
 
         val scored = ArrayList<Pair<String, Float>>()
-        for (w in engine.gestureCandidates(first, last)) {
+        val candidates = engine.gestureCandidates(first, last)
+        val ranks = engine.rankAll(candidates, prev, prev2)
+        for ((ci, w) in candidates.withIndex()) {
             val pts = ArrayList<Pt>(w.length)
             var ok = true
             var prevC: Char? = null
@@ -57,7 +61,7 @@ class GestureDecoder(private val engine: SuggestionEngine) {
             // Anfang und Ende der Spur zählen besonders (dort setzt man bewusst auf)
             val ds = dist(pts.first(), start) / keyW
             val de = dist(pts.last(), end) / keyW
-            val s = engine.rank(w, prev) * 0.55f - 9f * d * d - 3f * miss * miss - 2.5f * (ds * ds + de * de)
+            val s = ranks[ci] * 0.55f - 9f * d * d - 3f * miss * miss - 2.5f * (ds * ds + de * de)
             scored += w to s
         }
         return scored.sortedByDescending { it.second }.take(5).map { it.first }

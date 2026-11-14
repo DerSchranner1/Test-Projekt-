@@ -46,6 +46,11 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
     var gestureEnabled = false
     var gestureTrail = true
 
+    /** Treffhilfe: Gewicht je Buchstabentaste (1 = wahrscheinlichster nächster Buchstabe). */
+    var touchWeights: Map<Char, Float> = emptyMap()
+    /** Stärke der Treffhilfe, 0..1 (0 = aus). Die Tasten sehen immer gleich aus. */
+    var touchAssist = 0f
+
     var rows: KeyRows = emptyList()
         set(value) {
             field = value
@@ -65,8 +70,13 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
     var spaceLabel = "Deutsch"
         set(value) { field = value; invalidate() }
 
+    /** Größe der Tastatur in Prozent (100 = Standard). Schrift und Symbole skalieren mit. */
     var keyHeightPercent = 100
-        set(value) { field = value; requestLayout() }
+        set(value) {
+            if (field == value) return
+            field = value
+            requestLayout(); layoutKeys(); invalidate()
+        }
 
     private val handler = Handler(Looper.getMainLooper())
     private val density = resources.displayMetrics.density
@@ -75,11 +85,6 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
 
     private val keyPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER }
-    private val hintPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        textAlign = Paint.Align.RIGHT
-        color = theme.hint
-        textSize = sp(10f)
-    }
     private val trailPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
@@ -89,10 +94,11 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
         strokeWidth = dp(5f)
     }
     private val trailPath = android.graphics.Path()
-    private val radius = dp(6f)
-    private val gapX = dp(2.5f)
-    private val gapY = dp(7f)
-    private val topPad = dp(4f)
+    // Maße nach Gboard (dort vermessen): Tasten 92 px breit mit 14,5 px Abstand bei 1080 px Breite
+    private val gapX = dp(2.6f)
+    private val sidePad = dp(2.1f)
+    private val topPad = dp(5f)
+    private val bottomPad = dp(3f)
 
     private fun icon(id: Int) = context.getDrawable(id)!!.mutate()
     private val icShift = icon(R.drawable.ic_shift)
@@ -158,12 +164,20 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
 
     // ---------------------------------------------------------------- Layout
 
-    private fun rowHeight(): Float = dp(49f) * keyHeightPercent / 100f
+    /** Reihenabstand der Buchstabenreihen. Alles andere (Abstände, Schrift, Symbole) richtet sich danach. */
+    private fun rowHeight(): Float = dp(BASE_ROW_DP) * keyHeightPercent / 100f
 
-    // Die Zahlenreihe ist etwas niedriger als die Buchstabenreihen (wie bei Gboard).
-    private fun baseHeight(r: List<Key>, all: KeyRows) =
-        if (all.size >= 5 && r === all[0] && r.all { it.label.length == 1 && it.label[0].isDigit() }) rowHeight() * 0.82f
-        else rowHeight()
+    private fun gapY(): Float = (rowHeight() * 0.215f).coerceIn(dp(5f), dp(10f))
+
+    private fun isNumberRow(r: List<Key>, all: KeyRows) =
+        all.size >= 5 && r === all[0] && r.all { it.label.length == 1 && it.label[0].isDigit() }
+
+    // Wie bei Gboard: Zahlenreihe etwas niedriger, unterste Reihe etwas höher.
+    private fun baseHeight(r: List<Key>, all: KeyRows) = when {
+        isNumberRow(r, all) -> rowHeight() * 0.924f
+        r === all.last() -> rowHeight() * 1.076f
+        else -> rowHeight()
+    }
 
     private fun sumHeights(all: KeyRows) = all.sumOf { baseHeight(it, all).toDouble() }.toFloat()
 
@@ -182,7 +196,7 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
     }
 
     private fun totalHeight() =
-        (referenceRows?.let { sumHeights(it) } ?: sumHeights(rows)) + topPad * 2
+        (referenceRows?.let { sumHeights(it) } ?: sumHeights(rows)) + topPad + bottomPad
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val w = MeasureSpec.getSize(widthMeasureSpec)
@@ -194,25 +208,40 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
         layoutKeys()
     }
 
+    private val lastRowKeys = HashSet<Key>()
+
     private fun layoutKeys() {
         val w = width.toFloat()
         if (w <= 0f) return
         var top = topPad
+        val gy = gapY()
+        val inner = w - 2 * sidePad
         val maxWeight = rows.maxOfOrNull { r -> r.sumOf { it.weight.toDouble() } }?.toFloat() ?: return
+        lastRowKeys.clear()
+        rows.lastOrNull()?.let { lastRowKeys.addAll(it) }
         rows.forEach { row ->
             val total = row.sumOf { it.weight.toDouble() }.toFloat()
             // Reihen mit weniger Tasten behalten die Tastenbreite und werden zentriert
-            val unit = w / maxWeight
-            var x = (w - unit * total) / 2f
+            val unit = inner / maxWeight
+            var x = sidePad + (inner - unit * total) / 2f
             val rh = heightOf(row)
             for (k in row) {
                 val kw = unit * k.weight
-                k.bounds.set(x + gapX, top + gapY / 2f, x + kw - gapX, top + rh - gapY / 2f)
+                k.bounds.set(x + gapX, top + gy / 2f, x + kw - gapX, top + rh - gy / 2f)
                 x += kw
             }
             top += rh
         }
+        targetKeys.clear()
+        for (row in rows) for (k in row) if (isLetter(k)) targetKeys[k.label[0].lowercaseChar()] = k
+        targets = targetKeys.map { (ch, k) -> TouchModel.Target(ch, k.bounds.centerX(), k.bounds.centerY()) }
     }
+
+    private var targets: List<TouchModel.Target> = emptyList()
+    private val targetKeys = HashMap<Char, Key>()
+
+    /** Welche Buchstaben haben eine eigene Taste? */
+    fun letterKeys(): Set<Char> = HashSet(targetKeys.keys)
 
     /** Mitte jeder Buchstabentaste – für die Wisch-Erkennung. */
     fun letterCenters(): Map<Char, GestureDecoder.Pt> {
@@ -236,13 +265,19 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
             top += heightOf(row)
             if (y < top) { r = i; break }
         }
-        return rows[r].minByOrNull { k ->
+        val base = rows[r].minByOrNull { k ->
             when {
                 x < k.bounds.left -> k.bounds.left - x
                 x > k.bounds.right -> x - k.bounds.right
                 else -> 0f
             }
         }
+        // Treffhilfe: wahrscheinliche Buchstaben haben unsichtbar eine größere Trefferfläche
+        if (base != null && touchAssist > 0f && touchWeights.isNotEmpty() && isLetter(base)) {
+            val t = TouchModel.pick(x, y, targets, letterKeyWidth(), heightOf(rows[r]), touchWeights, touchAssist)
+            if (t != null) return targetKeys[t.ch] ?: base
+        }
+        return base
     }
 
     // ---------------------------------------------------------------- Zeichnen
@@ -263,26 +298,40 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
         }
     }
 
+    private val pillRect = RectF()
+
     private fun drawKey(canvas: Canvas, k: Key, pressed: Boolean) {
-        val special = k.type != KeyType.CHAR && k.type != KeyType.SPACE
+        val rh = rowHeight()
+        val inLastRow = k in lastRowKeys
+        val switcher = k.type == KeyType.SYMBOLS || k.type == KeyType.SYMBOLS2 || k.type == KeyType.LETTERS
+        // Funktionstasten sind etwas heller als Buchstabentasten (wie bei Gboard)
+        val functional = k.type == KeyType.SHIFT || k.type == KeyType.DELETE || switcher ||
+            (k.type == KeyType.CHAR && inLastRow && !k.label[0].isLetterOrDigit())
         keyPaint.color = when {
             pressed -> theme.keyPressed
             k.type == KeyType.ENTER -> theme.accent
             k.type == KeyType.SHIFT && shift == ShiftState.LOCK -> theme.accent
-            special -> theme.specialKey
+            functional -> theme.specialKey
             else -> theme.key
         }
-        canvas.drawRoundRect(k.bounds, radius, radius, keyPaint)
+        if (inLastRow && (switcher || k.type == KeyType.ENTER)) {
+            // „?123“ und Enter als Pille
+            pillRect.set(k.bounds)
+            pillRect.inset(dp(2.4f), rh * 0.085f)
+            canvas.drawRoundRect(pillRect, pillRect.height() / 2f, pillRect.height() / 2f, keyPaint)
+        } else {
+            val r = minOf(dp(7f), k.bounds.height() / 3f)
+            canvas.drawRoundRect(k.bounds, r, r, keyPaint)
+        }
 
         var label = k.label
         textPaint.typeface = Typeface.DEFAULT
         textPaint.color = theme.text
-        textPaint.textSize = sp(21f)
-        val iconSize = dp(22f)
-        fun drawIcon(d: android.graphics.drawable.Drawable, color: Int, size: Float = iconSize) {
+        textPaint.textSize = rh * 0.51f
+        fun drawIcon(d: android.graphics.drawable.Drawable, color: Int, size: Float) {
             val cx = k.bounds.centerX().toInt()
             val cy = k.bounds.centerY().toInt()
-            val h = (size / 2).toInt()
+            val h = (minOf(size, k.bounds.height() * 0.95f) / 2).toInt()
             d.setBounds(cx - h, cy - h, cx + h, cy + h)
             d.setTint(color)
             d.draw(canvas)
@@ -290,37 +339,33 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
         when (k.type) {
             KeyType.CHAR -> {
                 if (shift != ShiftState.OFF && label.length == 1 && label != "ß") label = label.uppercase()
-                if (label.length > 1) textPaint.textSize = sp(16f)
-                if (rows.size >= 5 && k in rows[0] && baseHeight(rows[0], rows) < rowHeight()) textPaint.textSize = sp(18f)
+                if (label.length > 1) textPaint.textSize = rh * 0.36f
             }
             KeyType.SHIFT -> {
                 val d = when (shift) { ShiftState.OFF -> icShift; ShiftState.ON -> icShiftOn; ShiftState.LOCK -> icShiftLock }
-                drawIcon(d, if (shift == ShiftState.LOCK) theme.accentText else theme.text)
+                drawIcon(d, if (shift == ShiftState.LOCK) theme.accentText else theme.text, rh * 0.70f)
                 return
             }
-            KeyType.DELETE -> { drawIcon(icDelete, theme.text); return }
-            KeyType.EMOJI -> { drawIcon(icEmoji, theme.text); return }
+            KeyType.DELETE -> { drawIcon(icDelete, theme.text, rh * 0.62f); return }
+            KeyType.EMOJI -> { drawIcon(icEmoji, theme.text, rh * 0.64f); return }
             KeyType.ENTER -> {
                 val d = when (enterLabel) {
                     "🔍" -> icSearch; "➤" -> icSend; "✓" -> icDone; "➜", "⇥" -> icNext; else -> icEnter
                 }
-                drawIcon(d, theme.accentText)
+                drawIcon(d, theme.accentText, rh * 0.66f)
                 return
             }
             KeyType.SPACE -> {
                 label = spaceLabel
                 textPaint.color = theme.hint
-                textPaint.textSize = sp(12f)
+                textPaint.textSize = rh * 0.30f
             }
             KeyType.SYMBOLS, KeyType.SYMBOLS2, KeyType.LETTERS -> {
-                textPaint.textSize = sp(14f)
+                textPaint.textSize = rh * 0.35f
             }
         }
         val cy = k.bounds.centerY() - (textPaint.descent() + textPaint.ascent()) / 2f
         canvas.drawText(label, k.bounds.centerX(), cy, textPaint)
-        k.hint?.let {
-            canvas.drawText(it, k.bounds.right - dp(4f), k.bounds.top + hintPaint.textSize + dp(1f), hintPaint)
-        }
     }
 
     // ---------------------------------------------------------------- Touch
@@ -540,6 +585,7 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
         val w = (k.bounds.width() + dp(16f)).toInt()
         val h = (k.bounds.height() * 1.25f).toInt()
         previewText.text = applyShift(k.label)
+        previewText.setTextSize(TypedValue.COMPLEX_UNIT_PX, rowHeight() * 0.6f)
         val loc = IntArray(2)
         getLocationInWindow(loc)
         val x = loc[0] + k.bounds.centerX().toInt() - w / 2
@@ -624,6 +670,8 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
     }
 
     companion object {
+        /** Reihenabstand bei 100 % – entspricht einer kompakt eingestellten Gboard. */
+        const val BASE_ROW_DP = 37.3f
         const val LONG_PRESS = 330L
         const val LONG_PRESS_SPACE = 650L
         const val REPEAT_DELAY = 400L
