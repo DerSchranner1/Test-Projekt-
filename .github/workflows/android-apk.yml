@@ -1,0 +1,59 @@
+name: Android APK
+
+on:
+  push:
+    branches: [main, 'claude/**']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-apk
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Web-App in Android-Projekt verpacken
+        run: |
+          npm ci
+          npm run android:prepare
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+
+      - name: APK bauen
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: APK benennen
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk narrhalla-player.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: narrhalla-player-apk
+          path: narrhalla-player.apk
+
+      - name: Als Release veröffentlichen (fester Download-Link)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete apk-latest --cleanup-tag --yes || true
+          gh release create apk-latest narrhalla-player.apk \
+            --target "$GITHUB_SHA" \
+            --title "Narrhalla Player – Android (Build ${{ github.run_number }})" \
+            --notes "Automatisch gebaute Test-APK (Debug-Signatur). Auf dem Handy herunterladen und installieren; dazu muss „Installation aus unbekannten Quellen“ für den Browser erlaubt sein." \
+            --prerelease
