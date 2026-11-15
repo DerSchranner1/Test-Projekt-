@@ -1,7 +1,7 @@
 /* Service Worker: macht die App offline nutzbar.
  * Bei Änderungen an der App die Versionsnummer erhöhen. */
-const CACHE = 'narrhalla-v2';
-const FILES = ['./', 'index.html', 'style.css', 'app.js', 'counts.js', 'manifest.webmanifest',
+const CACHE = 'narrhalla-v3';
+const FILES = ['./', 'index.html', 'style.css', 'app.js', 'analysis.js', 'counts.js', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {

@@ -20,6 +20,7 @@ erhöhen, damit installierte Geräte die neue Fassung laden.
 
 - **Playback**: Play/Pause, Stopp, ±5 s, vorheriger/nächster Titel, Lautstärke, Fade-Out, Loop, optional Auto-Weiter
 - **Replay**: vom Anfang (Cue-In), ab dem letzten Marker, oder den zuvor gespielten Titel nochmal; dazu ein Verlauf
+- **Medleys**: erkennt die einzelnen Lieder in einer geschnittenen Datei, jedes mit eigener Farbe, eigenem Tempo und eigener Zählung
 - **Zählzeiten 1–8**: Tempo und „1“ werden automatisch erkannt (korrigierbar per Tap, ½/×2, „Hier ist die 1“);
   Raster mit Zahlen in der Detail-Wellenform, Mitzählen per Stimme oder Klick, Einrasten auf Zählzeiten
 - **Wellenform mit Markern** (SoundCloud-Stil): Übersicht plus Detailansicht zum Schieben mit dem Finger (mit Ton);
@@ -43,4 +44,5 @@ Bei jedem Push baut GitHub Actions eine APK und stellt sie unter dem Release `ap
 https://github.com/DerSchranner1/Test-Projekt-/releases/download/apk-latest/narrhalla-player.apk
 
 Die Android-Hülle ist Capacitor (`npm run android:prepare`). Export nutzt dort die Plugins Filesystem und Share.
+Die Analyse (Lieder, Tempo, „1“) steckt in `analysis.js` und läuft auch in Node.
 Die gesprochenen Zählzeiten in `counts.js` sind mit espeak-ng (MBROLA-Stimme de6) erzeugt.

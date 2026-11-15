@@ -228,7 +228,23 @@ h2 {
 }
 .cue-val { font-variant-numeric: tabular-nums; min-width: 52px; color: var(--accent-2); }
 
-.markers-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.markers-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.head-btns { display: flex; gap: 6px; }
+.song-list { list-style: none; margin: 0; padding: 0; }
+.song-list li {
+  display: grid; grid-template-columns: 28px minmax(0, 1fr) 48px 30px 40px 30px;
+  align-items: center; gap: 6px; padding: 4px 6px; border-radius: 8px; border-left: 4px solid var(--c);
+  margin-bottom: 4px; background: var(--panel);
+}
+.song-list li.cur { outline: 1px solid var(--c); }
+.song-list input[type=text] {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 6px; padding: 6px 8px; min-width: 0;
+}
+.song-list .time { font-variant-numeric: tabular-nums; font-size: 12px; }
+.song-bpm { color: var(--accent-2); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
+.mmini:disabled { opacity: .3; cursor: default; }
+#tempoSeg { text-transform: none; letter-spacing: 0; margin-left: 4px; }
 .marker-list li {
   display: grid; grid-template-columns: auto minmax(0, 1fr) 28px 34px 38px 30px;
   align-items: center; gap: 6px; padding: 4px 0;

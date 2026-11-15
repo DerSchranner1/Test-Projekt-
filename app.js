@@ -16,12 +16,13 @@ const MARKER_COLORS = ['#ffd23f', '#3ddc97', '#4cc9f0', '#f72585', '#ff7a1a', '#
 const ZOOMS = [2, 4, 8, 16, 32];
 
 const DEFAULT_GROUPS = [
-  { id: 'g-einmarsch', name: 'Einmarsch', color: '#e5484d' },
-  { id: 'g-garde', name: 'Garde / Tanz', color: '#4cc9f0' },
-  { id: 'g-tusch', name: 'Tusch & Jingles', color: '#ffd23f' },
-  { id: 'g-buett', name: 'Bütt', color: '#3ddc97' },
-  { id: 'g-pause', name: 'Pause / Hintergrund', color: '#b388ff' },
+  { id: 'g-show', name: 'Show', color: '#ff7a1a' },
+  { id: 'g-garde', name: 'Garde', color: '#4cc9f0' },
+  { id: 'g-elfer', name: 'Elfer', color: '#e5484d' },
 ];
+const OLD_EXAMPLE_GROUPS = ['g-einmarsch', 'g-garde', 'g-tusch', 'g-buett', 'g-pause'];
+// Farben für die einzelnen Lieder in einer Datei
+const SEG_COLORS = ['#ff7a1a', '#4cc9f0', '#3ddc97', '#f72585', '#ffd23f', '#b388ff', '#e5484d', '#14b8a6', '#a3e635', '#3b82f6'];
 const DEFAULT_SETTINGS = {
   countMode: 'off',     // off | voice | click
   countVolume: 0.8,
@@ -35,7 +36,10 @@ const DEFAULT_SETTINGS = {
 
 const state = {
   groups: DEFAULT_GROUPS.slice(),
-  tracks: [],   // {id, name, artist, fileName, duration, groupId, markers[], cueIn, cueOut, peaks[], bpm, beatOffset}
+  // Titel: {id, name, artist, fileName, duration, groupId, markers[], cueIn, cueOut, peaks[], segments[]}
+  // segments: die Lieder in der Datei: {id, start, name, color, bpm, beatOffset}
+  tracks: [],
+  groupsVersion: 2,
   volume: 1,
   autoNext: false,
   settings: { ...DEFAULT_SETTINGS },
@@ -210,103 +214,43 @@ function makePeaks(mono, sr) {
   return { peaks: peaks.map((p) => Math.round((max ? p / max : 0) * 100) / 100), hi };
 }
 
-/* Tempo-Erkennung: Einsatzstärke (Bass + Gesamt) in 10-ms-Schritten,
- * Autokorrelation für das Tempo, danach Feinsuche über den ganzen Titel,
- * Phase des Schlags und welche der acht Zählzeiten die „1“ ist. */
-function detectTempo(mono, sr) {
-  const fps = 100, hop = sr / fps;
-  const n = Math.floor(mono.length / hop);
-  if (n < fps * 6) return null;
-  const low = new Float32Array(n), full = new Float32Array(n);
-  const a = 1 - Math.exp((-2 * Math.PI * 150) / sr);
-  let lp = 0;
-  for (let i = 0; i < n; i++) {
-    let el = 0, ef = 0;
-    const s = Math.floor(i * hop), e = Math.floor((i + 1) * hop);
-    for (let j = s; j < e; j++) { const x = mono[j]; lp += a * (x - lp); el += lp * lp; ef += x * x; }
-    low[i] = Math.log1p(1000 * Math.sqrt(el / (e - s)));
-    full[i] = Math.log1p(1000 * Math.sqrt(ef / (e - s)));
+// Für die Analyse in 22 kHz dekodieren: halber Speicher, reicht für Takt und Wellenform
+async function decodeLow(blob) {
+  try {
+    const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    return await new OAC(1, 1, 22050).decodeAudioData(await blob.arrayBuffer());
+  } catch (e) {
+    return ctx().decodeAudioData(await blob.arrayBuffer());
   }
-  const onL = new Float32Array(n), on = new Float32Array(n);
-  for (let i = 1; i < n; i++) {
-    onL[i] = Math.max(0, low[i] - low[i - 1]);
-    on[i] = 1.5 * onL[i] + Math.max(0, full[i] - full[i - 1]);
-  }
-  // gleitenden Mittelwert abziehen, damit nur echte Einsätze zählen
-  const W = 25;
-  let acc = 0;
-  const flt = new Float32Array(n);
-  for (let i = 0; i < n; i++) {
-    acc += on[i];
-    if (i >= 2 * W) acc -= on[i - 2 * W];
-    const c = i - W;
-    if (c >= 0) flt[c] = Math.max(0, on[c] - acc / (2 * W));
-  }
-
-  const score = (lag) => {
-    let s = 0;
-    for (let i = 0; i + lag < n; i++) s += flt[i] * flt[i + lag];
-    return s / (n - lag);
-  };
-  let best = 0, bestBpm = 0;
-  for (let bpm = 60; bpm <= 200; bpm += 0.5) {
-    const lag = (60 * fps) / bpm;
-    const l0 = Math.floor(lag), f = lag - l0;
-    const r = (1 - f) * score(l0) + f * score(l0 + 1);
-    const r2l = Math.round(lag * 2) < n / 2 ? score(Math.round(lag * 2)) : 0;
-    const prior = Math.exp(-0.5 * (Math.log2(bpm / 120) / 0.55) ** 2);
-    const s = (r + 0.5 * r2l) * prior;
-    if (s > best) { best = s; bestBpm = bpm; }
-  }
-  if (!bestBpm) return null;
-
-  // Feinsuche: welches Tempo trifft über den ganzen Titel die meisten Einsätze?
-  const at = (x) => { const i = Math.floor(x); const f = x - i; return i + 1 < n ? flt[i] * (1 - f) + flt[i + 1] * f : 0; };
-  const phaseFit = (bpm) => {
-    const P = (60 * fps) / bpm;
-    let bs = -1, bp = 0;
-    for (let ph = 0; ph < P; ph += 0.5) {
-      let s = 0;
-      for (let x = ph; x < n; x += P) s += at(x);
-      if (s > bs) { bs = s; bp = ph; }
-    }
-    return { s: bs, ph: bp };
-  };
-  let fine = { bpm: bestBpm, ...phaseFit(bestBpm) };
-  for (let bpm = bestBpm - 1.5; bpm <= bestBpm + 1.5; bpm += 0.05) {
-    const r = phaseFit(bpm);
-    if (r.s > fine.s) fine = { bpm, ...r };
-  }
-  let bpm = fine.bpm;
-  if (Math.abs(bpm - Math.round(bpm)) < 0.12) bpm = Math.round(bpm);
-  else bpm = Math.round(bpm * 10) / 10;
-  const P = (60 * fps) / bpm;
-  const ph = phaseFit(bpm).ph;
-
-  // welche der acht Zählzeiten trägt den stärksten Bass-Einsatz? Das wird die „1“.
-  let bj = 0, bjs = -1;
-  for (let j = 0; j < 8; j++) {
-    let s = 0;
-    for (let x = ph + j * P; x + 1 < n; x += 8 * P) {
-      const i = Math.round(x);
-      s += Math.max(onL[i], onL[i + 1] || 0, onL[i - 1] || 0);
-    }
-    if (s > bjs) { bjs = s; bj = j; }
-  }
-  return { bpm, beatOffset: Math.round(((ph + bj * P) / fps) * 1000) / 1000 };
 }
 
-async function decodeBlob(blob) {
-  const data = await blob.arrayBuffer();
-  return ctx().decodeAudioData(data);
-}
-
-async function analyseBlob(blob) {
-  const buf = await decodeBlob(blob);
+let featCache = { id: null, F: null };
+async function analyseBlob(blob, id = null) {
+  const buf = await decodeLow(blob);
   const mono = mixMono(buf);
   const { peaks, hi } = makePeaks(mono, buf.sampleRate);
-  const tempo = detectTempo(mono, buf.sampleRate);
-  return { duration: buf.duration, peaks, hi, tempo };
+  const { segments, F } = Analysis.analyse(mono, buf.sampleRate);
+  if (id) featCache = { id, F };
+  return { duration: buf.duration, peaks, hi, segments };
+}
+
+async function featuresFor(t) {
+  if (featCache.id === t.id) return featCache.F;
+  toast('Analysiere …', 30000);
+  const buf = await decodeLow(await getFile(t.id));
+  featCache = { id: t.id, F: Analysis.features(mixMono(buf), buf.sampleRate) };
+  return featCache.F;
+}
+
+function toSegments(list, old = []) {
+  return list.map((x, i) => ({
+    id: uid(),
+    start: x.start,
+    bpm: x.bpm,
+    beatOffset: x.beatOffset,
+    name: old[i]?.name || '',
+    color: list.length > 1 ? old[i]?.color || SEG_COLORS[i % SEG_COLORS.length] : old[0]?.color ?? null,
+  }));
 }
 
 /* ---------- Titelinfos aus der Datei lesen (ID3, MP4, Vorbis) ---------- */
@@ -392,8 +336,8 @@ async function addFiles(files) {
   for (const file of list) {
     toast(`Lade „${file.name || 'Audio'}“ …`, 60000);
     try {
-      const [info, tags] = await Promise.all([analyseBlob(file), readTags(file)]);
       const id = uid();
+      const [info, tags] = await Promise.all([analyseBlob(file, id), readTags(file)]);
       await putFile(id, file);
       await putHi(id, info.hi);
       hiCache.set(id, info.hi);
@@ -408,8 +352,7 @@ async function addFiles(files) {
         markers: [],
         cueIn: 0,
         cueOut: null,
-        bpm: info.tempo?.bpm ?? null,
-        beatOffset: info.tempo?.beatOffset ?? 0,
+        segments: toSegments(info.segments),
       });
       ok++;
       save();
@@ -420,25 +363,67 @@ async function addFiles(files) {
       await new Promise((r) => setTimeout(r, 1500));
     }
   }
-  if (ok) toast(`${ok} Titel geladen – Tempo erkannt, bitte kurz prüfen`);
+  if (ok) {
+    const last = state.tracks[state.tracks.length - 1];
+    const n = last.segments.length;
+    toast(ok === 1 && n > 1 ? `Geladen – ${n} Lieder erkannt, bitte kurz prüfen` : `${ok} Titel geladen – Takt bitte kurz prüfen`, 3500);
+  }
   if (!currentId && state.tracks.length) load(state.tracks[0].id, false);
 }
 
-/* ---------- Zählzeiten ---------- */
-const beatLen = (t) => (t?.bpm ? 60 / t.bpm : 0);
-function beatIndex(t, time) {
-  const b = beatLen(t);
-  return b ? Math.floor((time - (t.beatOffset || 0)) / b + 1e-6) : null;
+/* ---------- Lieder in der Datei und Zählzeiten ---------- */
+function segIndexAt(t, time) {
+  const list = t?.segments || [];
+  let i = 0;
+  for (let k = 1; k < list.length; k++) if (list[k].start <= time + 1e-6) i = k;
+  return i;
 }
-const beatTime = (t, idx) => (t.beatOffset || 0) + idx * beatLen(t);
+const segAt = (t, time) => t?.segments?.[segIndexAt(t, time)];
+const segEnd = (t, i) => (i + 1 < t.segments.length ? t.segments[i + 1].start : t.duration);
+const segName = (t, i) => t.segments[i]?.name || `Lied ${i + 1}`;
+function segColor(t, sg) {
+  return sg?.color || group(t?.groupId)?.color || getComputedStyle(document.documentElement).getPropertyValue('--played').trim();
+}
+const beatLen = (sg) => (sg?.bpm ? 60 / sg.bpm : 0);
+const beatIdx = (sg, time) => Math.floor((time - sg.beatOffset) / beatLen(sg) + 1e-6);
+const beatTime = (sg, k) => sg.beatOffset + k * beatLen(sg);
+
+// Zählzeit an einer Stelle: welches Lied, welche Zahl (1–8), welcher Achter
+function countAt(t, time) {
+  if (!t?.segments?.length) return null;
+  const i = segIndexAt(t, time), sg = t.segments[i];
+  if (!sg.bpm) return { seg: i, count: null };
+  const k = beatIdx(sg, time);
+  const firstOne = Math.ceil((sg.start - 0.05 - sg.beatOffset) / beatLen(sg) / 8) * 8;
+  return { seg: i, k, count: mod(k, 8) + 1, eight: Math.floor((k - firstOne) / 8) + 1 };
+}
 
 function snap(time, t = current(), mode = state.settings.snap) {
-  if (!t || mode === 'off' || !t.bpm) return time;
-  const unit = beatLen(t) * (mode === 'eight' ? 8 : 1);
-  let k = Math.round((time - (t.beatOffset || 0)) / unit);
-  let s = (t.beatOffset || 0) + k * unit;
-  if (s < 0) s += unit;
-  return clamp(s, 0, t.duration);
+  if (!t?.segments?.length || mode === 'off') return time;
+  const i = segIndexAt(t, time), sg = t.segments[i];
+  if (!sg.bpm) return time;
+  const unit = beatLen(sg) * (mode === 'eight' ? 8 : 1);
+  let v = sg.beatOffset + Math.round((time - sg.beatOffset) / unit) * unit;
+  // nah an einer Liedgrenze: genau auf die Grenze
+  if (i > 0 && Math.abs(time - sg.start) < Math.abs(time - v)) v = sg.start;
+  if (v < sg.start - 0.001) v += unit;
+  return clamp(Math.min(v, segEnd(t, i)), 0, t.duration);
+}
+
+// nächster Schlag nach „after“, auch über Liedgrenzen hinweg
+function nextBeat(t, after) {
+  const i0 = segIndexAt(t, after);
+  for (let i = i0; i < t.segments.length; i++) {
+    const sg = t.segments[i], end = segEnd(t, i);
+    if (!sg.bpm) continue;
+    const b = beatLen(sg);
+    const k = i === i0
+      ? Math.floor((after - sg.beatOffset) / b + 1e-9) + 1
+      : Math.ceil((sg.start - 0.02 - sg.beatOffset) / b);
+    const tb = beatTime(sg, k);
+    if (tb < end - 0.5 * b) return { time: tb, count: mod(k, 8) + 1 };
+  }
+  return null;
 }
 
 /* ---------- Playback ---------- */
@@ -473,17 +458,14 @@ async function load(id, autoplay = true, at = null) {
 async function ensureDetail(t) {
   if (hiCache.has(t.id)) return;
   let hi = await getHi(t.id).catch(() => null);
-  if (!hi || t.bpm === undefined) {
+  const needTempo = !t.segments;
+  if (!hi || needTempo) {
     try {
-      toast('Analysiere Wellenform und Takt …', 30000);
-      const info = await analyseBlob(await getFile(t.id));
+      toast('Analysiere Wellenform, Lieder und Takt …', 30000);
+      const info = await analyseBlob(await getFile(t.id), t.id);
       hi = info.hi;
       await putHi(t.id, hi);
-      if (t.bpm === undefined) {
-        t.bpm = info.tempo?.bpm ?? null;
-        t.beatOffset = info.tempo?.beatOffset ?? 0;
-        save();
-      }
+      if (needTempo) { t.segments = toSegments(info.segments); save(); }
       toast('Analyse fertig');
     } catch (e) {
       console.warn(e);
@@ -536,17 +518,24 @@ function seek(sec) {
 function jump(dir) {
   const t = current();
   if (!t) return;
-  if (state.settings.jumpEight && t.bpm) {
-    const idx = beatIndex(t, audio.currentTime + 0.05);
-    const startOfEight = Math.floor(idx / 8) * 8;
-    // zurück: an den Anfang des aktuellen Achters, wenn wir schon drin sind, sonst einen Achter zurück
-    let target = dir < 0
-      ? (idx - startOfEight >= 1 ? startOfEight : startOfEight - 8)
-      : startOfEight + 8;
-    seek(Math.max(0, beatTime(t, target)));
-  } else {
-    seek(audio.currentTime + dir * 5);
+  const now = audio.currentTime;
+  const c = countAt(t, now + 0.05);
+  const sg = c && t.segments[c.seg];
+  if (!state.settings.jumpEight || !sg?.bpm) return seek(now + dir * 5);
+  const startOfEight = Math.floor(c.k / 8) * 8;
+  const k = dir < 0 ? (c.k - startOfEight >= 1 ? startOfEight : startOfEight - 8) : startOfEight + 8;
+  let target = beatTime(sg, k);
+  if (dir < 0 && target < sg.start - 0.01) {
+    // über den Liedanfang zurück: erst an den Anfang, dann in den letzten Achter davor
+    if (now - sg.start > 0.3 || c.seg === 0) target = sg.start;
+    else {
+      const prev = t.segments[c.seg - 1];
+      target = prev.bpm ? beatTime(prev, Math.floor(beatIdx(prev, sg.start - 0.05) / 8) * 8) : prev.start;
+      target = Math.max(target, prev.start);
+    }
   }
+  if (dir > 0 && target >= segEnd(t, c.seg) - 0.01) target = segEnd(t, c.seg);
+  seek(Math.max(0, target));
 }
 
 function replay() {
@@ -626,7 +615,7 @@ function syncPlayBtn() {
 
 /* ---------- Mitzählen (Stimme / Klick) ---------- */
 let countBuffers = null;
-let lastScheduledBeat = null;
+let lastCountTime = null;
 
 async function loadCountSounds() {
   if (countBuffers) return countBuffers;
@@ -640,11 +629,8 @@ async function loadCountSounds() {
 }
 
 function resetCountSchedule() {
-  const t = current();
-  if (!t?.bpm) { lastScheduledBeat = null; return; }
-  const idx = beatIndex(t, audio.currentTime);
-  // Steht die Wiedergabe genau auf einem Schlag, soll dieser noch gezählt werden
-  lastScheduledBeat = audio.currentTime - beatTime(t, idx) < 0.03 ? idx - 1 : idx;
+  // ein Schlag, der gerade erst war (< 30 ms), wird noch gezählt
+  lastCountTime = audio.currentTime - 0.03;
 }
 
 function playCount(count, when) {
@@ -674,17 +660,16 @@ function scheduler() {
   const t = current();
   if (!t || audio.paused) return;
   if (audio.currentTime >= cueOut(t) && t.cueOut != null) onEnded();
-  if (state.settings.countMode === 'off' || !t.bpm || !audioCtx || scrub) return;
+  if (state.settings.countMode === 'off' || !t.segments || !audioCtx || scrub) return;
   const now = audio.currentTime;
   const rate = audio.playbackRate || 1;
-  const next = (lastScheduledBeat ?? beatIndex(t, now)) + 1;
-  const tb = beatTime(t, next);
-  const ahead = (tb - now) / rate;
+  const nb = nextBeat(t, lastCountTime ?? now - 0.03);
+  if (!nb) return;
+  const ahead = (nb.time - now) / rate;
   if (ahead < 0.15) {
-    lastScheduledBeat = next;
-    if (ahead > -0.03 && tb < cueOut(t)) {
-      const when = audioCtx.currentTime + Math.max(0, ahead + state.settings.countOffsetMs / 1000);
-      playCount(mod(next, 8) + 1, when);
+    lastCountTime = nb.time;
+    if (ahead > -0.03 && nb.time < cueOut(t)) {
+      playCount(nb.count, audioCtx.currentTime + Math.max(0, ahead + state.settings.countOffsetMs / 1000));
     }
   }
 }
@@ -701,7 +686,7 @@ async function ensureScrubBuffer() {
   if (!t || scrubBufFor === t.id) return;
   scrubBufFor = t.id;
   try {
-    scrubBuf = await decodeBlob(await getFile(t.id));
+    scrubBuf = await decodeLow(await getFile(t.id));
   } catch (e) {
     console.warn(e);
     scrubBufFor = null;
@@ -770,8 +755,8 @@ function addMarker(time = viewTime()) {
   renderMarkers();
   renderTracks();
   draw();
-  const idx = beatIndex(t, at + 0.001);
-  toast(`Marker bei ${fmt(m.time, true)}${t.bpm ? ` (Zählzeit ${mod(idx, 8) + 1})` : ''}`);
+  const c = countAt(t, at + 0.001);
+  toast(`Marker bei ${fmt(m.time, true)}${c?.count ? ` (Zählzeit ${c.count})` : ''}`);
 }
 
 function removeMarker(id) {
@@ -811,22 +796,29 @@ function setCue(which, at = viewTime()) {
   draw();
 }
 
-/* ---------- Tempo bearbeiten ---------- */
-function setTempo(bpm, offset) {
+/* ---------- Tempo und Lieder bearbeiten ---------- */
+// Tempo-Änderungen gelten für das Lied an der aktuellen Stelle
+function curSeg() {
   const t = current();
-  if (!t) return;
-  t.bpm = bpm ? Math.round(clamp(bpm, 40, 240) * 100) / 100 : null;
-  if (offset != null) t.beatOffset = offset;
+  return t?.segments ? t.segments[segIndexAt(t, viewTime())] : null;
+}
+
+function setTempo(bpm, offset) {
+  const sg = curSeg();
+  if (!sg) return;
+  sg.bpm = bpm ? Math.round(clamp(bpm, 40, 240) * 100) / 100 : null;
+  if (offset != null) sg.beatOffset = offset;
   save();
   resetCountSchedule();
   renderTempo();
+  renderSongs();
+  renderMarkers();
   draw();
 }
 
 let taps = [];
 function tapTempo() {
-  const t = current();
-  if (!t) return;
+  if (!current()) return;
   const now = performance.now();
   if (taps.length && now - taps[taps.length - 1] > 2000) taps = [];
   taps.push(now);
@@ -834,7 +826,6 @@ function tapTempo() {
   if (taps.length >= 4) {
     const bpm = 60000 / ((taps[taps.length - 1] - taps[0]) / (taps.length - 1));
     setTempo(Math.round(bpm * 10) / 10);
-    // Raster an den letzten Tipp legen, wenn die Musik läuft
     if (!audio.paused) setOne(audio.currentTime, false);
   } else {
     toast(`Weiter im Takt tippen … (${taps.length}/4)`, 1200);
@@ -842,26 +833,103 @@ function tapTempo() {
 }
 
 function setOne(at = viewTime(), msg = true) {
-  const t = current();
-  if (!t) return;
-  if (!t.bpm) return toast('Erst Tempo erkennen oder antippen');
-  setTempo(t.bpm, Math.round(at * 1000) / 1000);
+  const sg = curSeg();
+  if (!sg) return;
+  if (!sg.bpm) return toast('Erst Tempo erkennen oder antippen');
+  setTempo(sg.bpm, Math.round(at * 1000) / 1000);
   if (msg) toast('Zählzeit gesetzt: hier ist die 1');
 }
 
+// Tempo nur für das aktuelle Lied neu erkennen
 async function redetect() {
   const t = current();
   if (!t) return;
-  toast('Erkenne Tempo …', 30000);
   try {
-    const buf = await decodeBlob(await getFile(t.id));
-    const tempo = detectTempo(mixMono(buf), buf.sampleRate);
+    const F = await featuresFor(t);
+    const i = segIndexAt(t, viewTime());
+    const sg = t.segments[i];
+    const tempo = Analysis.detectTempo(F, sg.start, segEnd(t, i));
     if (!tempo) return toast('Kein Takt erkannt – bitte Tap benutzen');
     setTempo(tempo.bpm, tempo.beatOffset);
-    toast(`${tempo.bpm} BPM erkannt – „Hier ist die 1“ zum Korrigieren`);
+    toast(`${segName(t, i)}: ${tempo.bpm} BPM – „Hier ist die 1“ zum Korrigieren`, 3000);
   } catch (e) {
+    console.warn(e);
     toast('Erkennung fehlgeschlagen');
   }
+}
+
+// Alle Lieder in der Datei neu erkennen
+async function detectSongs() {
+  const t = current();
+  if (!t) return;
+  if (t.segments?.length > 1 && !confirm('Lieder neu erkennen? Eigene Grenzen, Tempos und Zählzeiten werden ersetzt (Namen und Farben bleiben).')) return;
+  try {
+    const F = await featuresFor(t);
+    toast('Suche Lieder …', 30000);
+    await new Promise((r) => setTimeout(r, 30));
+    t.segments = toSegments(Analysis.songsFromFeatures(F), t.segments);
+    save();
+    resetCountSchedule();
+    renderAll();
+    toast(t.segments.length > 1 ? `${t.segments.length} Lieder erkannt` : 'Ein durchgehendes Lied erkannt', 3000);
+  } catch (e) {
+    console.warn(e);
+    toast('Erkennung fehlgeschlagen');
+  }
+}
+
+function colorizeSegments(t) {
+  if (t.segments.length < 2) return;
+  const used = new Set(t.segments.map((x) => x.color).filter(Boolean));
+  for (const sg of t.segments) {
+    if (sg.color) continue;
+    sg.color = SEG_COLORS.find((c) => !used.has(c)) || SEG_COLORS[0];
+    used.add(sg.color);
+  }
+}
+
+// An der aktuellen Stelle ein neues Lied beginnen lassen
+async function splitHere() {
+  const t = current();
+  if (!t?.segments) return;
+  const at = snap(viewTime(), t, 'eight');
+  const i = segIndexAt(t, at);
+  const sg = t.segments[i];
+  if (at - sg.start < 2 || segEnd(t, i) - at < 2) return toast('Zu nah an einer Liedgrenze');
+  const ns = { ...sg, id: uid(), start: Math.round(at * 1000) / 1000, name: '', color: null };
+  if (sg.bpm) ns.beatOffset = at; // neues Lied beginnt auf der 1
+  t.segments.splice(i + 1, 0, ns);
+  colorizeSegments(t);
+  save();
+  renderAll();
+  toast(`${segName(t, i + 1)} beginnt bei ${fmt(at, true)} – „Erkennen“ prüft das Tempo`, 3000);
+}
+
+function mergeSong(i) {
+  const t = current();
+  if (!t || i < 1) return;
+  if (!confirm(`„${segName(t, i)}“ mit dem Lied davor zusammenführen?`)) return;
+  t.segments.splice(i, 1);
+  if (t.segments.length === 1) t.segments[0].color = null;
+  save();
+  resetCountSchedule();
+  renderAll();
+}
+
+function setSongStart(i) {
+  const t = current();
+  if (!t || i < 1) return;
+  const at = snap(viewTime(), t, 'beat');
+  const lo = t.segments[i - 1].start + 2, hi = segEnd(t, i) - 2;
+  if (at < lo || at > hi) return toast('Die Grenze muss zwischen den Nachbarliedern liegen');
+  const sg = t.segments[i];
+  const shift = at - sg.start;
+  sg.start = Math.round(at * 1000) / 1000;
+  // die 1 wandert mit, wenn sie am Liedanfang lag
+  if (sg.bpm && Math.abs(sg.beatOffset - (sg.start - shift)) < 0.05) sg.beatOffset = sg.start;
+  save();
+  resetCountSchedule();
+  renderAll();
 }
 
 /* ---------- Rendering ---------- */
@@ -896,6 +964,12 @@ function renderGroups() {
   ul.append(row('', 'Ohne Gruppe', '#4a4a58', state.tracks.filter((t) => !t.groupId).length, false));
 }
 
+function tempoText(t) {
+  const n = t.segments?.length || 0;
+  if (n > 1) return `${n} Lieder`;
+  return t.segments?.[0]?.bpm ? `${t.segments[0].bpm} BPM` : null;
+}
+
 let dragId = null;
 function renderTracks() {
   const ol = $('trackList');
@@ -912,7 +986,7 @@ function renderTracks() {
     stripe.style.background = g?.color || '#4a4a58';
     const title = el('span', { className: 'title' },
       el('span', { className: 't1', textContent: (t.id === currentId && !audio.paused ? '▶ ' : '') + t.name }),
-      el('span', { className: 't2', textContent: [t.artist, g?.name, t.bpm ? `${t.bpm} BPM` : null, t.markers.length ? `◆${t.markers.length}` : null].filter(Boolean).join(' · ') }));
+      el('span', { className: 't2', textContent: [t.artist, g?.name, tempoText(t), t.markers.length ? `◆${t.markers.length}` : null].filter(Boolean).join(' · ') }));
     title.title = t.name;
 
     const playB = el('button', { className: 'row-btn', textContent: '▶', title: 'Abspielen' });
@@ -964,8 +1038,9 @@ function renderNow() {
   $('nowSub').textContent = t ? [t.artist, g?.name].filter(Boolean).join(' · ') || '–' : '–';
   $('nowColor').style.background = g?.color || '#4a4a58';
   $('timeDur').textContent = fmt(t?.duration || 0);
-  $('backBtn').textContent = state.settings.jumpEight && t?.bpm ? '−8' : '-5s';
-  $('fwdBtn').textContent = state.settings.jumpEight && t?.bpm ? '+8' : '+5s';
+  const eight = state.settings.jumpEight && curSeg()?.bpm;
+  $('backBtn').textContent = eight ? '−8' : '-5s';
+  $('fwdBtn').textContent = eight ? '+8' : '+5s';
 }
 
 function renderCues() {
@@ -976,14 +1051,52 @@ function renderCues() {
 
 function renderTempo() {
   const t = current();
+  const sg = curSeg();
   const inp = $('bpmInput');
-  if (document.activeElement !== inp) inp.value = t?.bpm ?? '';
-  $('countBox').classList.toggle('off', !t?.bpm);
+  if (document.activeElement !== inp) inp.value = sg?.bpm ?? '';
+  const multi = t?.segments?.length > 1;
+  const i = t ? segIndexAt(t, viewTime()) : 0;
+  $('tempoSeg').textContent = multi ? segName(t, i) : '';
+  $('tempoSeg').style.color = multi ? segColor(t, sg) : '';
+  $('countBox').classList.toggle('off', !sg?.bpm);
   for (const seg of ['countModeSeg', 'snapSeg']) {
     const key = seg === 'countModeSeg' ? 'countMode' : 'snap';
     for (const b of $(seg).children) b.classList.toggle('on', b.dataset.v === state.settings[key]);
   }
   renderNow();
+}
+
+function renderSongs() {
+  const ul = $('songList');
+  ul.replaceChildren();
+  const t = current();
+  if (!t?.segments) return;
+  const curI = segIndexAt(t, viewTime());
+  t.segments.forEach((sg, i) => {
+    const color = el('button', { className: 'mcolor', title: 'Farbe des Lieds' });
+    color.style.background = segColor(t, sg);
+    color.onclick = async () => {
+      const c = await pickColor(sg.color);
+      if (!c) return;
+      sg.color = c;
+      colorizeSegments(t);
+      save();
+      renderSongs();
+      draw();
+    };
+    const name = el('input', { type: 'text', value: sg.name, placeholder: `Lied ${i + 1}`, maxLength: 40 });
+    name.oninput = () => { sg.name = name.value; save(); draw(); };
+    const startB = el('button', { className: 'mmini time', textContent: fmt(sg.start), title: 'Zum Liedanfang springen' });
+    startB.onclick = () => { seek(sg.start); if (state.settings.markerPlay) play(); };
+    const here = el('button', { className: 'mmini', textContent: '⇤', title: 'Liedanfang auf die aktuelle Stelle legen', disabled: i === 0 });
+    here.onclick = () => setSongStart(i);
+    const bpm = el('span', { className: 'song-bpm', textContent: sg.bpm ? `${sg.bpm}` : '–', title: 'BPM' });
+    const del = el('button', { className: 'mmini del', textContent: '✕', title: 'Mit dem Lied davor zusammenführen', disabled: i === 0 });
+    del.onclick = () => mergeSong(i);
+    const li = el('li', { className: i === curI ? 'cur' : '' }, color, name, startB, here, bpm, del);
+    li.style.setProperty('--c', segColor(t, sg));
+    ul.append(li);
+  });
 }
 
 function renderMarkers() {
@@ -995,11 +1108,11 @@ function renderMarkers() {
     return;
   }
   t.markers.forEach((m, i) => {
-    const idx = beatIndex(t, m.time + 0.001);
+    const c = countAt(t, m.time + 0.001);
     const cue = el('button', { className: 'mcue', title: 'Ab hier abspielen' },
       el('span', { className: 'mn', textContent: i + 1 }),
       el('span', { textContent: fmt(m.time, true) }),
-      t.bpm ? el('span', { className: 'mc', textContent: `·${mod(idx, 8) + 1}` }) : null);
+      c?.count ? el('span', { className: 'mc', textContent: `·${c.count}` }) : null);
     cue.style.background = m.color;
     cue.onclick = () => cueMarker(m);
     const label = el('input', { type: 'text', value: m.label, placeholder: 'Beschriftung…', maxLength: 40 });
@@ -1042,6 +1155,7 @@ function renderAll() {
   renderNow();
   renderCues();
   renderTempo();
+  renderSongs();
   renderMarkers();
   renderHistory();
   draw();
@@ -1103,7 +1217,7 @@ function openTrackDialog(t) {
   let groupId = t.groupId || '';
   $('trackDlgName').value = t.name;
   $('trackDlgArtist').value = t.artist || '';
-  $('trackDlgInfo').textContent = `Datei: ${t.fileName || '–'} · Länge ${fmt(t.duration)}${t.bpm ? ` · ${t.bpm} BPM` : ''}`;
+  $('trackDlgInfo').textContent = `Datei: ${t.fileName || '–'} · Länge ${fmt(t.duration)}${tempoText(t) ? ' · ' + tempoText(t) : ''}`;
   const paint = () => {
     const box = $('trackDlgGroups');
     box.replaceChildren();
@@ -1211,42 +1325,70 @@ function drawOverview() {
   const t = current();
   const unplayed = css('--unplayed');
   if (!t) { g.fillStyle = unplayed; g.fillRect(0, h / 2, w, 1); return; }
-  const played = group(t.groupId)?.color || css('--played');
   const dur = t.duration || 1;
   const x = (sec) => (sec / dur) * w;
   const cur = viewTime();
+  const segs = t.segments || [{ start: 0 }];
+  const multi = segs.length > 1;
 
   const items = t.markers.map((m, i) => ({ x: Math.round(x(m.time)), text: markerText(m, i), color: m.color }));
   const lanes = t.markers.length ? layoutLabels(g, items, 3) : 0;
   const top = lanes * LANE_H + 2;
+  const STRIP = multi ? 12 : 0;
   waveLayout = { top, items };
 
   const barW = 2, gap = 1;
   const bars = Math.floor(w / (barW + gap));
-  const mid = top + (h - top) * 0.66;
-  const up = mid - top - 1, down = h - mid - 1;
+  const bottom = h - STRIP;
+  const mid = top + (bottom - top) * 0.66;
+  const up = mid - top - 1, down = bottom - mid - 1;
   const px = x(cur), inX = x(cueIn(t)), outX = x(cueOut(t));
+  let si = 0;
   for (let i = 0; i < bars; i++) {
     const bx = i * (barW + gap);
+    const sec = (bx / w) * dur;
+    while (si + 1 < segs.length && segs[si + 1].start <= sec) si++;
+    const col = segColor(t, segs[si]);
     const a = Math.floor((i / bars) * t.peaks.length);
     const b = Math.max(a + 1, Math.floor(((i + 1) / bars) * t.peaks.length));
     let p = 0;
     for (let j = a; j < b; j++) p = Math.max(p, t.peaks[j] || 0);
     p = Math.max(0.03, p);
     const outside = bx < inX || bx > outX;
-    g.globalAlpha = outside ? 0.3 : 1;
-    g.fillStyle = bx < px && !outside ? played : unplayed;
+    const played = bx < px;
+    g.fillStyle = played || multi ? col : unplayed;
+    g.globalAlpha = (outside ? 0.3 : 1) * (played ? 1 : multi ? 0.38 : 1);
     g.fillRect(bx, mid - p * up, barW, p * up);
     g.globalAlpha *= 0.45;
     g.fillRect(bx, mid + 1, barW, p * down);
   }
   g.globalAlpha = 1;
+  // Lieder-Leiste mit Namen
+  if (multi) {
+    g.font = '600 10px system-ui, sans-serif';
+    g.textBaseline = 'middle';
+    segs.forEach((sg, i) => {
+      const a = x(sg.start), b = x(segEnd(t, i));
+      g.fillStyle = segColor(t, sg);
+      g.fillRect(a, bottom + 1, Math.max(1, b - a - 1), STRIP - 1);
+      g.fillStyle = 'rgba(255,255,255,.55)';
+      if (i > 0) g.fillRect(a, top, 1, bottom - top);
+      const label = segName(t, i);
+      if (b - a > 26) {
+        g.save();
+        g.beginPath(); g.rect(a, bottom, b - a - 2, STRIP); g.clip();
+        g.fillStyle = '#111';
+        g.fillText(label, a + 3, bottom + STRIP / 2 + 0.5);
+        g.restore();
+      }
+    });
+  }
   g.fillStyle = css('--accent-2');
-  if (t.cueIn > 0) g.fillRect(inX, top, 1, h - top);
-  if (t.cueOut != null) g.fillRect(outX - 1, top, 1, h - top);
+  if (t.cueIn > 0) g.fillRect(inX, top, 1, bottom - top);
+  if (t.cueOut != null) g.fillRect(outX - 1, top, 1, bottom - top);
   for (const it of items) {
     g.fillStyle = it.color;
-    g.fillRect(it.x, top + it.lane * 0, 2, h - top);
+    g.fillRect(it.x, top, 2, bottom - top);
     g.fillRect(it.x, it.lane * LANE_H, 2, top);
   }
   drawLabels(g, items, w, 0);
@@ -1266,17 +1408,16 @@ function drawZoom() {
   const pxPerSec = w / span;
   const X = (sec) => (sec - start) * pxPerSec;
   const COUNT_H = 20;
+  const segs = t.segments || [];
 
-  // Marker-Bahnen
   const vis = t.markers.map((m, i) => ({ m, i })).filter(({ m }) => m.time >= start - 2 && m.time <= start + span);
   const items = vis.map(({ m, i }) => ({ x: Math.round(X(m.time)), text: markerText(m, i), color: m.color, m }));
   const lanes = items.length ? layoutLabels(g, items, 2) : 0;
   const top = COUNT_H + lanes * LANE_H;
   zoomLayout = { start, pxPerSec, items, top, COUNT_H };
 
-  // Bereich außerhalb Cue abdunkeln
-  const played = group(t.groupId)?.color || css('--played');
   const unplayed = css('--unplayed');
+  const multi = segs.length > 1;
   const mid = top + (h - top) / 2;
   const amp = (h - top) / 2 - 2;
   if (hi) {
@@ -1289,8 +1430,9 @@ function drawZoom() {
       for (let j = a; j < b && j < hi.length; j++) if (hi[j] > p) p = hi[j];
       const v = Math.max(0.02, p / 255) * amp;
       const outside = sec < cueIn(t) || sec > cueOut(t);
-      g.globalAlpha = outside ? 0.3 : 1;
-      g.fillStyle = sec < cur ? played : unplayed;
+      const played = sec < cur;
+      g.fillStyle = played || multi ? segColor(t, segAt(t, sec)) : unplayed;
+      g.globalAlpha = (outside ? 0.3 : 1) * (played ? 1 : multi ? 0.38 : 1);
       g.fillRect(x, mid - v, barW, v * 2);
     }
     g.globalAlpha = 1;
@@ -1300,16 +1442,30 @@ function drawZoom() {
     g.fillText('Detailansicht wird berechnet …', 10, mid);
   }
 
-  // Zählzeiten-Raster mit 1–8
-  if (t.bpm) {
-    const b = beatLen(t);
-    const first = Math.ceil((start - t.beatOffset) / b);
-    const last = Math.floor((start + span - t.beatOffset) / b);
-    const step = pxPerSec * b < 14 ? 2 : 1; // bei kleinem Zoom nicht jede Zahl schreiben
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    for (let k = first; k <= last; k++) {
-      const x = X(beatTime(t, k));
+  // Zählzeiten 1–8, je Lied mit eigenem Tempo
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  let anyGrid = false;
+  segs.forEach((sg, i) => {
+    const a = Math.max(start, sg.start), b = Math.min(start + span, segEnd(t, i));
+    if (b <= a) return;
+    if (i > 0 && sg.start >= start) {
+      // Liedgrenze
+      g.fillStyle = segColor(t, sg);
+      g.fillRect(X(sg.start) - 1, 0, 3, h);
+      g.font = '700 11px system-ui, sans-serif';
+      g.textAlign = 'left';
+      g.fillText(segName(t, i), X(sg.start) + 5, top + 8);
+      g.textAlign = 'center';
+    }
+    if (!sg.bpm) return;
+    anyGrid = true;
+    const bl = beatLen(sg);
+    const step = pxPerSec * bl < 14 ? 2 : 1;
+    for (let k = Math.ceil((a - sg.beatOffset) / bl - 1e-6); k <= Math.floor((b - sg.beatOffset) / bl); k++) {
+      const bt = beatTime(sg, k);
+      if (bt < sg.start - 0.02 || bt >= segEnd(t, i) - 0.5 * bl) continue;
+      const x = X(bt);
       const c = mod(k, 8) + 1;
       const one = c === 1;
       g.fillStyle = one ? 'rgba(255,210,63,.55)' : 'rgba(255,255,255,.12)';
@@ -1320,15 +1476,15 @@ function drawZoom() {
         g.fillText(String(c), x, COUNT_H / 2);
       }
     }
-    g.textAlign = 'left';
-  } else {
+  });
+  g.textAlign = 'left';
+  if (!anyGrid) {
     g.fillStyle = css('--muted');
     g.font = '11px system-ui, sans-serif';
     g.textBaseline = 'middle';
     g.fillText('Kein Takt – „Erkennen“ oder „Tap“ benutzen', 8, COUNT_H / 2);
   }
 
-  // Cue-Grenzen
   g.fillStyle = css('--accent-2');
   if (t.cueIn > 0) g.fillRect(X(t.cueIn), top, 2, h - top);
   if (t.cueOut != null) g.fillRect(X(t.cueOut) - 2, top, 2, h - top);
@@ -1339,7 +1495,6 @@ function drawZoom() {
   }
   drawLabels(g, items, w, COUNT_H);
 
-  // feste Abspielposition in der Mitte
   g.fillStyle = '#fff';
   g.fillRect(w / 2 - 1, COUNT_H - 2, 2, h - COUNT_H + 2);
   g.beginPath();
@@ -1353,23 +1508,25 @@ let lastCountShown = null;
 function drawCount() {
   const t = current();
   const num = $('countNum'), eight = $('countEight');
-  if (!t?.bpm) {
+  const c = countAt(t, viewTime());
+  const multi = t?.segments?.length > 1;
+  const box = $('countBox');
+  box.style.borderColor = multi ? segColor(t, t.segments[c.seg]) : '';
+  if (!c?.count) {
     num.textContent = '–';
-    eight.textContent = t ? 'kein Takt' : '';
+    eight.textContent = t ? (multi ? segName(t, c?.seg || 0) : 'kein Takt') : '';
+    lastCountShown = null;
     return;
   }
-  const idx = beatIndex(t, viewTime());
-  const c = mod(idx, 8) + 1;
-  const e = Math.floor(idx / 8) + 1;
-  const key = idx;
-  if (key !== lastCountShown) {
-    lastCountShown = key;
-    num.textContent = c;
-    eight.textContent = e >= 1 ? `Achter ${e}` : 'Vorlauf';
-    const box = $('countBox');
-    box.classList.toggle('one', c === 1);
-    if (!audio.paused) { box.classList.remove('pulse'); void box.offsetWidth; box.classList.add('pulse'); }
-  }
+  const key = `${c.seg}:${c.k}`;
+  if (key === lastCountShown) return;
+  const segChanged = !lastCountShown || lastCountShown.split(':')[0] !== String(c.seg);
+  lastCountShown = key;
+  num.textContent = c.count;
+  eight.textContent = (c.eight >= 1 ? `Achter ${c.eight}` : 'Vorlauf') + (multi ? ` · ${c.seg + 1}` : '');
+  box.classList.toggle('one', c.count === 1);
+  if (!audio.paused) { box.classList.remove('pulse'); void box.offsetWidth; box.classList.add('pulse'); }
+  if (segChanged) { renderTempo(); renderSongs(); }
 }
 
 function draw() {
@@ -1547,7 +1704,8 @@ async function importSet(file) {
       t.groupId = src.groupId || '';
       t.cueIn = src.cueIn || 0;
       t.cueOut = src.cueOut ?? null;
-      if (src.bpm !== undefined) { t.bpm = src.bpm; t.beatOffset = src.beatOffset || 0; }
+      if (src.segments) t.segments = src.segments.map((x) => ({ ...x, id: uid() }));
+      else if (src.bpm !== undefined) t.segments = [{ id: uid(), start: 0, bpm: src.bpm, beatOffset: src.beatOffset || 0, name: '', color: null }];
       t.markers = (src.markers || []).map((m) => ({ ...m, id: uid() }));
     }
     const pos = (t) => { const i = order.indexOf(t.id); return i < 0 ? order.length : i; };
@@ -1589,13 +1747,15 @@ $('zoomIn').onclick = () => setZoom(-1);
 $('zoomOut').onclick = () => setZoom(1);
 
 $('bpmInput').onchange = (e) => setTempo(+e.target.value || null);
-$('bpmHalf').onclick = () => current()?.bpm && setTempo(current().bpm / 2);
-$('bpmDouble').onclick = () => current()?.bpm && setTempo(current().bpm * 2);
+$('bpmHalf').onclick = () => curSeg()?.bpm && setTempo(curSeg().bpm / 2);
+$('bpmDouble').onclick = () => curSeg()?.bpm && setTempo(curSeg().bpm * 2);
 $('tapBtn').onclick = tapTempo;
 $('detectBtn').onclick = redetect;
+$('detectSongsBtn').onclick = detectSongs;
+$('splitBtn').onclick = splitHere;
 $('setOneBtn').onclick = () => setOne();
-$('nudgeBack').onclick = () => current()?.bpm && setTempo(current().bpm, current().beatOffset - 0.01);
-$('nudgeFwd').onclick = () => current()?.bpm && setTempo(current().bpm, current().beatOffset + 0.01);
+$('nudgeBack').onclick = () => curSeg()?.bpm && setTempo(curSeg().bpm, curSeg().beatOffset - 0.01);
+$('nudgeFwd').onclick = () => curSeg()?.bpm && setTempo(curSeg().bpm, curSeg().beatOffset + 0.01);
 
 function setCountMode(v) {
   state.settings.countMode = v;
@@ -1672,14 +1832,32 @@ window.addEventListener('keydown', (e) => {
 });
 
 /* ---------- Start ---------- */
+function migrate() {
+  // alte Beispielgruppen raus (nur wenn leer), neue Standardgruppen Show / Garde / Elfer rein
+  if ((state.groupsVersion || 1) < 2) {
+    state.groups = state.groups.filter((g) => !OLD_EXAMPLE_GROUPS.includes(g.id) || state.tracks.some((t) => t.groupId === g.id));
+    for (const d of DEFAULT_GROUPS) if (!state.groups.some((g) => g.id === d.id)) state.groups.push({ ...d });
+    state.groupsVersion = 2;
+  }
+  // Titel ohne Lied-Abschnitte: bisheriges Tempo als ein Lied übernehmen
+  for (const t of state.tracks) {
+    if (t.segments || t.bpm === undefined) continue;
+    t.segments = [{ id: uid(), start: 0, bpm: t.bpm, beatOffset: t.beatOffset || 0, name: '', color: null }];
+    delete t.bpm;
+    delete t.beatOffset;
+  }
+  save();
+}
+
 (function init() {
   try {
     const saved = JSON.parse(localStorage.getItem(STATE_KEY) || 'null');
-    if (saved) Object.assign(state, saved);
+    if (saved) Object.assign(state, { groupsVersion: 1 }, saved);
   } catch (e) {
     console.warn('Gespeicherter Stand unlesbar', e);
   }
   state.settings = { ...DEFAULT_SETTINGS, ...(state.settings || {}) };
+  migrate();
   if (!ZOOMS.includes(state.settings.zoom)) state.settings.zoom = 8;
   $('volume').value = state.volume;
   $('autoNext').checked = state.autoNext;

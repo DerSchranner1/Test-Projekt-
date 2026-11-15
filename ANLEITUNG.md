@@ -5,7 +5,7 @@
 1. App öffnen (am Rechner `index.html`, am Handy die installierte App).
 2. **+ Audio laden** antippen und alle Titel auswählen – oder am Rechner die Dateien ins Fenster ziehen.
 3. Titel in die richtige Reihenfolge ziehen.
-4. Bei jedem Titel auf **✎** tippen: Titel umbenennen und **Farbgruppe** wählen (Einmarsch, Garde / Tanz, Tusch …).
+4. Bei jedem Titel auf **✎** tippen: Titel umbenennen und **Farbgruppe** wählen (vorgegeben: Show, Garde, Elfer).
    Der Titel wird aus der Datei gelesen (MP3, M4A, OGG/FLAC). Steht dort nichts, nimmt die App den Dateinamen.
 5. **Farben der Gruppen:** bei der Gruppe auf **✎** tippen → Name ändern, Farbe aus der Palette antippen, Speichern.
    Neue Gruppen über **+ Neue Gruppe**.
@@ -31,7 +31,23 @@ Nach jedem Titel bleibt der Player stehen. Soll es automatisch weiterlaufen (z. 
 
 Mit einem Klick auf eine Farbgruppe links siehst du nur deren Titel – praktisch für „alle Tusche“.
 
-## 3. Zählen (1–8)
+## 3. Mehrere Lieder in einer Datei (Medley)
+
+Ist eine Datei ein fertig geschnittener Zusammenschnitt, erkennt die App beim Laden die einzelnen Lieder.
+Jedes Lied bekommt eine eigene Farbe in der Wellenform und **eigenes Tempo und eigene Zählzeiten** –
+die Zählung fängt am Liedwechsel wieder mit 1 an.
+
+Unter **Lieder in der Datei**:
+- **Farbfeld** antippen → Farbe wählen; **Namensfeld** → z. B. „Prinzengarde“, „Schautanz Teil 2“
+- **Zeit** antippen → an den Liedanfang springen
+- **⇤** → Liedanfang auf die aktuelle Stelle legen (wenn die Grenze nicht genau stimmt)
+- **✕** → mit dem Lied davor zusammenführen (wenn fälschlich geteilt)
+- **Hier teilen** → an der aktuellen Stelle beginnt ein neues Lied
+- **Lieder erkennen** → alles neu erkennen (Namen und Farben bleiben)
+
+Tempo, „Hier ist die 1“ und „Erkennen“ wirken immer auf das Lied, in dem du gerade bist (steht neben „Tempo“).
+
+## 4. Zählen (1–8)
 
 Beim Laden erkennt die App das Tempo (BPM) und wo die „1“ ist. Unten in der Detail-Wellenform stehen die
 Zählzeiten 1 2 3 4 5 6 7 8 über der Musik, groß oben rechts siehst du die aktuelle Zahl und den wievielten Achter.
@@ -43,13 +59,13 @@ Zählzeiten 1 2 3 4 5 6 7 8 über der Musik, groß oben rechts siehst du die akt
 - **Einrasten:** Marker, Cue-Punkte und Springen landen genau auf einer Zählzeit (1–8) oder nur auf der 1 eines Achters.
 - **−8 / +8** springen einen Achter zurück bzw. vor.
 
-## 4. In der Musik schieben
+## 5. In der Musik schieben
 
 In der unteren (Detail-)Wellenform die Musik mit dem Finger nach links oder rechts schieben – wie eine Platte.
 Beim Loslassen rastet sie auf der nächsten Zählzeit ein und spielt weiter, falls sie lief.
 Den Ton beim Schieben kannst du unter ⚙ ein- und ausschalten. Mit **−** / **+** zoomst du.
 
-## 5. Marker setzen
+## 6. Marker setzen
 
 Marker sind Sprungstellen im Titel, z. B. „Einsatz Garde“ oder „Refrain“.
 
@@ -59,7 +75,7 @@ Marker sind Sprungstellen im Titel, z. B. „Einsatz Garde“ oder „Refrain“
    die Musik startet genau dort. Soll er nur hinspringen und auf Play warten: ⚙ → „Marker antippen startet die Wiedergabe“ aus.
 4. **In** / **Out** am Marker machen ihn zum Start- bzw. Endpunkt des Titels.
 
-## 6. Anfang und Ende kürzen (Cue)
+## 7. Anfang und Ende kürzen (Cue)
 
 Statt die Datei zu schneiden, legst du nur fest, wo sie startet und endet:
 
@@ -67,7 +83,7 @@ Statt die Datei zu schneiden, legst du nur fest, wo sie startet und endet:
 2. An die gewünschte Endstelle springen → **Out setzen**.
 3. **Zurücksetzen** macht beides rückgängig. Die Originaldatei bleibt immer unverändert.
 
-## 7. Sichern und auf ein anderes Gerät umziehen
+## 8. Sichern und auf ein anderes Gerät umziehen
 
 1. **Export**: In der Android-App öffnet sich das Teilen-Menü – dort z. B. „In Drive speichern“, an dich selbst
    per Mail/WhatsApp schicken oder in „Dateien“ ablegen. Im Browser wird die Datei heruntergeladen.

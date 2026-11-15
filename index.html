@@ -38,7 +38,7 @@
       <h2>Farbgruppen</h2>
       <ul id="groupList" class="group-list"></ul>
       <button id="addGroupBtn" class="btn small ghost wide">+ Neue Gruppe</button>
-      <p class="sub">Farbe und Name ändern: ✎ neben der Gruppe antippen.</p>
+      <p class="sub">Gruppen ordnen ganze Dateien (Show, Garde, Elfer …). Farbe und Name ändern: ✎ antippen.</p>
 
       <h2>Verlauf</h2>
       <ul id="historyList" class="history-list"></ul>
@@ -120,7 +120,7 @@
           </div>
         </div>
         <div class="panel-row">
-          <span class="label">Tempo</span>
+          <span class="label">Tempo <b id="tempoSeg"></b></span>
           <input id="bpmInput" class="num-input" type="number" min="40" max="240" step="0.1" placeholder="BPM" title="Schläge pro Minute">
           <button id="bpmHalf" class="btn small ghost" title="Tempo halbieren">½</button>
           <button id="bpmDouble" class="btn small ghost" title="Tempo verdoppeln">×2</button>
@@ -141,6 +141,17 @@
           <span id="cueOutVal" class="cue-val">Ende</span>
           <button id="cueResetBtn" class="btn small ghost">Zurücksetzen</button>
         </div>
+      </div>
+
+      <div class="songs">
+        <div class="markers-head">
+          <h2>Lieder in der Datei <span class="sub">– jedes mit eigener Farbe und eigenem Takt</span></h2>
+          <div class="head-btns">
+            <button id="splitBtn" class="btn small ghost" title="An der aktuellen Stelle beginnt ein neues Lied">Hier teilen</button>
+            <button id="detectSongsBtn" class="btn small ghost" title="Lieder, Tempo und Zählzeiten automatisch erkennen">Lieder erkennen</button>
+          </div>
+        </div>
+        <ul id="songList" class="song-list"></ul>
       </div>
 
       <div class="markers">
@@ -228,6 +239,7 @@
 
   <div id="toast" class="toast"></div>
   <script src="counts.js"></script>
+  <script src="analysis.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
