@@ -20,8 +20,12 @@ erhöhen, damit installierte Geräte die neue Fassung laden.
 
 - **Playback**: Play/Pause, Stopp, ±5 s, vorheriger/nächster Titel, Lautstärke, Fade-Out, Loop, optional Auto-Weiter
 - **Replay**: vom Anfang (Cue-In), ab dem letzten Marker, oder den zuvor gespielten Titel nochmal; dazu ein Verlauf
-- **Wellenform mit Markern** (SoundCloud-Stil): Klick springt, Doppelklick setzt einen Marker; Marker haben Farbe und Beschriftung
-- **Farbgruppen**: Titel Gruppen zuordnen (Einmarsch, Garde, Tusch …), Liste nach Gruppe filtern, Farben und Gruppen frei anpassbar
+- **Zählzeiten 1–8**: Tempo und „1“ werden automatisch erkannt (korrigierbar per Tap, ½/×2, „Hier ist die 1“);
+  Raster mit Zahlen in der Detail-Wellenform, Mitzählen per Stimme oder Klick, Einrasten auf Zählzeiten
+- **Wellenform mit Markern** (SoundCloud-Stil): Übersicht plus Detailansicht zum Schieben mit dem Finger (mit Ton);
+  Marker sind Cue-Punkte mit Farbe und Beschriftung, Beschriftungen werden versetzt angezeigt
+- **Farbgruppen**: Titel Gruppen zuordnen (Einmarsch, Garde, Tusch …), Liste nach Gruppe filtern, Name und Farbe per ✎
+- **Titelinfos** aus ID3/MP4/Vorbis-Tags, Titel und Interpret umbenennbar
 - **Cue-In / Cue-Out**: Start- und Endpunkt je Titel, ohne die Datei zu schneiden
 - **Setliste**: Reihenfolge per Drag & Drop, Suche, Export/Import als JSON (Zuordnung über den Titelnamen)
 
@@ -32,3 +36,11 @@ Tastenkürzel stehen in der App unter **?**.
 Audiodateien liegen in der IndexedDB des Browsers, Setliste, Marker und Gruppen im localStorage – alles bleibt lokal
 auf dem Gerät und nach einem Neustart erhalten. Wird der Browser-Speicher gelöscht, sind die Daten weg; vor einer
 Veranstaltung daher die Setliste exportieren und die Audiodateien griffbereit halten.
+
+## Android-App
+
+Bei jedem Push baut GitHub Actions eine APK und stellt sie unter dem Release `apk-latest` bereit:
+https://github.com/DerSchranner1/Test-Projekt-/releases/download/apk-latest/narrhalla-player.apk
+
+Die Android-Hülle ist Capacitor (`npm run android:prepare`). Export nutzt dort die Plugins Filesystem und Share.
+Die gesprochenen Zählzeiten in `counts.js` sind mit espeak-ng (MBROLA-Stimme de6) erzeugt.

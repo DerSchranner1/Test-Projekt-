@@ -22,11 +22,12 @@
         + Audio laden
         <input id="fileInput" type="file" accept="audio/*" multiple hidden>
       </label>
-      <button id="exportBtn" class="btn ghost" title="Setliste (Marker, Gruppen, Cues) als JSON speichern">Export</button>
-      <label class="btn ghost" title="Setliste aus JSON laden (Audiodateien müssen geladen sein)">
+      <button id="exportBtn" class="btn ghost" title="Setliste (Marker, Gruppen, Takt, Cues) sichern">Export</button>
+      <label class="btn ghost" title="Gesicherte Setliste laden (Audiodateien müssen geladen sein)">
         Import
-        <input id="importInput" type="file" accept="application/json" hidden>
+        <input id="importInput" type="file" hidden>
       </label>
+      <button id="settingsBtn" class="btn ghost" title="Einstellungen">⚙</button>
       <button id="helpBtn" class="btn ghost" title="Tastenkürzel">?</button>
     </div>
   </header>
@@ -36,11 +37,8 @@
     <aside class="sidebar">
       <h2>Farbgruppen</h2>
       <ul id="groupList" class="group-list"></ul>
-      <form id="groupForm" class="group-form">
-        <input id="groupColor" type="color" value="#e94f37" title="Farbe">
-        <input id="groupName" type="text" placeholder="Neue Gruppe…" maxlength="30">
-        <button class="btn small" type="submit">+</button>
-      </form>
+      <button id="addGroupBtn" class="btn small ghost wide">+ Neue Gruppe</button>
+      <p class="sub">Farbe und Name ändern: ✎ neben der Gruppe antippen.</p>
 
       <h2>Verlauf</h2>
       <ul id="historyList" class="history-list"></ul>
@@ -56,7 +54,8 @@
       </div>
       <ol id="trackList" class="track-list"></ol>
       <div id="dropHint" class="drop-hint">
-        Audiodateien hierher ziehen<br><small>MP3, WAV, M4A, OGG … – werden lokal im Browser gespeichert</small>
+        Noch keine Titel.<br>„+ Audio laden“ antippen oder Dateien hierher ziehen.<br>
+        <small>MP3, WAV, M4A, OGG … – werden in der App gespeichert</small>
       </div>
     </section>
 
@@ -65,24 +64,35 @@
       <div class="now">
         <div id="nowColor" class="now-color"></div>
         <div class="now-text">
-          <div id="nowTitle" class="now-title">Kein Titel geladen</div>
-          <div id="nowGroup" class="now-group">–</div>
+          <div id="nowTitle" class="now-title" title="Antippen zum Bearbeiten">Kein Titel geladen</div>
+          <div id="nowSub" class="now-group">–</div>
+        </div>
+        <div id="countBox" class="count-box" title="Zählzeit (1–8)">
+          <div id="countNum" class="count-num">–</div>
+          <div id="countEight" class="count-eight">kein Takt</div>
         </div>
         <div class="time"><span id="timeCur">0:00</span><span class="sep">/</span><span id="timeDur">0:00</span><div id="timeRemain" class="remain">-0:00</div></div>
       </div>
 
       <div class="wave-wrap">
-        <canvas id="wave" height="140"></canvas>
+        <canvas id="wave" class="wave"></canvas>
+        <div class="zoom-wrap">
+          <canvas id="zoom" class="zoom"></canvas>
+          <div class="zoom-btns">
+            <button id="zoomOut" class="zbtn" title="Mehr Überblick">−</button>
+            <button id="zoomIn" class="zbtn" title="Näher ran">+</button>
+          </div>
+        </div>
       </div>
-      <p class="hint">Tippen = Springen · Doppeltipp / <kbd>M</kbd> = Marker setzen · Marker löschen über die Liste</p>
+      <p class="hint">Oben: tippen = springen, doppelt tippen = Marker. Unten: Musik mit dem Finger schieben, tippen = springen.</p>
 
       <div class="transport">
         <button id="prevBtn" class="tbtn" title="Vorheriger Titel">⏮</button>
-        <button id="back5Btn" class="tbtn" title="5 Sekunden zurück (←)">-5s</button>
+        <button id="backBtn" class="tbtn" title="Zurück (←)">-5s</button>
         <button id="replayBtn" class="tbtn accent" title="Replay vom Anfang / Cue-In (R)">⟲</button>
         <button id="playBtn" class="tbtn big" title="Play / Pause (Leertaste)">▶</button>
         <button id="stopBtn" class="tbtn" title="Stopp (Esc)">■</button>
-        <button id="fwd5Btn" class="tbtn" title="5 Sekunden vor (→)">+5s</button>
+        <button id="fwdBtn" class="tbtn" title="Vor (→)">+5s</button>
         <button id="nextBtn" class="tbtn" title="Nächster Titel">⏭</button>
       </div>
 
@@ -94,18 +104,48 @@
         <label class="vol">🔊 <input id="volume" type="range" min="0" max="1" step="0.01" value="1"></label>
       </div>
 
-      <div class="cues">
-        <span class="label">Cue</span>
-        <button id="cueInBtn" class="btn small ghost" title="Startpunkt auf aktuelle Position (I)">In setzen</button>
-        <span id="cueInVal" class="cue-val">0:00.0</span>
-        <button id="cueOutBtn" class="btn small ghost" title="Endpunkt auf aktuelle Position (Shift+O)">Out setzen</button>
-        <span id="cueOutVal" class="cue-val">Ende</span>
-        <button id="cueResetBtn" class="btn small ghost">Zurücksetzen</button>
+      <div class="panel">
+        <div class="panel-row">
+          <span class="label">Mitzählen</span>
+          <div id="countModeSeg" class="seg">
+            <button data-v="off">Aus</button>
+            <button data-v="voice">Stimme</button>
+            <button data-v="click">Klick</button>
+          </div>
+          <span class="label">Einrasten</span>
+          <div id="snapSeg" class="seg">
+            <button data-v="off">Aus</button>
+            <button data-v="beat">1–8</button>
+            <button data-v="eight">nur 1</button>
+          </div>
+        </div>
+        <div class="panel-row">
+          <span class="label">Tempo</span>
+          <input id="bpmInput" class="num-input" type="number" min="40" max="240" step="0.1" placeholder="BPM" title="Schläge pro Minute">
+          <button id="bpmHalf" class="btn small ghost" title="Tempo halbieren">½</button>
+          <button id="bpmDouble" class="btn small ghost" title="Tempo verdoppeln">×2</button>
+          <button id="tapBtn" class="btn small ghost" title="Im Takt antippen (T)">Tap</button>
+          <button id="detectBtn" class="btn small ghost" title="Tempo und Zählzeit automatisch erkennen">Erkennen</button>
+        </div>
+        <div class="panel-row">
+          <span class="label">Zählzeit</span>
+          <button id="setOneBtn" class="btn small" title="Aktuelle Stelle ist eine „1“ (Z)">Hier ist die 1</button>
+          <button id="nudgeBack" class="btn small ghost" title="Raster 10 ms früher">◀ 10 ms</button>
+          <button id="nudgeFwd" class="btn small ghost" title="Raster 10 ms später">10 ms ▶</button>
+        </div>
+        <div class="panel-row">
+          <span class="label">Cue</span>
+          <button id="cueInBtn" class="btn small ghost" title="Startpunkt auf aktuelle Position (I)">In setzen</button>
+          <span id="cueInVal" class="cue-val">0:00.0</span>
+          <button id="cueOutBtn" class="btn small ghost" title="Endpunkt auf aktuelle Position (Shift+O)">Out setzen</button>
+          <span id="cueOutVal" class="cue-val">Ende</span>
+          <button id="cueResetBtn" class="btn small ghost">Zurücksetzen</button>
+        </div>
       </div>
 
       <div class="markers">
         <div class="markers-head">
-          <h2>Marker</h2>
+          <h2>Marker <span class="sub">– antippen startet ab dem Marker</span></h2>
           <button id="addMarkerBtn" class="btn small">+ Marker (M)</button>
         </div>
         <ul id="markerList" class="marker-list"></ul>
@@ -113,27 +153,81 @@
     </section>
   </main>
 
+  <!-- Dialoge -->
+  <dialog id="groupDlg">
+    <form method="dialog" class="dlg">
+      <h2 id="groupDlgTitle">Gruppe</h2>
+      <label class="field">Name <input id="groupDlgName" type="text" maxlength="30" required></label>
+      <div class="field">Farbe <div id="groupDlgColors" class="swatches"></div></div>
+      <div class="dlg-actions">
+        <button id="groupDlgDelete" type="button" class="btn ghost danger">Löschen</button>
+        <span class="spacer"></span>
+        <button value="cancel" class="btn ghost" formnovalidate>Abbrechen</button>
+        <button id="groupDlgSave" value="save" class="btn">Speichern</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="trackDlg">
+    <form method="dialog" class="dlg">
+      <h2>Titel bearbeiten</h2>
+      <label class="field">Titel <input id="trackDlgName" type="text" maxlength="120" required></label>
+      <label class="field">Interpret <input id="trackDlgArtist" type="text" maxlength="120"></label>
+      <div class="field">Farbgruppe <div id="trackDlgGroups" class="chips"></div></div>
+      <p id="trackDlgInfo" class="sub"></p>
+      <div class="dlg-actions">
+        <button id="trackDlgDelete" type="button" class="btn ghost danger">Titel entfernen</button>
+        <span class="spacer"></span>
+        <button value="cancel" class="btn ghost" formnovalidate>Abbrechen</button>
+        <button value="save" class="btn">Speichern</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="colorDlg">
+    <form method="dialog" class="dlg">
+      <h2>Farbe wählen</h2>
+      <div id="colorDlgSwatches" class="swatches"></div>
+      <div class="dlg-actions"><span class="spacer"></span><button value="cancel" class="btn ghost">Abbrechen</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="settingsDlg">
+    <form method="dialog" class="dlg">
+      <h2>Einstellungen</h2>
+      <label class="field row"><input id="setScrubAudio" type="checkbox"> Ton beim Schieben in der Musik</label>
+      <label class="field row"><input id="setMarkerPlay" type="checkbox"> Marker antippen startet die Wiedergabe<br><small class="sub">aus: springt nur hin und wartet auf Play</small></label>
+      <label class="field row"><input id="setJumpEight" type="checkbox"> Vor/Zurück springt um einen Achter (sonst 5 s)</label>
+      <label class="field">Lautstärke Mitzählen <input id="setCountVol" type="range" min="0" max="1" step="0.05"></label>
+      <label class="field">Mitzählen früher/später (ms) <span id="setCountOffsetVal" class="sub"></span>
+        <input id="setCountOffset" type="range" min="-250" max="250" step="10"></label>
+      <p class="sub">Wenn die Stimme hinter der Musik herhinkt: Regler nach links.</p>
+      <div class="dlg-actions"><span class="spacer"></span><button class="btn">Fertig</button></div>
+    </form>
+  </dialog>
+
   <dialog id="helpDlg">
     <h2>Tastenkürzel</h2>
     <table>
       <tr><td><kbd>Leertaste</kbd></td><td>Play / Pause</td></tr>
       <tr><td><kbd>Esc</kbd></td><td>Stopp</td></tr>
-      <tr><td><kbd>R</kbd></td><td>Replay vom Anfang (Cue-In)</td></tr>
-      <tr><td><kbd>Shift</kbd>+<kbd>R</kbd></td><td>Replay ab letztem Marker</td></tr>
+      <tr><td><kbd>R</kbd> / <kbd>Shift</kbd>+<kbd>R</kbd></td><td>Replay vom Anfang / ab letztem Marker</td></tr>
       <tr><td><kbd>L</kbd></td><td>Letzten Titel nochmal</td></tr>
       <tr><td><kbd>M</kbd></td><td>Marker an aktueller Position</td></tr>
-      <tr><td><kbd>1</kbd>…<kbd>9</kbd></td><td>Zu Marker 1–9 springen</td></tr>
-      <tr><td><kbd>←</kbd> / <kbd>→</kbd></td><td>5 s zurück / vor</td></tr>
-      <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>Titel in Liste wählen</td></tr>
-      <tr><td><kbd>Enter</kbd></td><td>Gewählten Titel abspielen</td></tr>
-      <tr><td><kbd>F</kbd></td><td>Fade-Out</td></tr>
-      <tr><td><kbd>O</kbd></td><td>Loop an/aus</td></tr>
+      <tr><td><kbd>1</kbd>…<kbd>9</kbd></td><td>Marker 1–9 antippen (Cue)</td></tr>
+      <tr><td><kbd>←</kbd> / <kbd>→</kbd></td><td>Zurück / vor</td></tr>
+      <tr><td><kbd>↑</kbd> / <kbd>↓</kbd> / <kbd>Enter</kbd></td><td>Titel wählen / abspielen</td></tr>
+      <tr><td><kbd>T</kbd></td><td>Tempo antippen</td></tr>
+      <tr><td><kbd>Z</kbd></td><td>Hier ist die 1</td></tr>
+      <tr><td><kbd>C</kbd></td><td>Mitzählen umschalten</td></tr>
+      <tr><td><kbd>F</kbd> / <kbd>O</kbd></td><td>Fade-Out / Loop</td></tr>
       <tr><td><kbd>I</kbd> / <kbd>Shift</kbd>+<kbd>O</kbd></td><td>Cue-In / Cue-Out setzen</td></tr>
     </table>
     <form method="dialog"><button class="btn">Schließen</button></form>
   </dialog>
 
   <div id="toast" class="toast"></div>
+  <script src="counts.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

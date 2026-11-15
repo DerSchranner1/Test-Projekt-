@@ -5,9 +5,11 @@
 1. App öffnen (am Rechner `index.html`, am Handy die installierte App).
 2. **+ Audio laden** antippen und alle Titel auswählen – oder am Rechner die Dateien ins Fenster ziehen.
 3. Titel in die richtige Reihenfolge ziehen.
-4. Bei jedem Titel im Auswahlfeld rechts die **Farbgruppe** wählen (Einmarsch, Garde / Tanz, Tusch …).
-   Eigene Gruppen legst du links unter „Neue Gruppe…“ an.
-5. **Export** drücken und die Setlisten-Datei aufheben – das ist deine Sicherung.
+4. Bei jedem Titel auf **✎** tippen: Titel umbenennen und **Farbgruppe** wählen (Einmarsch, Garde / Tanz, Tusch …).
+   Der Titel wird aus der Datei gelesen (MP3, M4A, OGG/FLAC). Steht dort nichts, nimmt die App den Dateinamen.
+5. **Farben der Gruppen:** bei der Gruppe auf **✎** tippen → Name ändern, Farbe aus der Palette antippen, Speichern.
+   Neue Gruppen über **+ Neue Gruppe**.
+6. **Export** drücken und die Setlisten-Datei aufheben – das ist deine Sicherung.
 
 Die App merkt sich alles. Beim nächsten Öffnen ist die Setliste wieder da.
 
@@ -29,15 +31,35 @@ Nach jedem Titel bleibt der Player stehen. Soll es automatisch weiterlaufen (z. 
 
 Mit einem Klick auf eine Farbgruppe links siehst du nur deren Titel – praktisch für „alle Tusche“.
 
-## 3. Marker setzen
+## 3. Zählen (1–8)
+
+Beim Laden erkennt die App das Tempo (BPM) und wo die „1“ ist. Unten in der Detail-Wellenform stehen die
+Zählzeiten 1 2 3 4 5 6 7 8 über der Musik, groß oben rechts siehst du die aktuelle Zahl und den wievielten Achter.
+
+- **Stimmt die 1 nicht?** An die richtige Stelle schieben und **Hier ist die 1** drücken. Feinjustieren mit ◀ 10 ms / 10 ms ▶.
+- **Stimmt das Tempo nicht?** **½** oder **×2** versuchen, oder bei laufender Musik mindestens 4× im Takt auf **Tap** tippen.
+- **Mitzählen:** Aus / Stimme („eins, zwei, … acht“) / Klick. Läuft beim Abspielen mit.
+  Hinkt die Stimme hinterher: ⚙ → „Mitzählen früher/später“ nach links.
+- **Einrasten:** Marker, Cue-Punkte und Springen landen genau auf einer Zählzeit (1–8) oder nur auf der 1 eines Achters.
+- **−8 / +8** springen einen Achter zurück bzw. vor.
+
+## 4. In der Musik schieben
+
+In der unteren (Detail-)Wellenform die Musik mit dem Finger nach links oder rechts schieben – wie eine Platte.
+Beim Loslassen rastet sie auf der nächsten Zählzeit ein und spielt weiter, falls sie lief.
+Den Ton beim Schieben kannst du unter ⚙ ein- und ausschalten. Mit **−** / **+** zoomst du.
+
+## 5. Marker setzen
 
 Marker sind Sprungstellen im Titel, z. B. „Einsatz Garde“ oder „Refrain“.
 
-1. Titel abspielen und an der Stelle **+ Marker** drücken (`M`), oder doppelt in die Wellenform tippen.
-2. In der Markerliste eine Beschriftung eintippen und bei Bedarf die Farbe ändern.
-3. Hinspringen: auf die Zeit in der Liste tippen, auf das Fähnchen in der Wellenform, oder Taste `1`–`9`.
+1. An der Stelle **+ Marker** drücken (`M`), oder doppelt in die obere Wellenform tippen. Der Marker rastet auf der Zählzeit ein.
+2. In der Markerliste eine Beschriftung eintippen; das Farbfeld daneben ändert die Farbe.
+3. **Cuen:** den farbigen Marker-Knopf antippen (oder das Fähnchen in der Wellenform, Taste `1`–`9`) –
+   die Musik startet genau dort. Soll er nur hinspringen und auf Play warten: ⚙ → „Marker antippen startet die Wiedergabe“ aus.
+4. **In** / **Out** am Marker machen ihn zum Start- bzw. Endpunkt des Titels.
 
-## 4. Anfang und Ende kürzen (Cue)
+## 6. Anfang und Ende kürzen (Cue)
 
 Statt die Datei zu schneiden, legst du nur fest, wo sie startet und endet:
 
@@ -45,18 +67,20 @@ Statt die Datei zu schneiden, legst du nur fest, wo sie startet und endet:
 2. An die gewünschte Endstelle springen → **Out setzen**.
 3. **Zurücksetzen** macht beides rückgängig. Die Originaldatei bleibt immer unverändert.
 
-## 5. Auf ein anderes Gerät umziehen
+## 7. Sichern und auf ein anderes Gerät umziehen
 
-1. Am alten Gerät **Export** → Setlisten-Datei aufs neue Gerät bringen.
+1. **Export**: In der Android-App öffnet sich das Teilen-Menü – dort z. B. „In Drive speichern“, an dich selbst
+   per Mail/WhatsApp schicken oder in „Dateien“ ablegen. Im Browser wird die Datei heruntergeladen.
 2. Am neuen Gerät dieselben Audiodateien über **+ Audio laden** laden.
-3. **Import** → Setlisten-Datei wählen. Gruppen, Marker, Cues und Reihenfolge werden über den Titelnamen zugeordnet.
+3. **Import** → Setlisten-Datei wählen. Gruppen, Marker, Takt, Cues und Reihenfolge werden über Titelname,
+   Dateiname oder Länge zugeordnet.
 
 ## So funktioniert es (grob)
 
 - Die App ist eine Webseite, die sich wie eine App installieren lässt. Nach dem ersten Öffnen läuft sie ohne Internet.
 - Beim Laden wird jede Audiodatei **in den Speicher der App kopiert**. Die App merkt sich also keine Dateipfade –
   sie braucht die Originaldateien danach nicht mehr, auch wenn du sie verschiebst oder den USB-Stick abziehst.
-- Setliste, Gruppen, Marker und Cues werden bei jeder Änderung automatisch gespeichert.
+- Setliste, Gruppen, Marker, Takt und Cues werden bei jeder Änderung automatisch gespeichert.
 - Alles bleibt auf dem Gerät. Es wird nichts hochgeladen, und Geräte gleichen sich nicht untereinander ab.
 
 **Wichtig:** Wer die Browserdaten bzw. App-Daten löscht, löscht auch Titel und Setliste. Deshalb vor jeder
