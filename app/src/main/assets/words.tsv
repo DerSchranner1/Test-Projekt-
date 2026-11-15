@@ -461,7 +461,7 @@ oben	527	0
 rund	527	0
 SPD	527	326	spd
 Straße	527	0
-as	457	677
+as	0	677
 bekannt	526	0
 bisher	526	0
 Eltern	526	0
@@ -614,7 +614,7 @@ Tod	516	316	tod
 völlig	516	0
 zudem	516	0
 by	472	666
-ach	515	0
+ach	515	295
 außer	515	0
 cdu	515	0
 gekommen	515	0
@@ -659,7 +659,7 @@ sprechen	513	0
 Video	513	543	video
 x	513	520
 from	440	663
-but	405	663
+but	0	663
 August	512	510
 Bilder	512	0
 dachte	512	0
@@ -793,8 +793,8 @@ toll	504	408
 tragen	504	0
 Vergleich	504	0
 versuchen	504	0
-we	444	654
-or	440	654
+or	0	654
+we	0	654
 Entscheidung	503	0
 Gedanken	503	0
 gehören	503	0
@@ -856,7 +856,7 @@ Sonntag	501	0
 unten	501	0
 warten	501	0
 Wirtschaft	501	0
-his	393	651
+his	0	651
 anderer	500	0
 Bevölkerung	500	0
 darin	500	0
@@ -956,7 +956,7 @@ tat	497	335
 zimmer	497	315
 zuerst	497	0
 one	465	647
-if	417	647
+if	0	647
 alleine	496	0
 druck	496	0
 entfernt	496	0
@@ -1191,7 +1191,7 @@ vertrag	487	0
 wichtige	487	0
 Zusammenhang	487	0
 when	390	637
-has	382	637
+has	0	637
 angaben	486	0
 Arzt	486	0
 befindet	486	0
@@ -1236,7 +1236,7 @@ unterstützt	485	0
 Volk	485	0
 Website	485	509	website
 wenigen	485	0
-do	456	635
+do	0	635
 al	484	516
 Arsch	484	0
 außerhalb	484	0
@@ -1831,7 +1831,7 @@ welchem	468	0
 Wissenschaft	468	0
 wunder	468	0
 überzeugt	468	0
-now	404	618
+now	0	618
 Bahnhof	467	0
 bedarf	467	0
 Bedingungen	467	0
@@ -1988,8 +1988,8 @@ woher	464	0
 Zuschauer	464	0
 Zweck	464	0
 überrascht	464	0
-our	390	614
-its	385	614
+its	0	614
+our	0	614
 Amazon	463	455
 angenommen	463	0
 armen	463	0
@@ -2178,7 +2178,7 @@ Zugang	460	0
 zweimal	460	0
 übrig	460	0
 know	417	610
-two	396	610
+two	0	610
 begonnen	459	0
 betrachtet	459	0
 Beziehungen	459	0
@@ -2426,7 +2426,6 @@ achten	454	0
 Apple	454	476	apple
 Auflösung	454	0
 ausgezeichnet	454	0
-bd	454	349
 Besitz	454	0
 besseren	454	0
 betrieben	454	0
@@ -2450,7 +2449,6 @@ kümmern	454	0
 langer	454	0
 Maschine	454	0
 Mut	454	0
-op	454	442
 Phase	454	464	phase
 Produkt	454	0
 prof	454	412
@@ -2526,9 +2524,9 @@ witzig	453	0
 worauf	453	0
 Wähler	453	0
 zumal	453	0
-go	441	603
 Well	386	603	well
 because	0	603
+go	0	603
 Achtung	452	0
 amerikanische	452	0
 anstatt	452	0
@@ -2623,8 +2621,8 @@ Zeitraum	451	0
 Zustimmung	451	0
 zusätzliche	451	0
 öfter	451	0
-way	400	601
 said	0	601
+way	0	601
 abschnitt	450	0
 Alltag	450	0
 anfangs	450	0
@@ -2661,7 +2659,6 @@ open	450	548
 Philipp	450	0
 Planung	450	0
 rollen	450	0
-sc	450	418
 Schatten	450	0
 Schicksal	450	0
 Shop	450	488	shop
@@ -2699,7 +2696,6 @@ Blog	449	473	blog
 Bundesrepublik	449	0
 Dingen	449	0
 diskutiert	449	0
-el	449	456	El
 ermöglicht	449	0
 Fakten	449	0
 Feuerwehr	449	0
@@ -2799,7 +2795,6 @@ redet	448	0
 saß	448	0
 scheinbar	448	0
 Stellung	448	0
-sv	448	319
 süß	448	0
 umfasst	448	0
 Variante	448	0
@@ -2846,7 +2841,6 @@ schlechten	447	0
 schlug	447	0
 schmeckt	447	0
 schritte	447	0
-se	447	429
 Server	447	446	server
 sitze	447	0
 Stadion	447	0
@@ -2957,7 +2951,6 @@ Engagement	445	431	engagement
 entscheidet	445	0
 enttäuscht	445	0
 erfolge	445	0
-ff	445	378
 Figuren	445	0
 gelaufen	445	0
 greifen	445	0
@@ -3077,7 +3070,6 @@ Voraussetzungen	444	0
 vorgehen	444	0
 vorn	444	0
 vorsichtig	444	0
-VW	444	340	vw
 wodurch	444	0
 zdf	444	0
 zuständig	444	0
@@ -3230,7 +3222,6 @@ steuer	442	0
 Thüringen	442	0
 Unterhaltung	442	0
 verbringen	442	0
-vs	442	485
 Wesen	442	0
 wofür	442	0
 wohnt	442	0
@@ -3282,7 +3273,6 @@ positiven	441	0
 Rassismus	441	0
 reduziert	441	0
 Sitzung	441	0
-ss	441	410
 süße	441	0
 Tabelle	441	0
 türkischen	441	0
@@ -3296,8 +3286,8 @@ Waffe	441	0
 wirtschaftliche	441	0
 wirtschaftlichen	441	0
 übel	441	0
-got	397	591
 never	385	591
+got	0	591
 many	0	591
 Absatz	440	0
 absolute	440	454
@@ -3616,7 +3606,6 @@ Magdeburg	436	0
 Nationen	436	0
 Preußen	436	0
 Rezept	436	0
-sa	436	430
 schießen	436	0
 Spannung	436	0
 Trennung	436	0
@@ -3737,7 +3726,7 @@ gefördert	434	0
 großem	434	0
 heftig	434	0
 Herausforderung	434	0
-herzog	434	0
+herzog	434	296
 Joseph	434	452
 Justiz	434	0
 Kampagne	434	0
@@ -3752,7 +3741,6 @@ Louis	434	482
 menschliche	434	0
 Migranten	434	0
 oftmals	434	0
-pr	434	419
 Priester	434	0
 präsentieren	434	0
 Regensburg	434	0
@@ -3894,7 +3882,6 @@ finanzielle	432	0
 gerufen	432	0
 gesichert	432	0
 Gipfel	432	0
-gr	432	352
 grüße	432	0
 harten	432	0
 intensiv	432	0
@@ -4030,7 +4017,6 @@ Bochum	430	0
 Dialog	430	346	dialog
 Diskussionen	430	0
 dunkle	430	0
-ed	430	479
 Einheiten	430	0
 einnahmen	430	0
 erhielten	430	0
@@ -4088,7 +4074,6 @@ verlängert	430	0
 versteckt	430	0
 versteh	430	0
 vgl	430	0
-vi	430	409	VI
 Vorlage	430	0
 Vorschriften	430	0
 wünschte	430	0
@@ -4232,7 +4217,6 @@ Pokal	428	0
 Propaganda	428	417	propaganda
 Qualifikation	428	0
 quer	428	0
-re	428	523
 rechtlichen	428	0
 Regisseur	428	0
 reiche	428	0
@@ -4377,7 +4361,6 @@ mangel	426	0
 Medikamente	426	0
 meldet	426	0
 mitmachen	426	0
-ns	426	348
 Obama	426	486
 passend	426	0
 Premiere	426	416	premiere
@@ -4404,7 +4387,6 @@ William	426	488
 wärme	426	0
 zeichnen	426	0
 zitiert	426	0
-äh	426	0
 Überwachung	426	0
 always	0	576
 better	0	576
@@ -4420,7 +4402,6 @@ betreibt	425	0
 bewiesen	425	0
 bleib	425	0
 college	425	527
-DB	425	377	db
 derselben	425	0
 Durchmesser	425	0
 durchsetzen	425	0
@@ -4432,7 +4413,6 @@ Erziehung	425	0
 Faktor	425	0
 Ford	425	450
 Frühling	425	0
-ge	425	383
 Geduld	425	0
 gefährdet	425	0
 gemessen	425	0
@@ -4489,8 +4469,8 @@ Zunge	425	0
 zurzeit	425	0
 Ägypten	425	0
 little	405	575
-old	404	575
 help	0	575
+old	0	575
 since	0	575
 abgegeben	424	0
 Asien	424	0
@@ -4607,7 +4587,6 @@ germany	423	490	Germany
 gestiegen	423	0
 gestohlen	423	0
 getestet	423	0
-gg	423	344
 goldenen	423	0
 grau	423	0
 handelte	423	0
@@ -4645,7 +4624,6 @@ Regie	423	0
 regionale	423	0
 schuldig	423	0
 Seehofer	423	0
-sg	423	354
 sieh	423	0
 Skandal	423	0
 SMS	423	366
@@ -4687,12 +4665,10 @@ Begegnung	422	0
 Benjamin	422	416
 bequem	422	0
 Borussia	422	306	borussia
-br	422	389
 Diesel	422	405	diesel
 DJ	422	423
 Dokumentation	422	0
 drückt	422	0
-dt	422	356
 durften	422	0
 dusche	422	0
 Einschätzung	422	0
@@ -4827,7 +4803,6 @@ Roland	421	366
 schlimmste	421	0
 schmuck	421	0
 sicheren	421	0
-sp	421	403
 suchte	421	0
 Titten	421	0
 Touristen	421	0
@@ -4942,7 +4917,6 @@ Wohnzimmer	420	0
 Wuppertal	420	0
 Zellen	420	0
 zusätzlichen	420	0
-à	420	0
 next	386	570
 again	0	570
 Adler	419	336	adler
@@ -4998,12 +4972,10 @@ Kader	419	0
 Koffer	419	0
 kulturellen	419	0
 kurzfristig	419	0
-li	419	425	Li
 Lob	419	298	lob
 Luxus	419	0
 massnahme	419	0
 Menschenrechte	419	0
-mi	419	430
 mitunter	419	0
 Monats	419	0
 mächtig	419	0
@@ -5025,7 +4997,6 @@ Rücktritt	419	0
 Schlafzimmer	419	0
 schnellen	419	0
 schönste	419	0
-si	419	417
 sollst	419	0
 soziales	419	0
 spanisch	419	0
@@ -5068,7 +5039,6 @@ Dennis	418	410
 digitalen	418	0
 Dom	418	378	dom
 durchschnittliche	418	0
-eg	418	362
 Eintracht	418	0
 engagiert	418	0
 ergab	418	0
@@ -5272,7 +5242,6 @@ Früchte	416	0
 Funk	416	371	funk
 füllen	416	0
 fürchten	416	0
-gb	416	391	GB
 gefreut	416	0
 geklappt	416	0
 Gestalt	416	0
@@ -5285,7 +5254,6 @@ half	416	541
 Handwerk	416	0
 herrlich	416	0
 hot	416	516
-il	416	432
 individuellen	416	0
 installiert	416	0
 Instituts	416	0
@@ -5295,7 +5263,6 @@ Kfz	416	0
 Klub	416	0
 Kompetenz	416	0
 kreisen	416	0
-kw	416	343
 Käufer	416	0
 leeren	416	0
 liberalen	416	0
@@ -5376,7 +5343,6 @@ herausgegeben	415	0
 hierher	415	0
 hol	415	0
 Höhle	415	0
-id	415	461	ID
 Image	415	494	image
 jüngsten	415	0
 Kanzler	415	0
@@ -5481,7 +5447,6 @@ heimlich	414	0
 hingewiesen	414	0
 hob	414	0
 hohes	414	0
-hr	414	420	HR
 Häusern	414	0
 identifizieren	414	0
 interessierte	414	0
@@ -5824,7 +5789,6 @@ getreten	411	0
 graben	411	0
 Gutschein	411	0
 Hartz	411	0
-hg	411	323
 interessanter	411	0
 jackson	411	458	Jackson
 Jerusalem	411	420
@@ -5930,7 +5894,6 @@ Dunkelheit	410	0
 Duo	410	408	duo
 Engländer	410	0
 entscheidenden	410	0
-ey	410	329
 faul	410	0
 Feedback	410	432	feedback
 Fieber	410	0
@@ -5956,7 +5919,6 @@ Herausforderungen	410	0
 herunter	410	0
 Hugo	410	376
 identifiziert	410	0
-ig	410	363
 immernoch	410	0
 Innsbruck	410	0
 Investoren	410	0
@@ -6027,7 +5989,6 @@ bedeutende	409	0
 Behinderung	409	0
 beruhigt	409	0
 beschloss	409	0
-bgb	409	0
 billiger	409	0
 blöde	409	0
 brennen	409	0
@@ -6074,7 +6035,6 @@ günstige	409	0
 Güter	409	0
 hasst	409	0
 Heer	409	0
-hl	409	316
 Horn	409	414	horn
 ideale	409	0
 Informatik	409	0
@@ -6146,7 +6106,6 @@ called	0	559
 different	0	559
 having	0	559
 thought	0	559
-ac	408	425	AC
 andern	408	0
 andre	408	385
 Anordnung	408	0
@@ -6237,7 +6196,6 @@ versagen	408	0
 Versionen	408	0
 vertrieb	408	0
 verwendeten	408	0
-VfL	408	312	vfl
 Volumen	408	0
 Vorfall	408	0
 vorhandene	408	0
@@ -6260,7 +6218,6 @@ alternativ	407	0
 Amtszeit	407	0
 angeben	407	0
 anhören	407	0
-ann	407	435	Ann
 annähernd	407	0
 Anpassung	407	0
 anschließen	407	0
@@ -6362,7 +6319,6 @@ Thailand	407	422
 tony	407	464	Tony
 Tricks	407	415	tricks
 trinkt	407	0
-tsv	407	0
 university	407	539
 verarbeitet	407	0
 vereint	407	0
@@ -6401,7 +6357,6 @@ bedanken	406	0
 beeindruckend	406	0
 Befreiung	406	0
 Belohnung	406	0
-bi	406	404
 bitter	406	421
 btw	406	406
 Bundesland	406	0
@@ -6442,12 +6397,10 @@ Kopie	406	0
 Korrektur	406	0
 Künstlerin	406	0
 Landesregierung	406	0
-led	406	511
 lege	406	0
 lehren	406	0
 ländlichen	406	0
 Marktplatz	406	0
-men	406	551
 Minderheit	406	0
 mitgeteilt	406	0
 mitteilen	406	0
@@ -6480,10 +6433,8 @@ Staats	406	0
 Stadtrat	406	0
 stetig	406	0
 Stirn	406	0
-Str	406	327	str
 Stuttgarter	406	0
 stürzen	406	0
-sz	406	0
 Tasse	406	0
 Tobias	406	329
 Topf	406	0
@@ -6494,7 +6445,6 @@ unwahrscheinlich	406	0
 Verfassungsschutz	406	0
 verwandte	406	0
 Victor	406	418	victor
-vol	406	441
 Vorjahr	406	0
 Welten	406	0
 Weltmeisterschaft	406	0
@@ -6576,7 +6526,6 @@ Meldungen	405	0
 mobil	405	299
 Nationalsozialismus	405	0
 nominiert	405	0
-nsu	405	0
 nördlichen	405	0
 orientiert	405	0
 passenden	405	0
@@ -6648,7 +6597,6 @@ bremsen	404	0
 Bull	404	434	bull
 Couch	404	417	couch
 Dankeschön	404	0
-dat	404	355
 demonstrieren	404	0
 deutlicher	404	0
 duschen	404	0
@@ -6673,8 +6621,6 @@ hessischen	404	0
 html	404	365	HTML
 identisch	404	0
 Ideologie	404	0
-ios	404	412
-ip	404	404	IP
 iss	404	345	ISS
 Johnson	404	472
 keinesfalls	404	0
@@ -6708,7 +6654,6 @@ rechtfertigen	404	0
 richtete	404	0
 riesig	404	0
 ross	404	439	Ross
-sch	404	307
 scharfe	404	0
 schwierigen	404	0
 schwule	404	0
@@ -6725,12 +6670,10 @@ style	404	511
 ständige	404	0
 tatsächlichen	404	0
 Taylor	404	465
-uk	404	512	UK
 unverändert	404	0
 vergehen	404	0
 Verhandlung	404	0
 vorgelegt	404	0
-wdr	404	0
 werben	404	0
 Willi	404	0
 Wirtschafts	404	0
@@ -6786,10 +6729,8 @@ eingriff	403	0
 Einwohnern	403	0
 Eisenbahn	403	0
 emotional	403	466
-est	403	411
 Europäer	403	0
 fantasy	403	452
-fox	403	466
 führe	403	0
 fürchte	403	0
 gerissen	403	0
@@ -6832,7 +6773,6 @@ Nikolaus	403	0
 nötige	403	0
 oberst	403	0
 Orden	403	0
-os	403	410
 Passagiere	403	0
 Planet	403	468	planet
 Plätzen	403	0
@@ -6860,7 +6800,6 @@ Semester	403	403	semester
 stich	403	0
 Sven	403	324	sven
 süßen	403	0
-ten	403	505
 Tiger	403	430	tiger
 traurige	403	0
 trinke	403	0
@@ -6878,7 +6817,6 @@ verweist	403	0
 vorfahren	403	0
 Vorgang	403	0
 Vormittag	403	0
-wa	403	417
 weitergehen	403	0
 wendet	403	0
 zieh	403	0
@@ -6901,7 +6839,6 @@ auftauchen	402	0
 ausführliche	402	0
 Ausstellungen	402	0
 Auszug	402	0
-ba	402	413
 Babys	402	0
 begründete	402	0
 Bekämpfung	402	0
@@ -7004,7 +6941,6 @@ tödlich	402	0
 töne	402	0
 unheimlich	402	0
 unterschrieben	402	0
-ur	402	391
 vereinten	402	0
 Vergewaltigung	402	0
 vergleiche	402	0
@@ -7043,7 +6979,6 @@ Beschwerde	401	0
 Bosch	401	330	bosch
 Brötchen	401	0
 Busch	401	330	busch
-Bw	401	323	bw
 bürgerlichen	401	0
 Campus	401	451	campus
 dating	401	470
@@ -7064,7 +6999,6 @@ entschuldigt	401	0
 erinnerte	401	0
 focus	401	500
 fremd	401	0
-fun	401	530
 gemeinsames	401	0
 gestattet	401	0
 globalen	401	0
@@ -7074,7 +7008,6 @@ Heizung	401	0
 Hertha	401	0
 Highlight	401	421	highlight
 hinteren	401	0
-hip	401	446
 Hoffnungen	401	0
 Hubert	401	330	hubert
 jenem	401	0
@@ -7105,7 +7038,6 @@ Nichtmal	401	0
 Offenbach	401	0
 Oskar	401	297	oskar
 Petra	401	327	petra
-pp	401	438
 richtiges	401	0
 rufe	401	0
 sanft	401	0
@@ -7119,11 +7051,9 @@ Spanier	401	0
 Standpunkt	401	0
 Stellvertreter	401	0
 Sturz	401	0
-te	401	407
 tommy	401	416	Tommy
 Ulrike	401	0
 unentschieden	401	0
-ups	401	441
 verbrannt	401	0
 Verbände	401	0
 verhandeln	401	0
@@ -7145,6 +7075,7 @@ call	398	551
 based	0	551
 believe	0	551
 head	0	551
+men	0	551
 small	0	551
 took	0	551
 absoluter	400	0
@@ -7173,7 +7104,6 @@ chemische	400	0
 Christ	400	479
 Clinton	400	457
 cum	400	404
-dei	400	329
 Demokraten	400	0
 Dimension	400	402	dimension
 Doku	400	0
@@ -7186,9 +7116,7 @@ einsteigen	400	0
 erfolgreicher	400	0
 Erhaltung	400	0
 erlebte	400	0
-fa	400	420
 Favoriten	400	0
-faz	400	0
 Ferrari	400	388
 food	400	540
 france	400	494	France
@@ -7262,7 +7190,6 @@ Sternen	400	0
 ständigen	400	0
 teure	400	0
 Theorien	400	0
-tl	400	402
 Trio	400	394	trio
 Unterschrift	400	0
 verdächtigen	400	0
@@ -7291,7 +7218,6 @@ though	0	550
 try	0	550
 went	0	550
 yes	0	550
-ak	399	373	Ak
 analysiert	399	0
 anonym	399	0
 antrieb	399	0
@@ -7338,7 +7264,6 @@ hauen	399	0
 Haustür	399	0
 hinauf	399	0
 historischer	399	0
-ho	399	422
 Hubschrauber	399	0
 Höhen	399	0
 indes	399	0
@@ -7380,7 +7305,6 @@ sonntags	399	0
 spazieren	399	0
 sprichst	399	0
 Standorte	399	0
-std	399	342	STD
 Steiermark	399	0
 stillen	399	0
 Substanz	399	0
@@ -7392,18 +7316,15 @@ umfangreichen	399	0
 Umfragen	399	0
 Umstand	399	0
 unterstellt	399	0
-USB	399	398
 Verbesserungen	399	0
 Vertretung	399	0
 verwiesen	399	0
 verzeichnet	399	0
 verzicht	399	0
-vii	399	384	VII
 wechselte	399	0
 Wiederholung	399	0
 wieviele	399	0
 wilson	399	453	Wilson
-win	399	539
 wohn	399	0
 Wortes	399	0
 worüber	399	0
@@ -7458,7 +7379,6 @@ Bundesamt	398	0
 Bundesländer	398	0
 Bände	398	0
 Charlie	398	443
-cia	398	421	CIA
 Disney	398	439
 Düsseldorfer	398	0
 eingezogen	398	0
@@ -7490,16 +7410,13 @@ helle	398	0
 hill	398	482
 Hits	398	465	hits
 indischen	398	0
-ing	398	395
 internen	398	0
 Internetseite	398	0
 Jahreszeit	398	0
-jap	398	299
 Jedesmal	398	0
 Johanna	398	309	johanna
 Juristen	398	0
 Kater	398	0
-ki	398	388	Ki
 Kirchengemeinde	398	0
 Kiste	398	0
 Kollegin	398	0
@@ -7511,16 +7428,12 @@ Künstlern	398	0
 lagern	398	0
 leg	398	466
 liefen	398	0
-lit	398	419
-low	398	533
 Magie	398	0
 Materie	398	0
-mia	398	387	Mia
 Miami	398	447
 Mobilität	398	0
 nachfolgenden	398	0
 nackte	398	0
-nu	398	355
 offensive	398	446
 optimal	398	394
 ordentlichen	398	0
@@ -7551,7 +7464,6 @@ speicher	398	0
 Stichwort	398	0
 städtische	398	0
 Stürmer	398	0
-sur	398	370
 Takt	398	0
 tauchen	398	0
 telefonieren	398	0
@@ -7559,7 +7471,6 @@ Tokio	398	0
 Trikot	398	0
 türkischer	398	0
 umzusetzen	398	0
-uno	398	328
 vegas	398	442	Vegas
 verabschieden	398	0
 Verarbeitung	398	0
@@ -7596,7 +7507,6 @@ befassen	397	0
 Begleiter	397	0
 beherrscht	397	0
 Beleidigung	397	0
-bgh	397	0
 Biologie	397	0
 Chefin	397	0
 claus	397	348	Claus
@@ -7623,14 +7533,12 @@ flog	397	0
 Florida	397	476
 Flüge	397	0
 Fotograf	397	0
-fu	397	388
 geehrt	397	0
 gefährlichen	397	0
 gefährlicher	397	0
 gesendet	397	0
 gewaltig	397	0
 gleiches	397	0
-han	397	393	Han
 Harz	397	0
 Hausaufgaben	397	0
 heimischen	397	0
@@ -7669,7 +7577,6 @@ Peking	397	318
 pink	397	452
 Quartal	397	0
 Rahmenbedingungen	397	0
-rap	397	412
 reale	397	0
 Richtlinie	397	0
 sammelte	397	0
@@ -7691,8 +7598,6 @@ tweet	397	417
 Uhrzeit	397	0
 Umstellung	397	0
 unzählige	397	0
-url	397	386	URL
-ver	397	342
 vergiss	397	0
 verletzten	397	0
 vorherigen	397	0
@@ -7755,7 +7660,6 @@ Einigung	396	0
 elend	396	0
 engagierte	396	0
 Enttäuschung	396	0
-ep	396	421
 Erwerb	396	0
 european	396	508	European
 Fass	396	0
@@ -7790,13 +7694,10 @@ Klimaschutz	396	0
 Kommunisten	396	0
 Kredite	396	0
 Krimi	396	0
-kv	396	313
 kündigen	396	0
 langjährige	396	0
 Läufer	396	0
 Mafia	396	383	mafia
-med	396	388
-mo	396	438
 Mutti	396	0
 Osteuropa	396	0
 pegida	396	0
@@ -7840,8 +7741,6 @@ Vietnam	396	431
 vincent	396	414	Vincent
 vollständigen	396	0
 Vorlesungen	396	0
-vr	396	383	VR
-wat	396	344	Wat
 Weib	396	0
 weiblich	396	0
 weitermachen	396	0
@@ -7850,7 +7749,6 @@ westlich	396	0
 wirklichen	396	0
 wirksam	396	0
 Workshop	396	415	workshop
-xxx	396	373	XXX
 Yorker	396	349
 zahle	396	0
 zueinander	396	0
@@ -7858,9 +7756,9 @@ zwingt	396	0
 Ängste	396	0
 äußerte	396	0
 überfallen	396	0
-law	393	546
 area	0	546
 following	0	546
+law	0	546
 makes	0	546
 together	0	546
 whole	0	546
@@ -7931,7 +7829,6 @@ hervorragende	395	0
 Horror	395	443	horror
 Iris	395	376	iris
 Jahrhunderten	395	0
-jay	395	438
 jenny	395	389	Jenny
 Jude	395	348
 Kanäle	395	0
@@ -7940,7 +7837,6 @@ ketten	395	0
 Kissen	395	0
 Komponisten	395	0
 kontinuierlich	395	0
-kz	395	0
 Leber	395	0
 Lehrern	395	0
 Londoner	395	0
@@ -8011,7 +7907,7 @@ wunde	395	0
 wähle	395	0
 Wälder	395	0
 zocken	395	0
-car	387	545
+car	0	545
 face	0	545
 five	0	545
 maybe	0	545
@@ -8035,7 +7931,6 @@ Außenpolitik	394	0
 Ausübung	394	0
 Batterie	394	0
 baute	394	0
-bbc	394	457	BBC
 begründen	394	0
 belohnt	394	0
 berechnen	394	0
@@ -8053,7 +7948,6 @@ Christina	394	382
 classic	394	472
 comedy	394	451
 dachten	394	0
-dc	394	456	DC
 demselben	394	0
 derzeitigen	394	0
 deutlichen	394	0
@@ -8090,12 +7984,10 @@ Guido	394	317	guido
 Halbinsel	394	0
 Hang	394	460	hang
 harter	394	0
-hc	394	365
 heilen	394	0
 herein	394	366
 Hofer	394	0
 homo	394	361	Homo
-hop	394	440
 Hunden	394	0
 härter	394	0
 Impulse	394	372	impulse
@@ -8122,17 +8014,13 @@ Künste	394	0
 lahm	394	0
 lautete	394	0
 liberale	394	0
-lt	394	415
 Maas	394	0
 meldete	394	0
 menschlich	394	0
-nd	394	371
-ndr	394	0
 Netzwerke	394	0
 Niederlagen	394	0
 Nudeln	394	0
 nähere	394	0
-pa	394	446
 philip	394	428	Philip
 Plakate	394	0
 Projekts	394	0
@@ -8146,7 +8034,6 @@ Reichstag	394	0
 reif	394	0
 Ruhm	394	0
 Saarbrücken	394	0
-sap	394	360
 Schiller	394	305	schiller
 Schmid	394	0
 speisen	394	0
@@ -8171,7 +8058,6 @@ Wertung	394	0
 widerspricht	394	0
 wunderbaren	394	0
 xbox	394	419	Xbox
-yo	394	445
 zahlreicher	394	0
 Zigarette	394	0
 zurückgekehrt	394	0
@@ -8240,7 +8126,6 @@ Gladbach	393	0
 glücklicher	393	0
 grill	393	384
 Grosseltern	393	0
-guy	393	540
 heftigen	393	0
 heilig	393	0
 Heimspiel	393	0
@@ -8252,7 +8137,6 @@ installieren	393	0
 islamische	393	0
 jane	393	442	Jane
 Java	393	400
-jh	393	0
 kirchlichen	393	0
 klassisch	393	0
 kombiniert	393	0
@@ -8264,12 +8148,10 @@ körperlichen	393	0
 Körperverletzung	393	0
 kühl	393	0
 lenken	393	0
-lp	393	385	LP
 löhne	393	0
 Mallorca	393	0
 manch	393	0
 Marion	393	380	marion
-mb	393	378
 Mitarbeit	393	0
 ml	393	384
 Monika	393	0
@@ -8279,7 +8161,6 @@ Mühle	393	0
 nachzudenken	393	0
 Neuseeland	393	0
 Nordkorea	393	0
-och	393	0
 Olaf	393	314
 organisierten	393	0
 Petition	393	430	petition
@@ -8344,7 +8225,6 @@ Ausfall	392	0
 aushalten	392	0
 ausnahmsweise	392	0
 Ausschnitt	392	0
-bay	392	473
 bedeutenden	392	0
 beeinträchtigt	392	0
 Begegnungen	392	0
@@ -8355,9 +8235,7 @@ bestimmtes	392	0
 bewirkt	392	0
 bewältigen	392	0
 Bit	392	537	bit
-bl	392	337
 Bundeskanzler	392	0
-bye	392	439
 Bäcker	392	0
 Deckel	392	0
 Demos	392	340	demos
@@ -8432,7 +8310,6 @@ Oberösterreich	392	0
 Plakat	392	0
 privater	392	0
 Punk	392	420	punk
-rb	392	370
 Rechtsstaat	392	0
 Regionalliga	392	0
 relevant	392	461
@@ -8463,7 +8340,6 @@ stärkere	392	0
 Stücken	392	0
 stürzt	392	0
 Tagung	392	0
-taz	392	0
 teilzunehmen	392	0
 track	392	502
 Transfer	392	472	transfer
@@ -8561,10 +8437,8 @@ heftige	391	0
 hinunter	391	0
 history	391	539
 homosexuell	391	0
-hp	391	413
 hörst	391	0
 Indianer	391	0
-inn	391	407
 intelligent	391	429
 Israels	391	0
 jedermann	391	0
@@ -8608,7 +8482,6 @@ passierte	391	0
 Pastor	391	408	pastor
 Pater	391	0
 PayPal	391	375
-pen	391	438
 Petersburg	391	370
 präsent	391	0
 qualifizierte	391	0
@@ -8617,7 +8490,6 @@ radikalen	391	0
 Register	391	459	register
 research	391	539
 Rezepte	391	0
-sat	391	464
 schale	391	0
 schnauze	391	0
 Selbstbewusstsein	391	0
@@ -8627,7 +8499,6 @@ spiegelt	391	0
 Stall	391	379	stall
 Standorten	391	0
 Straßenverkehr	391	0
-su	391	392
 Säulen	391	0
 Tanja	391	0
 tank	391	457
@@ -8654,7 +8525,6 @@ Vodafone	391	312	vodafone
 Vollzeit	391	0
 wache	391	0
 Webseiten	391	0
-wei	391	346
 Weltbild	391	0
 Weser	391	0
 wählte	391	0
@@ -8703,7 +8573,6 @@ board	390	524
 Budapest	390	355
 Bundesstaat	390	0
 Bären	390	0
-cam	390	410
 chemischen	390	0
 Chile	390	406
 Chronik	390	0
@@ -8726,7 +8595,6 @@ entfernten	390	0
 ergreifen	390	0
 Ermittler	390	0
 Erzbischof	390	0
-ev	390	365	EV
 externe	390	0
 Fachkräfte	390	0
 Fehlern	390	0
@@ -8748,7 +8616,6 @@ hinzufügen	390	0
 howard	390	448	Howard
 intensiver	390	0
 Interessenten	390	0
-key	390	512
 Kilogramm	390	0
 Kinos	390	0
 Klarheit	390	0
@@ -8779,7 +8646,6 @@ nüchtern	390	0
 optisch	390	0
 ordentliche	390	0
 Periode	390	0
-pm	390	469
 Porträt	390	0
 Prime	390	481	prime
 Provinzen	390	0
@@ -8845,11 +8711,12 @@ south	388	540
 true	384	540
 body	383	540
 control	383	540
-pay	380	540
 become	0	540
 coming	0	540
 death	0	540
+guy	0	540
 hours	0	540
+pay	0	540
 we're	0	540
 abhalten	389	0
 Agenten	389	0
@@ -8868,12 +8735,10 @@ beliebten	389	0
 besagt	389	0
 beschließt	389	0
 Bewerbungen	389	0
-bla	389	301
 Bonner	389	296	bonner
 Brigitte	389	0
 Bundesstrasse	389	0
 Champion	389	462	champion
-con	389	428
 Darm	389	0
 Dialekt	389	0
 dramatisch	389	0
@@ -8889,7 +8754,6 @@ etablieren	389	0
 ewigen	389	0
 Fell	389	485	fell
 fetten	389	0
-fi	389	426
 Fotze	389	0
 freigegeben	389	0
 frohe	389	0
@@ -8935,7 +8799,6 @@ Maut	389	0
 mehrheitlich	389	0
 misst	389	0
 mittags	389	0
-mt	389	413	Mt
 napoleon	389	377	Napoleon
 neutral	389	424
 Niederschlag	389	0
@@ -8945,11 +8808,9 @@ platt	389	306
 Poster	389	419	poster
 Professoren	389	0
 Rakete	389	0
-ram	389	419
 release	389	509
 roller	389	399
 Romane	389	0
-roy	389	425	Roy
 Rückblick	389	0
 Samuel	389	419
 scheiden	389	0
@@ -8976,7 +8837,6 @@ Thesen	389	0
 Todesstrafe	389	0
 totale	389	0
 tätigen	389	0
-uff	389	0
 Uhren	389	0
 umgebracht	389	0
 Unsicherheit	389	0
@@ -9001,13 +8861,12 @@ room	0	539
 several	0	539
 started	0	539
 taking	0	539
+win	0	539
 wrong	0	539
 abgebildet	388	0
 abgeschnitten	388	0
 abschneiden	388	0
-abu	388	401	Abu
 Amtes	388	0
-ap	388	440
 arbeiteten	388	0
 Areal	388	0
 asiatischen	388	0
@@ -9036,7 +8895,6 @@ christlich	388	0
 Debatten	388	0
 defekt	388	0
 Duft	388	0
-ec	388	370
 eigen	388	0
 eingeschaltet	388	0
 einzigartig	388	0
@@ -9072,16 +8930,12 @@ Individuen	388	0
 Ingenieure	388	0
 Installation	388	416	installation
 internationales	388	0
-iso	388	379	ISO
 Italiens	388	0
 Jahrzehnt	388	0
 Jersey	388	466	jersey
-Jg	388	302	jg
 Katja	388	0
-ken	388	421	Ken
 Kiew	388	0
 Killer	388	447	killer
-ko	388	373	Ko
 Kombi	388	0
 Kontrollen	388	0
 Kopfhörer	388	0
@@ -9089,13 +8943,11 @@ Kurier	388	0
 kämpfte	388	0
 königliche	388	0
 Künstlers	388	0
-lan	388	364
 Laufzeit	388	0
 lecken	388	0
 Lindner	388	0
 Lücken	388	0
 Migrationshintergrund	388	0
-mrs	388	489	Mrs
 musikalisch	388	0
 münze	388	0
 Nebenwirkungen	388	0
@@ -9185,7 +9037,6 @@ besserer	387	0
 bestritten	387	0
 beta	387	420
 Bond	387	459	bond
-CDs	387	363
 Chefs	387	364	chefs
 Chinas	387	0
 conrad	387	363
@@ -9207,7 +9058,6 @@ erneuerbare	387	0
 Erstellung	387	0
 erwies	387	0
 Eugen	387	0
-fb	387	376
 Feiertag	387	0
 Fertigstellung	387	0
 Finanzamt	387	0
@@ -9225,7 +9075,6 @@ gestrigen	387	0
 geübt	387	0
 gleichwohl	387	0
 Glocke	387	0
-GPS	387	403
 gültigen	387	0
 Halloween	387	416
 Handschrift	387	0
@@ -9236,7 +9085,6 @@ herrschen	387	0
 hetze	387	0
 heulen	387	0
 hülle	387	0
-ic	387	355
 Irrtum	387	0
 isoliert	387	0
 klettern	387	0
@@ -9324,10 +9172,8 @@ needs	0	537
 playing	0	537
 probably	0	537
 saying	0	537
-Abb	386	0
 abgelegt	386	0
 absetzen	386	0
-aka	386	415
 allerlei	386	0
 angebliche	386	0
 angehören	386	0
@@ -9343,7 +9189,6 @@ ausgehend	386	0
 Auslegung	386	0
 ausrichten	386	0
 auszugehen	386	0
-az	386	368
 Balance	386	476	balance
 Bann	386	0
 Beat	386	501	beat
@@ -9358,10 +9203,8 @@ Bohnen	386	0
 Button	386	456	button
 Böhmen	386	0
 carmen	386	363	Carmen
-cat	386	478
 demonstriert	386	0
 derselbe	386	0
-DHL	386	0
 Diskurs	386	0
 drang	386	0
 draus	386	0
@@ -9381,7 +9224,6 @@ Erika	386	317
 Farm	386	475	farm
 faszinierend	386	0
 fasziniert	386	0
-FBI	386	443
 fischen	386	0
 flachen	386	0
 Fluch	386	0
@@ -9469,7 +9311,6 @@ strache	386	0
 strategische	386	0
 studierende	386	0
 Syndrom	386	0
-ta	386	402
 Talente	386	0
 Thriller	386	391	thriller
 Tische	386	0
@@ -9515,7 +9356,6 @@ abgelaufen	385	0
 Abi	385	330	abi
 abriss	385	0
 absage	385	0
-ai	385	423	AI
 angeklagt	385	0
 Anhängern	385	0
 Anweisung	385	0
@@ -9562,12 +9402,10 @@ einziehen	385	0
 entfallen	385	0
 entfernte	385	0
 erlitt	385	0
-ezb	385	0
 Flyer	385	358	flyer
 freiem	385	0
 Frequenz	385	0
 Fußballer	385	0
-gay	385	490
 gegründete	385	0
 geguckt	385	0
 gelohnt	385	0
@@ -9582,7 +9420,6 @@ Haftung	385	0
 hanna	385	359
 herausgefunden	385	0
 Hirsch	385	306	hirsch
-ihk	385	0
 Inhalten	385	0
 Inspiration	385	441	inspiration
 irgendeinen	385	0
@@ -9606,7 +9443,7 @@ Leitungen	385	0
 leuchtet	385	0
 Ludwigshafen	385	0
 lügt	385	0
-Mais	385	0
+Mais	385	296	mais
 Marokko	385	0
 Melanie	385	353
 Menschlichkeit	385	0
@@ -9662,10 +9499,8 @@ Summer	385	523	summer
 Szenario	385	0
 tanzt	385	0
 Tarif	385	0
-tg	385	319
 Tonne	385	321	tonne
 Triumph	385	396	triumph
-ts	385	367
 Tüte	385	0
 unfair	385	417
 ungeachtet	385	0
@@ -9704,7 +9539,6 @@ ablegen	384	0
 Abraham	384	398
 absolvieren	384	0
 achso	384	0
-act	384	530
 akademischen	384	0
 Allee	384	0
 angehalten	384	0
@@ -9725,7 +9559,6 @@ bleibst	384	0
 blättern	384	0
 Boom	384	433	boom
 Bundespräsident	384	0
-cc	384	415	CC
 deep	384	505
 denjenigen	384	0
 deutschem	384	0
@@ -9777,7 +9610,6 @@ ihrerseits	384	0
 Immobilie	384	0
 inwiefern	384	0
 inwieweit	384	0
-IQ	384	369
 Jurist	384	0
 kannste	384	0
 Kellner	384	0
@@ -9794,10 +9626,8 @@ leugnen	384	0
 Lidl	384	0
 Liechtenstein	384	0
 literarischen	384	0
-lte	384	338
 maps	384	442
 Maschinenbau	384	0
-mc	384	400
 Minimum	384	469	minimum
 mobilen	384	0
 Mädel	384	0
@@ -9814,7 +9644,6 @@ Pille	384	0
 potter	384	411	Potter
 predigt	384	0
 präsentierte	384	0
-ra	384	390
 regnet	384	0
 reisenden	384	0
 reiz	384	0
@@ -9860,7 +9689,6 @@ verkürzt	384	0
 versetzen	384	0
 versteckte	384	0
 Verwirrung	384	0
-vo	384	309
 Vorarlberg	384	0
 Vorurteile	384	0
 Vorwort	384	0
@@ -9938,7 +9766,6 @@ gesundheitlichen	383	0
 Getränk	383	0
 gewaschen	383	0
 gewünschte	383	0
-gt	383	379
 guide	383	475
 hats	383	401
 Heilbronn	383	0
@@ -9946,8 +9773,6 @@ Himmels	383	0
 Hygiene	383	379	hygiene
 härte	383	0
 Hürde	383	0
-ian	383	432	Ian
-ix	383	369
 Jahrestag	383	0
 Kassen	383	0
 kassiert	383	0
@@ -10021,7 +9846,6 @@ Säule	383	0
 Südwesten	383	0
 Sünden	383	0
 Teich	383	0
-th	383	420
 Trans	383	441	trans
 transparent	383	401
 uefa	383	353
@@ -10048,6 +9872,7 @@ zweifellos	383	0
 öffentliches	383	0
 Police	369	533	police
 either	0	533
+low	0	533
 morning	0	533
 short	0	533
 stay	0	533
@@ -10084,7 +9909,6 @@ Buchhandlung	382	0
 Bude	382	0
 Casino	382	416	casino
 clara	382	380	Clara
-dad	382	495
 dave	382	444	Dave
 deck	382	441
 Delegation	382	392	delegation
@@ -10157,7 +9981,6 @@ Luke	382	445
 lustigen	382	0
 Mathias	382	308	mathias
 Matrix	382	407	matrix
-mdr	382	0
 Merkmal	382	0
 Moses	382	398
 mächtige	382	0
@@ -10188,10 +10011,8 @@ segeln	382	0
 sing	382	454
 Solingen	382	0
 sozialistische	382	0
-spa	382	396
 spielst	382	0
 Sponsoren	382	0
-sr	382	403
 staatlicher	382	0
 Statue	382	409	statue
 stechen	382	0
@@ -10201,7 +10022,6 @@ tafeln	382	0
 Touren	382	0
 Trinkwasser	382	0
 Turner	382	419
-TÜV	382	0
 ukrainischen	382	0
 umliegenden	382	0
 Unruhen	382	0
@@ -10272,7 +10092,6 @@ biologischen	381	0
 Botschaften	381	0
 brannte	381	0
 cameron	381	426	Cameron
-cap	381	451
 chinesisch	381	0
 clever	381	421
 Coburg	381	0
@@ -10327,7 +10146,6 @@ Humboldt	381	315	humboldt
 husten	381	0
 Hühner	381	0
 idealen	381	0
-inc	381	477	Inc
 industrielle	381	0
 Innern	381	0
 Insolvenz	381	0
@@ -10346,7 +10164,6 @@ Maurer	381	0
 Meeting	381	515	meeting
 Mehrzahl	381	0
 menschlicher	381	0
-mer	381	329
 Messungen	381	0
 Mitgefühl	381	0
 mitspielen	381	0
@@ -10373,7 +10190,6 @@ rauf	381	0
 Revue	381	307	revue
 Rollstuhl	381	0
 Ruß	381	0
-rwe	381	0
 sara	381	396	Sara
 schiffen	381	0
 schmeißen	381	0
@@ -10383,7 +10199,6 @@ schuppen	381	0
 Schüssel	381	0
 schütteln	381	0
 selbständig	381	0
-sin	381	437
 society	381	517
 Sortiment	381	0
 spalte	381	0
@@ -10417,7 +10232,6 @@ Watt	381	369	watt
 wenngleich	381	0
 Wiedervereinigung	381	0
 wirtschaftlicher	381	0
-yt	381	321
 zurückziehen	381	0
 Zusammenschluss	381	0
 Ähnlichkeit	381	0
@@ -10466,9 +10280,7 @@ Bischöfe	380	0
 Bosnien	380	0
 bürgerliche	380	0
 Carsten	380	0
-ceo	380	446	CEO
 Chirurgie	380	0
-cl	380	385
 derweil	380	0
 Dimensionen	380	0
 Domain	380	431	domain
@@ -10498,7 +10310,6 @@ fasste	380	0
 feat	380	399
 Festnahme	380	0
 Feuchtigkeit	380	0
-fh	380	0
 Fraktionen	380	0
 francis	380	439	Francis
 Friedens	380	0
@@ -10510,7 +10321,6 @@ Gleichberechtigung	380	0
 gläubiger	380	0
 Grundsätze	380	0
 Halbjahr	380	0
-ham	380	412
 Hase	380	0
 Hawaii	380	421
 hilf	380	0
@@ -10548,8 +10358,6 @@ moralisch	380	0
 munter	380	0
 network	380	502
 Netze	380	0
-og	380	372
-par	380	415
 pausen	380	0
 pflegt	380	0
 Poesie	380	0
@@ -10557,7 +10365,6 @@ Politikerin	380	0
 privates	380	0
 pädagogische	380	0
 Qualitäten	380	0
-quo	380	378
 Rassen	380	0
 Ratten	380	0
 Raub	380	0
@@ -10577,7 +10384,6 @@ schriftlichen	380	0
 schwöre	380	0
 schüchtern	380	0
 sechste	380	0
-sek	380	0
 Sophia	380	370
 Spielraum	380	0
 spinnen	380	0
@@ -10596,7 +10402,6 @@ tödliche	380	0
 UdSSR	380	0
 ungerecht	380	0
 unterstützte	380	0
-usd	380	397
 Venezuela	380	393
 veranlasst	380	0
 verantworten	380	0
@@ -10618,9 +10423,11 @@ Zwillinge	380	0
 ökonomischen	380	0
 überein	380	0
 Players	324	530	players
+act	0	530
 although	0	530
 asked	0	530
 child	0	530
+fun	0	530
 living	0	530
 phone	0	530
 abbrechen	379	0
@@ -11869,6 +11676,7 @@ issue	0	523
 played	0	523
 points	0	523
 price	0	523
+re	0	523
 results	0	523
 running	0	523
 wife	0	523
@@ -11915,7 +11723,7 @@ deutschsprachige	372	0
 Dominik	372	0
 dramatischen	372	0
 durchziehen	372	0
-Ebert	372	0
+Ebert	372	296	ebert
 ehesten	372	0
 Eifel	372	0
 eingesperrt	372	0
@@ -12891,7 +12699,7 @@ gewerblichen	367	0
 Gewinnung	367	0
 Gleichheit	367	0
 Graffiti	367	365	graffiti
-Greenpeace	367	0
+Greenpeace	367	296	greenpeace
 Grundriss	367	0
 Gulden	367	0
 Gutachter	367	0
@@ -13284,7 +13092,7 @@ Garden	365	477	garden
 geborgen	365	0
 geformt	365	0
 Gegners	365	0
-Geiger	365	0
+Geiger	365	296	geiger
 generieren	365	0
 Genres	365	372	genres
 genutzten	365	0
@@ -14026,9 +13834,11 @@ zählten	362	0
 changes	0	512
 forward	0	512
 groups	0	512
+key	0	512
 mom	0	512
 paid	0	512
 range	0	512
+UK	0	512
 upon	0	512
 various	0	512
 abbiegen	361	0
@@ -14165,7 +13975,7 @@ obdachlose	361	0
 Ordens	361	0
 Palette	361	374	palette
 Palästinenser	361	0
-Paprika	361	0
+Paprika	361	296	paprika
 Pfarrei	361	0
 Platzes	361	0
 platzt	361	0
@@ -14255,6 +14065,7 @@ character	0	511
 chief	0	511
 hate	0	511
 haven't	0	511
+led	0	511
 looked	0	511
 lower	0	511
 natural	0	511
@@ -15673,6 +15484,7 @@ risk	0	505
 schools	0	505
 sleep	0	505
 table	0	505
+ten	0	505
 truth	0	505
 Ableger	354	0
 abschließenden	354	0
@@ -18279,6 +18091,7 @@ Letter	318	495	letter
 author	0	495
 centre	0	495
 claim	0	495
+dad	0	495
 developed	0	495
 fear	0	495
 generally	0	495
@@ -19761,6 +19574,7 @@ driving	0	490
 established	0	490
 feels	0	490
 fish	0	490
+gay	0	490
 glad	0	490
 greater	0	490
 grow	0	490
@@ -20034,6 +19848,7 @@ explain	0	489
 fully	0	489
 highly	0	489
 laws	0	489
+Mrs	0	489
 parties	0	489
 reality	0	489
 we'll	0	489
@@ -21314,6 +21129,7 @@ speech	0	485
 traffic	0	485
 tree	0	485
 types	0	485
+vs	0	485
 wearing	0	485
 who's	0	485
 whom	0	485
@@ -22676,7 +22492,7 @@ zeichne	331	0
 zerbricht	331	0
 Zinn	331	0
 Zitronen	331	0
-Zucchini	331	0
+Zucchini	331	296	zucchini
 zugestanden	331	0
 zusammensetzt	331	0
 Zustandekommen	331	0
@@ -23698,6 +23514,7 @@ Progress	318	478	progress
 apart	287	478
 advantage	0	478
 aware	0	478
+cat	0	478
 customers	0	478
 decide	0	478
 eastern	0	478
@@ -24073,6 +23890,7 @@ drugs	0	477
 efforts	0	477
 host	0	477
 housing	0	477
+Inc	0	477
 leadership	0	477
 length	0	477
 lucky	0	477
@@ -25483,6 +25301,7 @@ Zündung	323	0
 Überweisungen	323	0
 üppigen	323	0
 audience	0	473
+bay	0	473
 closer	0	473
 core	0	473
 democratic	0	473
@@ -27862,7 +27681,6 @@ teach	0	467
 testing	0	467
 values	0	467
 walked	0	467
-ya	0	467
 Aas	316	0
 abarbeiten	316	0
 abgegangen	316	0
@@ -28239,6 +28057,7 @@ elections	0	466
 everywhere	0	466
 facilities	0	466
 falling	0	466
+fox	0	466
 guns	0	466
 holiday	0	466
 interests	0	466
@@ -28247,7 +28066,6 @@ Italian	0	466
 Italy	0	466
 laugh	0	466
 listening	0	466
-ll	0	466
 loves	0	466
 lunch	0	466
 milk	0	466
@@ -29068,6 +28886,7 @@ reduced	0	464
 requirements	0	464
 residents	0	464
 revenue	0	464
+sat	0	464
 secure	0	464
 smile	0	464
 strange	0	464
@@ -30808,7 +30627,7 @@ Bruchstücke	309	0
 brünette	309	0
 Buchungen	309	0
 Bürgerwehr	309	0
-Cayenne	309	0
+Cayenne	309	295	cayenne
 darzulegen	309	0
 Demontage	309	0
 diagonale	309	0
@@ -31259,7 +31078,7 @@ Dackel	308	0
 debattieren	308	0
 dekorativen	308	0
 demographische	308	0
-Descartes	308	0
+Descartes	308	296
 diesseits	308	0
 diffamiert	308	0
 diplomatischer	308	0
@@ -32043,6 +31862,7 @@ accurate	0	457
 achieve	0	457
 afford	0	457
 assume	0	457
+BBC	0	457
 bottle	0	457
 bunch	0	457
 category	0	457
@@ -32524,7 +32344,6 @@ sleeping	0	456
 suppose	0	456
 tournament	0	456
 turkey	0	456
-ve	0	456
 victim	0	456
 victims	0	456
 abgebildete	305	0
@@ -32993,7 +32812,6 @@ experiences	0	455
 factory	0	455
 headed	0	455
 interior	0	455
-Jr	0	455
 legislation	0	455
 maintenance	0	455
 manner	0	455
@@ -34453,7 +34271,6 @@ engaged	0	452
 experts	0	452
 expressed	0	452
 external	0	452
-ft	0	452
 immediate	0	452
 introduction	0	452
 license	0	452
@@ -34940,6 +34757,7 @@ Covers	285	451	covers
 Kinds	249	451	kinds
 adopted	0	451
 aim	0	451
+cap	0	451
 chances	0	451
 childhood	0	451
 clinical	0	451
@@ -35318,7 +35136,7 @@ Subkultur	300	0
 Swimmingpool	300	0
 Säcken	300	0
 säkulare	300	0
-Talmud	300	0
+Talmud	300	296
 tappen	300	0
 Teelöffel	300	0
 Tees	300	332	tees
@@ -35884,7 +35702,6 @@ admitted	0	449
 appointment	0	449
 authors	0	449
 barely	0	449
-BC	0	449
 cabinet	0	449
 celebrate	0	449
 challenges	0	449
@@ -37445,6 +37262,7 @@ bound	0	446
 breaks	0	446
 carefully	0	446
 cats	0	446
+CEO	0	446
 choices	0	446
 closing	0	446
 Colorado	0	446
@@ -37461,6 +37279,7 @@ founder	0	446
 gear	0	446
 Georgia	0	446
 hills	0	446
+hip	0	446
 hitting	0	446
 increases	0	446
 infrastructure	0	446
@@ -39171,13 +38990,13 @@ desk	0	443
 ear	0	443
 electricity	0	443
 episodes	0	443
+FBI	0	443
 grounds	0	443
 gym	0	443
 helpful	0	443
 Iraq	0	443
 locked	0	443
 naked	0	443
-ny	0	443
 opens	0	443
 output	0	443
 persons	0	443
@@ -40234,6 +40053,8 @@ stolen	0	441
 telephone	0	441
 tho	0	441
 titles	0	441
+ups	0	441
+vol	0	441
 whereas	0	441
 Abdankung	290	0
 abgeleiteten	290	0
@@ -40796,6 +40617,7 @@ forth	0	440
 gods	0	440
 hadn't	0	440
 hire	0	440
+hop	0	440
 hopes	0	440
 insane	0	440
 installed	0	440
@@ -41366,6 +41188,7 @@ assumed	0	439
 Atlantic	0	439
 bench	0	439
 bother	0	439
+bye	0	439
 citizen	0	439
 cleaning	0	439
 compete	0	439
@@ -41957,6 +41780,7 @@ grass	0	438
 hence	0	438
 increasingly	0	438
 incredibly	0	438
+jay	0	438
 kicked	0	438
 lessons	0	438
 lists	0	438
@@ -41964,6 +41788,7 @@ maintained	0	438
 mill	0	438
 occasion	0	438
 pace	0	438
+pen	0	438
 races	0	438
 shaped	0	438
 sixth	0	438
@@ -42557,6 +42382,7 @@ reverse	0	437
 scary	0	437
 seed	0	437
 settle	0	437
+sin	0	437
 spell	0	437
 summary	0	437
 survival	0	437
@@ -43246,7 +43072,7 @@ Bässe	285	0
 Bürgeramt	285	0
 Bürgerversicherung	285	0
 Cabaret	285	324	cabaret
-cetera	285	0
+cetera	285	296
 Chateau	285	330	chateau
 Christenheit	285	0
 Cremes	285	0
@@ -43255,7 +43081,7 @@ Damenmannschaft	285	0
 deklarieren	285	0
 Delaware	285	390
 delegieren	285	0
-Delirium	285	0
+Delirium	285	296	delirium
 denkender	285	0
 Denkfabrik	285	0
 devote	285	353
@@ -43760,6 +43586,7 @@ züchtet	285	0
 Überwachungsstaat	285	0
 Versions	241	435	versions
 ambassador	0	435
+Ann	0	435
 awarded	0	435
 banking	0	435
 breast	0	435
@@ -45608,6 +45435,7 @@ frozen	0	432
 guards	0	432
 hiding	0	432
 humanity	0	432
+Ian	0	432
 invest	0	432
 jacket	0	432
 listing	0	432
@@ -47502,7 +47330,6 @@ lifestyle	0	429
 lighting	0	429
 loop	0	429
 mall	0	429
-MP	0	429
 overseas	0	429
 performances	0	429
 Philippines	0	429
@@ -48099,6 +47926,7 @@ butt	0	428
 characteristics	0	428
 CNN	0	428
 collaboration	0	428
+con	0	428
 consideration	0	428
 counts	0	428
 creates	0	428
@@ -49454,8 +49282,6 @@ scope	0	426
 spectrum	0	426
 stays	0	426
 ted	0	426
-uh	0	426
-va	0	426
 venture	0	426
 virtually	0	426
 waited	0	426
@@ -49623,7 +49449,7 @@ freigibt	275	0
 freikaufen	275	0
 freudigen	275	0
 Friedensrichter	275	0
-Frisbee	275	0
+Frisbee	275	296	frisbee
 Furt	275	0
 färbe	275	0
 förmige	275	0
@@ -50109,6 +49935,7 @@ racism	0	425
 reads	0	425
 recovered	0	425
 refers	0	425
+Roy	0	425
 rude	0	425
 screw	0	425
 seventh	0	425
@@ -50128,7 +49955,6 @@ venue	0	425
 wages	0	425
 wells	0	425
 wheels	0	425
-ye	0	425
 abbrach	274	0
 Abfassung	274	0
 abgegriffen	274	0
@@ -51876,7 +51702,7 @@ lieberman	272	304
 Liegeplatz	272	0
 lifte	272	0
 Lindenfels	272	0
-Lloyds	272	0
+Lloyds	272	296	lloyds
 Lokalrivalen	272	0
 loyalen	272	0
 Ludewig	272	0
@@ -52877,6 +52703,7 @@ beaten	0	421
 blown	0	421
 branches	0	421
 campaigns	0	421
+CIA	0	421
 clinic	0	421
 closest	0	421
 collections	0	421
@@ -52910,6 +52737,7 @@ hung	0	421
 identical	0	421
 investigations	0	421
 Jose	0	421
+Ken	0	421
 legally	0	421
 listened	0	421
 males	0	421
@@ -53023,7 +52851,7 @@ bräune	270	0
 Brückenkopf	270	0
 Buchheim	270	0
 Bundesverbands	270	0
-Burundi	270	0
+Burundi	270	296
 Böcke	270	0
 Chargen	270	0
 Chefdirigent	270	0
@@ -54309,6 +54137,7 @@ Helen	0	419
 insight	0	419
 invested	0	419
 it'd	0	419
+lit	0	419
 Mar	0	419
 meals	0	419
 nightmare	0	419
@@ -54323,6 +54152,7 @@ preserve	0	419
 produces	0	419
 qualify	0	419
 raid	0	419
+ram	0	419
 ranging	0	419
 ranking	0	419
 receives	0	419
@@ -54776,7 +54606,7 @@ Potentials	268	309	potentials
 Potpourri	268	0
 Presseberichte	268	0
 primärer	268	0
-profane	268	0
+profane	268	296
 Projektleiterin	268	0
 proletarischen	268	0
 Prälaten	268	0
@@ -55065,7 +54895,6 @@ reserved	0	418
 restore	0	418
 rifle	0	418
 rival	0	418
-rs	0	418
 runner	0	418
 sadly	0	418
 she'd	0	418
@@ -56578,7 +56407,6 @@ embrace	0	416
 emerged	0	416
 exhibit	0	416
 flew	0	416
-GM	0	416
 hosting	0	416
 imposed	0	416
 indigenous	0	416
@@ -57312,6 +57140,7 @@ Zündstoff	265	0
 accomplished	0	415
 admission	0	415
 adventures	0	415
+aka	0	415
 appearing	0	415
 bacon	0	415
 barrier	0	415
@@ -57347,6 +57176,7 @@ mathematics	0	415
 medication	0	415
 minded	0	415
 Norway	0	415
+par	0	415
 productivity	0	415
 promoted	0	415
 protocol	0	415
@@ -58092,7 +57922,6 @@ encouraging	0	414
 farms	0	414
 fifteen	0	414
 flows	0	414
-ga	0	414
 genes	0	414
 graduated	0	414
 grandmother	0	414
@@ -58824,7 +58653,6 @@ alike	0	413
 applicable	0	413
 arrow	0	413
 availability	0	413
-aw	0	413
 bend	0	413
 boundary	0	413
 breach	0	413
@@ -59450,7 +59278,7 @@ signierten	262	0
 Silbereisen	262	0
 Sitzbänke	262	0
 Smolensk	262	0
-Snob	262	0
+Snob	262	296	snob
 Sommercamp	262	0
 Sommerhitze	262	0
 Sommerspielen	262	0
@@ -59652,7 +59480,9 @@ entity	0	412
 excessive	0	412
 exercises	0	412
 governing	0	412
+ham	0	412
 heal	0	412
+ios	0	412
 jewelry	0	412
 journalism	0	412
 jungle	0	412
@@ -59666,6 +59496,7 @@ pressed	0	412
 preventing	0	412
 provisions	0	412
 pursuit	0	412
+rap	0	412
 reflected	0	412
 reminder	0	412
 restored	0	412
@@ -60425,13 +60256,13 @@ competitors	0	411
 Connecticut	0	411
 convert	0	411
 cooked	0	411
-CT	0	411
 cups	0	411
 deciding	0	411
 defender	0	411
 diplomatic	0	411
 enabled	0	411
 entertaining	0	411
+est	0	411
 establishing	0	411
 eternal	0	411
 freeze	0	411
@@ -60465,7 +60296,6 @@ potato	0	411
 preference	0	411
 promising	0	411
 purchases	0	411
-rd	0	411
 reflects	0	411
 respected	0	411
 restoration	0	411
@@ -61202,6 +61032,7 @@ booth	0	410
 breakdown	0	410
 bridges	0	410
 calculated	0	410
+cam	0	410
 centres	0	410
 chapters	0	410
 citizenship	0	410
@@ -61985,7 +61816,6 @@ edges	0	409
 entries	0	409
 evolved	0	409
 fixing	0	409
-fl	0	409
 flags	0	409
 flies	0	409
 forecast	0	409
@@ -62032,7 +61862,6 @@ treatments	0	409
 tweeted	0	409
 vacuum	0	409
 where's	0	409
-Wi	0	409
 wont	0	409
 abbiegt	258	0
 abergläubisch	258	0
@@ -63636,9 +63465,9 @@ hostile	0	407
 imagined	0	407
 inhabitants	0	407
 ink	0	407
+inn	0	407
 kicks	0	407
 legends	0	407
-lo	0	407
 Lucy	0	407
 magazines	0	407
 measuring	0	407
@@ -65396,7 +65225,6 @@ medieval	0	405
 mobility	0	405
 Montana	0	405
 murders	0	405
-nc	0	405
 nyc	0	405
 omg	0	405
 orientation	0	405
@@ -66268,13 +66096,11 @@ physicians	0	404
 placement	0	404
 planted	0	404
 pricing	0	404
-pt	0	404
 Puerto	0	404
 questioning	0	404
 recreation	0	404
 renewed	0	404
 resigned	0	404
-rt	0	404
 shallow	0	404
 Shanghai	0	404
 shitty	0	404
@@ -67090,6 +66916,7 @@ executives	0	403
 family's	0	403
 flames	0	403
 fork	0	403
+GPS	0	403
 harvest	0	403
 headline	0	403
 Hudson	0	403
@@ -67204,7 +67031,7 @@ Autoversicherung	252	0
 Bachelorabschluss	252	0
 Badehosen	252	0
 Badesalz	252	0
-Balboa	252	0
+Balboa	252	295	balboa
 basal	252	340
 Bauabschnitten	252	0
 baumelt	252	0
@@ -67924,7 +67751,6 @@ badge	0	402
 bernard	0	402
 bounce	0	402
 broadcasting	0	402
-BS	0	402
 bullets	0	402
 buses	0	402
 cannon	0	402
@@ -67953,7 +67779,6 @@ ferry	0	402
 fisher	0	402
 flexibility	0	402
 flowing	0	402
-FM	0	402
 fridge	0	402
 functioning	0	402
 gauge	0	402
@@ -68483,7 +68308,7 @@ Raubkopien	251	0
 Raumaufteilung	251	0
 Reaktionsfähigkeit	251	0
 regionalem	251	0
-regressive	251	0
+regressive	251	296
 reichere	251	0
 Rekordtief	251	0
 Repliken	251	0
@@ -68770,7 +68595,7 @@ zünftige	251	0
 Übungsplatz	251	0
 relaxed	244	401
 Dealers	235	401	dealers
-AA	0	401
+Abu	0	401
 activated	0	401
 adaptation	0	401
 advisor	0	401
@@ -68819,7 +68644,6 @@ musician	0	401
 nephew	0	401
 notably	0	401
 orchestra	0	401
-Oz	0	401
 packages	0	401
 pad	0	401
 Pakistani	0	401
@@ -68854,7 +68678,6 @@ timber	0	401
 travis	0	401
 Trump's	0	401
 tweets	0	401
-tx	0	401
 upside	0	401
 urged	0	401
 visitor	0	401
@@ -69680,7 +69503,6 @@ arrange	0	400
 banana	0	400
 behave	0	400
 betting	0	400
-bo	0	400
 borrow	0	400
 Capitol	0	400
 Celtic	0	400
@@ -70572,7 +70394,6 @@ clause	0	399
 complained	0	399
 compounds	0	399
 consistency	0	399
-cr	0	399
 cracked	0	399
 cylinder	0	399
 dancer	0	399
@@ -71497,7 +71318,6 @@ medals	0	398
 mistaken	0	398
 Nashville	0	398
 needle	0	398
-ol	0	398
 olds	0	398
 organize	0	398
 Ottawa	0	398
@@ -71530,6 +71350,7 @@ touches	0	398
 township	0	398
 travelled	0	398
 twisted	0	398
+USB	0	398
 Vienna	0	398
 whale	0	398
 writings	0	398
@@ -72339,7 +72160,6 @@ Zündschloss	247	0
 überstrahlt	247	0
 überzog	247	0
 admire	0	397
-af	0	397
 amber	0	397
 ankle	0	397
 armor	0	397
@@ -72394,7 +72214,6 @@ madness	0	397
 memorable	0	397
 merger	0	397
 minorities	0	397
-nj	0	397
 occurring	0	397
 organizing	0	397
 performs	0	397
@@ -72423,6 +72242,7 @@ therapist	0	397
 thereafter	0	397
 thorough	0	397
 tuition	0	397
+usd	0	397
 varying	0	397
 wholesale	0	397
 wwe	0	397
@@ -72597,7 +72417,7 @@ exquisiten	246	0
 Extremsituationen	246	0
 Exzellenzinitiative	246	0
 Fachdidaktik	246	0
-Factoring	246	0
+Factoring	246	296	factoring
 Fahrzeugpapiere	246	0
 Familientherapie	246	0
 Fankurve	246	0
@@ -72932,7 +72752,7 @@ präzises	246	0
 prügelte	246	0
 psychiatrisches	246	0
 Punktverlust	246	0
-Pyjamas	246	0
+Pyjamas	246	296	pyjamas
 Quantentheorie	246	0
 quantitativer	246	0
 quirlige	246	0
@@ -73317,6 +73137,7 @@ sharks	0	396
 shoots	0	396
 skirt	0	396
 socially	0	396
+spa	0	396
 stir	0	396
 stuffed	0	396
 substantially	0	396
@@ -74243,6 +74064,7 @@ hike	0	395
 hollow	0	395
 how's	0	395
 imported	0	395
+ing	0	395
 internationally	0	395
 Iraqi	0	395
 itunes	0	395
@@ -74609,7 +74431,7 @@ Hackenberg	244	0
 hackte	244	0
 Haftanstalten	244	0
 halbnackten	244	0
-Hamlets	244	0
+Hamlets	244	296	hamlets
 Handfesseln	244	0
 Handlungsstrang	244	0
 Handwerkers	244	0
@@ -76178,6 +76000,7 @@ espn	0	393
 ginger	0	393
 governors	0	393
 guild	0	393
+Han	0	393
 henderson	0	393
 IBM	0	393
 imaging	0	393
@@ -76187,7 +76010,6 @@ inability	0	393
 incoming	0	393
 jar	0	393
 Kay	0	393
-lb	0	393
 leicester	0	393
 liam	0	393
 litigation	0	393
@@ -76196,7 +76018,6 @@ minerals	0	393
 miners	0	393
 monk	0	393
 neighborhoods	0	393
-ni	0	393
 obtaining	0	393
 occupy	0	393
 offended	0	393
@@ -77119,7 +76940,6 @@ venues	0	392
 wax	0	392
 Winston	0	392
 yay	0	392
-Yu	0	392
 abkochen	241	0
 ablehnst	241	0
 ablässt	241	0
@@ -78969,7 +78789,6 @@ conclude	0	390
 confidential	0	390
 coordination	0	390
 cracks	0	390
-cs	0	390
 dancers	0	390
 directing	0	390
 discretion	0	390
@@ -78983,7 +78802,6 @@ entrepreneurs	0	390
 EPA	0	390
 esteem	0	390
 explored	0	390
-Fe	0	390
 finances	0	390
 finishes	0	390
 fog	0	390
@@ -79017,7 +78835,6 @@ mins	0	390
 misleading	0	390
 moisture	0	390
 mortality	0	390
-ng	0	390
 notices	0	390
 opt	0	390
 particle	0	390
@@ -79961,7 +79778,6 @@ imprisonment	0	389
 Indonesian	0	389
 IRS	0	389
 isnt	0	389
-ji	0	389
 lacks	0	389
 landlord	0	389
 launches	0	389
@@ -79992,7 +79808,6 @@ resting	0	389
 Rex	0	389
 rogue	0	389
 salaries	0	389
-sd	0	389
 seated	0	389
 sharply	0	389
 showers	0	389
@@ -80002,7 +79817,6 @@ solidarity	0	389
 specialty	0	389
 supernatural	0	389
 surprises	0	389
-td	0	389
 tens	0	389
 thirteen	0	389
 tomb	0	389
@@ -80940,7 +80754,6 @@ adjustment	0	388
 assignments	0	388
 blah	0	388
 blaming	0	388
-bt	0	388
 bunny	0	388
 candle	0	388
 carved	0	388
@@ -80962,10 +80775,8 @@ ferguson	0	388
 fools	0	388
 fourteen	0	388
 geometry	0	388
-gf	0	388
 ghosts	0	388
 gossip	0	388
-GP	0	388
 grandparents	0	388
 group's	0	388
 haul	0	388
@@ -80985,6 +80796,7 @@ lil	0	388
 lining	0	388
 mapping	0	388
 masks	0	388
+med	0	388
 metric	0	388
 militia	0	388
 naming	0	388
@@ -80996,8 +80808,6 @@ obstacles	0	388
 opener	0	388
 overwhelmed	0	388
 performers	0	388
-pg	0	388
-pl	0	388
 pointless	0	388
 poles	0	388
 preferences	0	388
@@ -81013,7 +80823,6 @@ robbed	0	388
 sadness	0	388
 scenarios	0	388
 selective	0	388
-sf	0	388
 shiny	0	388
 socialism	0	388
 son's	0	388
@@ -82029,6 +81838,7 @@ marsh	0	387
 marshal	0	387
 maturity	0	387
 messy	0	387
+Mia	0	387
 minneapolis	0	387
 Molly	0	387
 Morrison	0	387
@@ -83141,6 +82951,7 @@ tempted	0	386
 thrust	0	386
 Trevor	0	386
 trilogy	0	386
+URL	0	386
 weights	0	386
 wheelchair	0	386
 whore	0	386
@@ -84135,7 +83946,6 @@ cakes	0	385
 carriage	0	385
 celebrations	0	385
 censorship	0	385
-cf	0	385
 clarify	0	385
 climbed	0	385
 comp	0	385
@@ -84184,7 +83994,6 @@ necklace	0	385
 niche	0	385
 o'brien	0	385
 obscure	0	385
-ot	0	385
 Peterson	0	385
 popped	0	385
 porch	0	385
@@ -84209,7 +84018,6 @@ superhero	0	385
 taxpayers	0	385
 therapeutic	0	385
 threads	0	385
-ti	0	385
 timely	0	385
 tomato	0	385
 tub	0	385
@@ -85146,7 +84954,6 @@ analysts	0	384
 analyze	0	384
 atmospheric	0	384
 batting	0	384
-BB	0	384
 bitches	0	384
 bracket	0	384
 branded	0	384
@@ -85238,6 +85045,7 @@ urine	0	384
 vanilla	0	384
 Vermont	0	384
 vic	0	384
+VII	0	384
 violet	0	384
 weighing	0	384
 Wendy	0	384
@@ -86226,10 +86034,8 @@ barrels	0	383
 boil	0	383
 borough	0	383
 boyd	0	383
-bp	0	383
 breakthrough	0	383
 calif	0	383
-CE	0	383
 charities	0	383
 cheering	0	383
 chooses	0	383
@@ -86319,7 +86125,6 @@ sickness	0	383
 sinking	0	383
 slots	0	383
 sorted	0	383
-sq	0	383
 staged	0	383
 startup	0	383
 statute	0	383
@@ -87380,7 +87185,6 @@ modifications	0	382
 murderer	0	382
 nap	0	382
 niece	0	382
-nm	0	382
 nominations	0	382
 numbered	0	382
 offerings	0	382
@@ -88431,7 +88235,6 @@ dioxide	0	381
 dolls	0	381
 doom	0	381
 dubbed	0	381
-ea	0	381
 eclipse	0	381
 eighteen	0	381
 eleanor	0	381
@@ -88481,7 +88284,6 @@ prolonged	0	381
 promo	0	381
 pumping	0	381
 pupil	0	381
-qb	0	381
 recruited	0	381
 reliance	0	381
 relies	0	381
@@ -88513,7 +88315,6 @@ taxation	0	381
 temper	0	381
 undergo	0	381
 weighed	0	381
-Wu	0	381
 abbuchen	230	0
 abendfüllenden	230	0
 abenteuerlustige	230	0
@@ -89521,7 +89322,6 @@ glue	0	380
 grandpa	0	380
 hairy	0	380
 homicide	0	380
-ie	0	380
 inheritance	0	380
 introduces	0	380
 ironic	0	380
@@ -90582,7 +90382,6 @@ Australia's	0	379
 axe	0	379
 backgrounds	0	379
 baldwin	0	379
-bf	0	379
 bites	0	379
 bonuses	0	379
 bred	0	379
@@ -90598,7 +90397,6 @@ cooperate	0	379
 coordinated	0	379
 copied	0	379
 counselor	0	379
-cp	0	379
 curb	0	379
 dances	0	379
 deeds	0	379
@@ -90637,6 +90435,7 @@ imaginary	0	379
 imprisoned	0	379
 inconsistent	0	379
 int	0	379
+ISO	0	379
 Jared	0	379
 Judy	0	379
 Latino	0	379
@@ -90649,7 +90448,6 @@ mls	0	379
 modify	0	379
 neglect	0	379
 northwestern	0	379
-nz	0	379
 offenders	0	379
 oppression	0	379
 patriotic	0	379
@@ -90699,7 +90497,6 @@ trillion	0	379
 Tucker	0	379
 Vatican	0	379
 vendor	0	379
-yr	0	379
 abfackelt	228	0
 Abfahrtszeit	228	0
 abgebrochener	228	0
@@ -91741,6 +91538,7 @@ promotions	0	378
 Qatar	0	378
 questionable	0	378
 queue	0	378
+quo	0	378
 regrets	0	378
 respondents	0	378
 retaining	0	378
@@ -92842,7 +92640,6 @@ jelly	0	377
 kanye	0	377
 kidnapping	0	377
 kilometres	0	377
-Ky	0	377
 lenses	0	377
 lick	0	377
 literal	0	377
@@ -92865,7 +92662,6 @@ obliged	0	377
 observers	0	377
 occurrence	0	377
 offspring	0	377
-ou	0	377
 outrageous	0	377
 packet	0	377
 pads	0	377
@@ -94008,7 +93804,6 @@ discharged	0	376
 dispatch	0	376
 disputed	0	376
 dots	0	376
-ds	0	376
 duchess	0	376
 dunno	0	376
 economists	0	376
@@ -95226,7 +95021,6 @@ nat	0	375
 noises	0	375
 Norton	0	375
 noticeable	0	375
-nt	0	375
 observing	0	375
 Omar	0	375
 opted	0	375
@@ -95245,7 +95039,6 @@ resorts	0	375
 retailer	0	375
 Rica	0	375
 rigid	0	375
-rm	0	375
 Ronaldo	0	375
 sailors	0	375
 samantha	0	375
@@ -96464,11 +96257,9 @@ upright	0	374
 uprising	0	374
 vain	0	374
 vanity	0	374
-wh	0	374
 whereby	0	374
 whisper	0	374
 worthwhile	0	374
-xx	0	374
 Abakus	223	0
 Abenteurern	223	0
 Abfahrts	223	0
@@ -97555,18 +97346,15 @@ grapes	0	373
 greed	0	373
 greet	0	373
 hank	0	373
-hq	0	373
 impacted	0	373
 imposing	0	373
 inflammation	0	373
 John's	0	373
 lambert	0	373
 lamps	0	373
-ln	0	373
 longtime	0	373
 metaphor	0	373
 millionaire	0	373
-mn	0	373
 motives	0	373
 myers	0	373
 mysteries	0	373
@@ -97612,8 +97400,6 @@ termination	0	373
 Thames	0	373
 thigh	0	373
 thrive	0	373
-tr	0	373
-ty	0	373
 uncovered	0	373
 undertake	0	373
 unpaid	0	373
@@ -97626,6 +97412,7 @@ viruses	0	373
 warns	0	373
 warranty	0	373
 weakened	0	373
+XXX	0	373
 Abbuchungen	222	0
 abdrückt	222	0
 abenteuerliches	222	0
@@ -98240,6 +98027,224 @@ manipulativen	222	0
 Mantras	222	0
 Marineoffizier	222	0
 maritimer	222	0
+marktbeherrschenden	222	0
+Marmorplatten	222	0
+mault	222	0
+Mautstelle	222	0
+Medikamentes	222	0
+Meeresbewohner	222	0
+Megatrend	222	0
+Mehlspeisen	222	0
+Meilensteinen	222	0
+Meisterkurs	222	0
+melodramatisch	222	0
+Menschenbilder	222	0
+Menschenhandels	222	0
+meterhohe	222	0
+Michelsberg	222	0
+Mietskasernen	222	0
+Migrationswelle	222	0
+Milchsaft	222	0
+missachteten	222	0
+missratene	222	0
+misstraue	222	0
+miste	222	0
+Mitarbeiterstab	222	0
+mitbenutzen	222	0
+mitfahrt	222	0
+mitfühlende	222	0
+Mitgliedsausweis	222	0
+mittelmäßiges	222	0
+mittigen	222	0
+mitverdienen	222	0
+Modeunternehmen	222	0
+mokiert	222	0
+Mordrate	222	0
+Morgenkaffee	222	0
+Morgentau	222	0
+moslemische	222	0
+muffigen	222	0
+mullins	222	304
+mundet	222	0
+Musikgesellschaft	222	0
+Mutterzelle	222	0
+märchenhafter	222	0
+Mätzchen	222	0
+mühsames	222	0
+mündenden	222	0
+Nachfahrin	222	0
+Nachgiebigkeit	222	0
+Nachrichtenredaktion	222	0
+Nachrichtensprecherin	222	0
+Nachtluft	222	0
+Nachweisgrenze	222	0
+nachzuschlagen	222	0
+Nahestand	222	0
+Nahrungsmangel	222	0
+Namensänderungen	222	0
+namhaftesten	222	0
+narzisstischer	222	0
+Nasenlöchern	222	0
+nationalkonservative	222	0
+Nationalliga	222	0
+Nationalökonom	222	0
+Nebennieren	222	0
+Nebenstrecken	222	0
+nehmender	222	0
+Neoplan	222	0
+Netzanbieter	222	0
+Neuauszählung	222	0
+Neuenhof	222	0
+Neugeschäft	222	0
+Neuhäuser	222	0
+neuronales	222	0
+Neurowissenschaft	222	0
+Neuverhandlung	222	0
+nickten	222	0
+niedergehen	222	0
+Nofretete	222	0
+nonverbal	222	0
+normalisierte	222	0
+normannische	222	0
+norwegisches	222	0
+Notdienste	222	0
+nähergekommen	222	0
+nähernden	222	0
+Obduktionen	222	0
+Oberkommissar	222	0
+Obsessionen	222	0
+Ochsenkopf	222	0
+Oderberg	222	0
+Oderzeitung	222	0
+Offensivspiel	222	0
+Ohrensessel	222	0
+Oktav	222	0
+Onlinedienst	222	0
+Onlinespiele	222	0
+Ordensgemeinschaft	222	0
+Ostermeier	222	0
+Ottonischen	222	0
+Passung	222	0
+Pausenführung	222	0
+peinlichst	222	0
+pellen	222	0
+Personalausgaben	222	0
+Personalstand	222	0
+Personenzahl	222	0
+Pfeils	222	0
+Pflichtaufgaben	222	0
+Pflichtveranstaltung	222	0
+Philanthropie	222	0
+Pilzarten	222	0
+pimpern	222	0
+pinder	222	0
+pinkfarbene	222	0
+Pinnen	222	0
+Pioniergeist	222	0
+Plenarsitzungen	222	0
+polarisierenden	222	0
+Polle	222	0
+Popsänger	222	0
+portieren	222	0
+Praxisbuch	222	0
+Preisniveaus	222	0
+prickelnden	222	0
+Privatgrund	222	0
+privatisierte	222	0
+Professionalisieren	222	0
+profilierter	222	0
+profunden	222	0
+Projektmitarbeiter	222	0
+Protestkundgebung	222	0
+prägender	222	0
+Prüfungsfach	222	0
+Pullen	222	0
+purpurrot	222	0
+Pöbels	222	0
+Querträger	222	0
+Radbruch	222	0
+radfahrende	222	0
+radiert	222	0
+Rammelsberg	222	0
+Randalierern	222	0
+Randbereiche	222	0
+Rangeleien	222	0
+Rangs	222	0
+Rassenkunde	222	0
+Rathaussaal	222	0
+Raubvögel	222	0
+Raubzügen	222	0
+Realisierungen	222	0
+Realtalk	222	0
+rebellierte	222	0
+rechtlos	222	0
+Rechtsabbiegen	222	0
+Rechtsanwendung	222	0
+Rechtsempfinden	222	0
+Redeverbot	222	0
+Regierungsjahren	222	0
+Regierungskritiker	222	0
+Regimekritiker	222	0
+Regionalrat	222	0
+reichlicher	222	0
+Reinheitsgrad	222	0
+Reisetaschen	222	0
+Reisfeldern	222	0
+Reizes	222	0
+Religionsfrieden	222	0
+Remoulade	222	0
+Reparaturwerkstatt	222	0
+Repräsentativität	222	0
+Retters	222	0
+Rettungsarbeiten	222	0
+revanchierte	222	0
+Rhythmusgruppe	222	0
+Rollenbild	222	0
+rollendes	222	0
+Rollis	222	0
+Rosenholz	222	0
+Rostocks	222	0
+Rowdys	222	0
+rumsitzt	222	0
+rumtanzen	222	0
+Rückenwirbel	222	0
+Rüstungsproduktion	222	0
+Sabines	222	0
+Sachgebiete	222	0
+sachgerechten	222	0
+Sachkompetenz	222	0
+Sambesi	222	0
+Samenkorn	222	0
+Sandböden	222	0
+Sanddorn	222	0
+Sandras	222	0
+Sandweg	222	0
+Saphire	222	0
+Sauerlach	222	0
+Sauermann	222	0
+Schadensfälle	222	0
+Schaffensperiode	222	0
+Schaffensprozess	222	0
+Schaltplan	222	0
+Scharade	222	0
+schematischer	222	0
+Schimmelpilzen	222	0
+schimmerte	222	0
+schlafendes	222	0
+Schlagader	222	0
+schlingt	222	0
+Schlosstheater	222	0
+schmutzigem	222	0
+Schmutzkampagne	222	0
+Schneisen	222	0
+Schnulzen	222	0
+schnurre	222	0
+Schorfheide	222	0
+Schoßhündchen	222	0
+Schubweise	222	0
+Schulband	222	0
+Schullektüre	222	0
+Schulpsychologen	222	0
 admired	0	372
 airways	0	372
 aisle	0	372
@@ -98283,7 +98288,6 @@ feasible	0	372
 flawed	0	372
 forged	0	372
 gettin	0	372
-gi	0	372
 goats	0	372
 grease	0	372
 Greeks	0	372
@@ -98317,12 +98321,10 @@ mouths	0	372
 murdering	0	372
 nationality	0	372
 Nottingham	0	372
-nw	0	372
 obstacle	0	372
 occupational	0	372
 onset	0	372
 owes	0	372
-PE	0	372
 perceive	0	372
 persecution	0	372
 petrol	0	372
@@ -98368,18 +98370,15 @@ tow	0	372
 translations	0	372
 trusting	0	372
 turtles	0	372
-uc	0	372
 unarmed	0	372
 undertaking	0	372
 unfinished	0	372
 unhealthy	0	372
 unlawful	0	372
 unpopular	0	372
-ut	0	372
 vanished	0	372
 volatile	0	372
 voluntarily	0	372
-vp	0	372
 whitney	0	372
 withdrew	0	372
 accredited	0	371
@@ -98401,7 +98400,6 @@ brock	0	371
 calf	0	371
 Cambodia	0	371
 capt	0	371
-cb	0	371
 clarence	0	371
 coating	0	371
 commentators	0	371
@@ -98460,7 +98458,6 @@ limitation	0	371
 linguistic	0	371
 listeners	0	371
 litter	0	371
-ls	0	371
 lump	0	371
 macro	0	371
 magistrate	0	371
@@ -98473,7 +98470,6 @@ neurons	0	371
 ninety	0	371
 nutrients	0	371
 observatory	0	371
-oi	0	371
 openings	0	371
 outdoors	0	371
 PCs	0	371
@@ -98494,7 +98490,6 @@ resembles	0	371
 respectable	0	371
 respectful	0	371
 richer	0	371
-rn	0	371
 Rodriguez	0	371
 Romeo	0	371
 routinely	0	371
@@ -98512,19 +98507,16 @@ sleeps	0	371
 slick	0	371
 slowed	0	371
 slowing	0	371
-sm	0	371
 spontaneous	0	371
 starred	0	371
 stationed	0	371
 stove	0	371
 submissions	0	371
 tactic	0	371
-TB	0	371
 template	0	371
 Teresa	0	371
 texting	0	371
 tiles	0	371
-tn	0	371
 tract	0	371
 treaties	0	371
 tri	0	371
@@ -98603,7 +98595,6 @@ honoured	0	370
 hugs	0	370
 hustle	0	370
 Hyde	0	370
-ia	0	370
 idle	0	370
 indictment	0	370
 insulting	0	370
@@ -98626,7 +98617,6 @@ needles	0	370
 noodles	0	370
 offender	0	370
 overlap	0	370
-pd	0	370
 peek	0	370
 pottery	0	370
 prairie	0	370
@@ -98646,7 +98636,6 @@ rooney	0	370
 rulers	0	370
 Salem	0	370
 Santos	0	370
-sb	0	370
 seahawks	0	370
 sidney	0	370
 sleeves	0	370
@@ -98659,6 +98648,7 @@ stranded	0	370
 stretches	0	370
 stylish	0	370
 subs	0	370
+sur	0	370
 tasted	0	370
 technician	0	370
 temples	0	370
@@ -98738,7 +98728,6 @@ helpless	0	369
 hemisphere	0	369
 hides	0	369
 housed	0	369
-hs	0	369
 hyper	0	369
 inconvenience	0	369
 incorporating	0	369
@@ -98761,7 +98750,6 @@ minors	0	369
 moist	0	369
 mortgages	0	369
 mourning	0	369
-Mu	0	369
 mustard	0	369
 negatively	0	369
 neighbour	0	369
@@ -98784,7 +98772,6 @@ realism	0	369
 receipts	0	369
 retrieve	0	369
 Rhodes	0	369
-ri	0	369
 scheduling	0	369
 scoop	0	369
 scotch	0	369
@@ -98843,7 +98830,6 @@ consortium	0	368
 copying	0	368
 courier	0	368
 danced	0	368
-dd	0	368
 debating	0	368
 decreasing	0	368
 defect	0	368
@@ -98873,7 +98859,6 @@ honeymoon	0	368
 ignition	0	368
 impaired	0	368
 incomes	0	368
-ir	0	368
 jewel	0	368
 mets	0	368
 mourinho	0	368
@@ -98922,7 +98907,6 @@ stirring	0	368
 stunned	0	368
 suppression	0	368
 suspend	0	368
-sw	0	368
 swelling	0	368
 tails	0	368
 terminology	0	368
@@ -98943,7 +98927,6 @@ waits	0	368
 wakes	0	368
 weighted	0	368
 wii	0	368
-xl	0	368
 Zhang	0	368
 acc	0	367
 activism	0	367
@@ -98982,7 +98965,6 @@ detectives	0	367
 diminished	0	367
 disappears	0	367
 disappoint	0	367
-dl	0	367
 dolphin	0	367
 dove	0	367
 dunn	0	367
@@ -99067,7 +99049,6 @@ ripe	0	367
 riverside	0	367
 Roberto	0	367
 rodney	0	367
-rp	0	367
 sac	0	367
 sacrificed	0	367
 sane	0	367
@@ -99096,7 +99077,6 @@ unsafe	0	367
 verge	0	367
 vibrant	0	367
 Wong	0	367
-XP	0	367
 yeast	0	367
 abdul	0	366
 accelerate	0	366
@@ -99249,8 +99229,6 @@ veil	0	366
 versatile	0	366
 Warsaw	0	366
 wed	0	366
-wr	0	366
-yi	0	366
 zoe	0	366
 acknowledging	0	365
 Alec	0	365
@@ -99296,7 +99274,6 @@ fashionable	0	365
 fetch	0	365
 fishermen	0	365
 flipped	0	365
-fo	0	365
 formidable	0	365
 frankie	0	365
 furnished	0	365
@@ -99323,7 +99300,6 @@ indefinitely	0	365
 intervene	0	365
 Japan's	0	365
 Jessie	0	365
-jp	0	365
 Jules	0	365
 katy	0	365
 kin	0	365
@@ -99364,7 +99340,6 @@ Prague	0	365
 preseason	0	365
 Qaeda	0	365
 raging	0	365
-rc	0	365
 receptors	0	365
 refresh	0	365
 resonance	0	365
@@ -99479,11 +99454,11 @@ Italians	0	364
 jul	0	364
 kat	0	364
 kerr	0	364
+lan	0	364
 lender	0	364
 Leone	0	364
 lever	0	364
 Lisbon	0	364
-lu	0	364
 marketed	0	364
 marty	0	364
 mileage	0	364
@@ -99496,7 +99471,6 @@ nolan	0	364
 northeastern	0	364
 noticing	0	364
 nutritional	0	364
-ow	0	364
 pathways	0	364
 pillar	0	364
 pitches	0	364
@@ -99566,7 +99540,6 @@ attic	0	363
 attracts	0	363
 Australians	0	363
 autobiography	0	363
-av	0	363
 await	0	363
 becky	0	363
 bing	0	363
@@ -99575,6 +99548,7 @@ broadcaster	0	363
 Buddhism	0	363
 buds	0	363
 carrots	0	363
+CDs	0	363
 chewing	0	363
 clinton's	0	363
 coherent	0	363
@@ -99626,7 +99600,6 @@ inspect	0	363
 inspections	0	363
 inspectors	0	363
 instincts	0	363
-jj	0	363
 knots	0	363
 lana	0	363
 laurel	0	363
@@ -99690,7 +99663,6 @@ unavailable	0	363
 universally	0	363
 unlucky	0	363
 utilizing	0	363
-UV	0	363
 volunteered	0	363
 vomiting	0	363
 warp	0	363
@@ -99790,7 +99762,6 @@ mantle	0	362
 mascot	0	362
 metabolic	0	362
 meth	0	362
-mf	0	362
 midfield	0	362
 missionaries	0	362
 mohammad	0	362
@@ -99818,7 +99789,6 @@ regulator	0	362
 renting	0	362
 restructuring	0	362
 ridden	0	362
-ro	0	362
 rudy	0	362
 sanctioned	0	362
 sarcasm	0	362
@@ -99843,10 +99813,8 @@ termed	0	362
 tha	0	362
 thriving	0	362
 timed	0	362
-tm	0	362
 trending	0	362
 tucked	0	362
-ui	0	362
 unanimously	0	362
 undefeated	0	362
 unfamiliar	0	362
@@ -99866,7 +99834,6 @@ affinity	0	361
 alloy	0	361
 arises	0	361
 authorised	0	361
-ay	0	361
 bale	0	361
 beaver	0	361
 boasts	0	361
@@ -99881,7 +99848,6 @@ comforting	0	361
 conway	0	361
 courthouse	0	361
 crank	0	361
-CV	0	361
 darn	0	361
 deborah	0	361
 differing	0	361
@@ -99892,7 +99858,6 @@ disturbance	0	361
 dog's	0	361
 dominic	0	361
 doubling	0	361
-ee	0	361
 emerges	0	361
 enclosure	0	361
 evangelical	0	361
@@ -99975,7 +99940,6 @@ rotary	0	361
 rusty	0	361
 scarce	0	361
 sibling	0	361
-sl	0	361
 slippery	0	361
 snyder	0	361
 soak	0	361
@@ -99993,7 +99957,6 @@ tottenham	0	361
 toughest	0	361
 trajectory	0	361
 triggers	0	361
-tt	0	361
 underrated	0	361
 unidentified	0	361
 unrest	0	361
@@ -100144,6 +100107,7 @@ respecting	0	360
 restless	0	360
 rugged	0	360
 Sammy	0	360
+sap	0	360
 sarcastic	0	360
 scholarly	0	360
 segregation	0	360
@@ -100173,7 +100137,6 @@ abide	0	359
 accumulation	0	359
 admiration	0	359
 aesthetics	0	359
-aj	0	359
 altering	0	359
 archie	0	359
 asserted	0	359
@@ -100235,7 +100198,6 @@ fluffy	0	359
 fundamentals	0	359
 fundraiser	0	359
 funniest	0	359
-fx	0	359
 gadgets	0	359
 Gaga	0	359
 garment	0	359
@@ -100277,7 +100239,6 @@ nanny	0	359
 nineteen	0	359
 nipples	0	359
 nucleus	0	359
-oc	0	359
 organism	0	359
 outgoing	0	359
 overhaul	0	359
@@ -100398,7 +100359,6 @@ educating	0	358
 electro	0	358
 electromagnetic	0	358
 endured	0	358
-ew	0	358
 expands	0	358
 fabrics	0	358
 falcons	0	358
@@ -100417,8 +100377,6 @@ george's	0	358
 giles	0	358
 glacier	0	358
 Gomez	0	358
-gs	0	358
-Hu	0	358
 hunted	0	358
 hurricanes	0	358
 implying	0	358
@@ -100435,9 +100393,7 @@ lexington	0	358
 mary's	0	358
 memoirs	0	358
 miner	0	358
-mk	0	358
 mosaic	0	358
-mw	0	358
 n't	0	358
 needy	0	358
 nichols	0	358
@@ -100551,7 +100507,6 @@ finalists	0	357
 flipping	0	357
 flux	0	357
 fueled	0	357
-gc	0	357
 georgetown	0	357
 gimme	0	357
 goofy	0	357
@@ -100580,7 +100535,6 @@ Jamaican	0	357
 jockey	0	357
 jolly	0	357
 Jorge	0	357
-ju	0	357
 Kazakhstan	0	357
 Kenyan	0	357
 landlords	0	357
@@ -100598,9 +100552,7 @@ Mohamed	0	357
 mummy	0	357
 neville	0	357
 nominate	0	357
-np	0	357
 offend	0	357
-oo	0	357
 orchard	0	357
 organizer	0	357
 outraged	0	357
@@ -100764,7 +100716,6 @@ moderately	0	356
 MRI	0	356
 multinational	0	356
 nationalists	0	356
-nh	0	356
 oasis	0	356
 oddly	0	356
 ons	0	356
@@ -100815,7 +100766,6 @@ tailored	0	356
 tame	0	356
 tanner	0	356
 taps	0	356
-tf	0	356
 thinner	0	356
 thugs	0	356
 tipping	0	356
@@ -100871,9 +100821,9 @@ convertible	0	355
 cory	0	355
 crater	0	355
 creeping	0	355
-cu	0	355
 cumulative	0	355
 curator	0	355
+dat	0	355
 deity	0	355
 desperation	0	355
 detrimental	0	355
@@ -100913,7 +100863,6 @@ irvine	0	355
 jensen	0	355
 kang	0	355
 kara	0	355
-kc	0	355
 kingdoms	0	355
 kite	0	355
 labeling	0	355
@@ -100934,7 +100883,6 @@ motions	0	355
 mystical	0	355
 obstruction	0	355
 Odyssey	0	355
-om	0	355
 onboard	0	355
 oneself	0	355
 org	0	355
@@ -100963,11 +100911,9 @@ repeats	0	355
 replicate	0	355
 replying	0	355
 retaliation	0	355
-rf	0	355
 risking	0	355
 rooftop	0	355
 rooting	0	355
-RV	0	355
 safeguard	0	355
 scaled	0	355
 sedan	0	355
@@ -101045,7 +100991,6 @@ covert	0	354
 cringe	0	354
 crosby	0	354
 cunningham	0	354
-cw	0	354
 dagger	0	354
 dealings	0	354
 deferred	0	354
@@ -101078,7 +101023,6 @@ hayden	0	354
 hazel	0	354
 headset	0	354
 hernandez	0	354
-hk	0	354
 homecoming	0	354
 hurdles	0	354
 hyped	0	354
@@ -101089,7 +101033,6 @@ inscription	0	354
 invaluable	0	354
 jaime	0	354
 jenna	0	354
-js	0	354
 kettle	0	354
 Kylie	0	354
 lara	0	354
@@ -101165,7 +101108,6 @@ tolerated	0	354
 transcription	0	354
 tucson	0	354
 tweeting	0	354
-ul	0	354
 unicorn	0	354
 uniquely	0	354
 unrealistic	0	354
@@ -101199,7 +101141,6 @@ bottoms	0	353
 brawl	0	353
 Brittany	0	353
 bryce	0	353
-bu	0	353
 butts	0	353
 camden	0	353
 Cameroon	0	353
@@ -101207,7 +101148,6 @@ celestial	0	353
 characterization	0	353
 Chevy	0	353
 choked	0	353
-ci	0	353
 clashes	0	353
 clint	0	353
 comin	0	353
@@ -101260,7 +101200,6 @@ itv	0	353
 jonah	0	353
 Kerala	0	353
 knowledgeable	0	353
-Ku	0	353
 liberated	0	353
 lingerie	0	353
 lite	0	353
@@ -101342,7 +101281,6 @@ unreliable	0	353
 upbeat	0	353
 usable	0	353
 vanguard	0	353
-vc	0	353
 vomit	0	353
 vulgar	0	353
 waiver	0	353
@@ -101453,9 +101391,7 @@ intensely	0	352
 jeopardy	0	352
 Joanna	0	352
 kensington	0	352
-ks	0	352
 lafayette	0	352
-lc	0	352
 listener	0	352
 lockdown	0	352
 mccartney	0	352
@@ -101468,7 +101404,6 @@ nfc	0	352
 Niagara	0	352
 nicest	0	352
 nicotine	0	352
-nl	0	352
 nora	0	352
 Nordic	0	352
 nos	0	352
@@ -101480,7 +101415,6 @@ packaged	0	352
 packets	0	352
 paige	0	352
 passports	0	352
-pb	0	352
 PBS	0	352
 peanuts	0	352
 piracy	0	352
@@ -101515,7 +101449,6 @@ stripping	0	352
 subscriber	0	352
 systematically	0	352
 taxed	0	352
-tc	0	352
 tex	0	352
 thanking	0	352
 Toledo	0	352
@@ -101599,7 +101532,6 @@ disciplined	0	351
 discriminate	0	351
 distributions	0	351
 doorway	0	351
-dp	0	351
 drilled	0	351
 dumpster	0	351
 emailed	0	351
@@ -101672,7 +101604,6 @@ scandals	0	351
 scrapped	0	351
 seasoned	0	351
 shootout	0	351
-sk	0	351
 somethin	0	351
 sourced	0	351
 specializing	0	351
@@ -101804,7 +101735,6 @@ irritated	0	350
 jackpot	0	350
 Jurassic	0	350
 kangaroo	0	350
-ke	0	350
 knowingly	0	350
 Kuala	0	350
 legged	0	350
@@ -101827,7 +101757,6 @@ modeled	0	350
 moe	0	350
 moth	0	350
 multiply	0	350
-mv	0	350
 narcotics	0	350
 nicky	0	350
 nuggets	0	350
@@ -101863,7 +101792,6 @@ raspberry	0	350
 reconcile	0	350
 resilient	0	350
 routines	0	350
-ru	0	350
 ryder	0	350
 sabbath	0	350
 schwartz	0	350
@@ -101900,7 +101828,6 @@ Yugoslavia	0	350
 A's	0	349
 actresses	0	349
 ADHD	0	349
-ae	0	349
 alonso	0	349
 ancestor	0	349
 arbor	0	349
@@ -102196,7 +102123,6 @@ iphones	0	348
 jays	0	348
 jeremiah	0	348
 kathryn	0	348
-kd	0	348
 keynote	0	348
 kidnap	0	348
 Kiev	0	348
@@ -102296,7 +102222,6 @@ waived	0	348
 wharf	0	348
 wiser	0	348
 wrestle	0	348
-xv	0	348
 yates	0	348
 yoo	0	348
 aap	0	347
@@ -102371,8 +102296,6 @@ intrinsic	0	347
 Iran's	0	347
 irresistible	0	347
 javier	0	347
-JD	0	347
-jk	0	347
 Joanne	0	347
 kittens	0	347
 landmarks	0	347
@@ -102396,7 +102319,6 @@ ngos	0	347
 nobility	0	347
 onstage	0	347
 ordeal	0	347
-ox	0	347
 painfully	0	347
 paso	0	347
 pear	0	347
@@ -102488,7 +102410,6 @@ changer	0	346
 che	0	346
 chem	0	346
 chestnut	0	346
-cj	0	346
 cleaners	0	346
 cleanup	0	346
 clemson	0	346
@@ -102564,7 +102485,6 @@ Marley	0	346
 martyr	0	346
 mitigation	0	346
 motorway	0	346
-nk	0	346
 npr	0	346
 nypd	0	346
 obscene	0	346
@@ -102632,8 +102552,8 @@ underworld	0	346
 vectors	0	346
 vertically	0	346
 vigorous	0	346
-vt	0	346
 wandered	0	346
+wei	0	346
 wrongly	0	346
 yum	0	346
 abiding	0	345
@@ -102725,7 +102645,6 @@ heed	0	345
 hideous	0	345
 hoops	0	345
 howell	0	345
-ib	0	345
 imaginative	0	345
 imperfect	0	345
 implicit	0	345
@@ -102760,7 +102679,6 @@ nipple	0	345
 noses	0	345
 nostalgic	0	345
 nra	0	345
-nv	0	345
 oppressive	0	345
 pasadena	0	345
 patronage	0	345
@@ -102954,7 +102872,6 @@ parted	0	344
 patio	0	344
 peacock	0	344
 pedestrians	0	344
-pf	0	344
 pines	0	344
 pitchers	0	344
 plugged	0	344
@@ -102968,9 +102885,7 @@ prism	0	344
 proclamation	0	344
 proponents	0	344
 provocative	0	344
-Pu	0	344
 purposely	0	344
-qc	0	344
 questionnaire	0	344
 reclaim	0	344
 redevelopment	0	344
@@ -103015,7 +102930,6 @@ sturdy	0	344
 swarm	0	344
 terra	0	344
 timetable	0	344
-tj	0	344
 traitors	0	344
 trolling	0	344
 una	0	344
@@ -103025,6 +102939,7 @@ vance	0	344
 viability	0	344
 Victoria's	0	344
 villas	0	344
+Wat	0	344
 whispered	0	344
 widening	0	344
 winged	0	344
@@ -103051,7 +102966,6 @@ autistic	0	343
 baylor	0	343
 bearer	0	343
 bins	0	343
-bk	0	343
 bleak	0	343
 blender	0	343
 BMI	0	343
@@ -103107,7 +103021,6 @@ fortified	0	343
 Fran	0	343
 garfield	0	343
 generalized	0	343
-gl	0	343
 glossy	0	343
 gregg	0	343
 grit	0	343
@@ -103209,7 +103122,6 @@ Suzuki	0	343
 tacos	0	343
 therapists	0	343
 torrent	0	343
-tp	0	343
 trainee	0	343
 transmitting	0	343
 trey	0	343
@@ -103380,6 +103292,7 @@ sneaking	0	342
 solitude	0	342
 spacing	0	342
 standby	0	342
+STD	0	342
 straps	0	342
 strikers	0	342
 stronghold	0	342
@@ -103402,6 +103315,7 @@ unnecessarily	0	342
 unnoticed	0	342
 untouched	0	342
 Vega	0	342
+ver	0	342
 vin	0	342
 Virgil	0	342
 visionary	0	342
@@ -103490,7 +103404,6 @@ foreclosure	0	341
 forgets	0	341
 fortnight	0	341
 fresno	0	341
-fs	0	341
 funnier	0	341
 glued	0	341
 goo	0	341
@@ -103511,7 +103424,6 @@ immortality	0	341
 indefinite	0	341
 insightful	0	341
 invitations	0	341
-Io	0	341
 ipswich	0	341
 irrespective	0	341
 island's	0	341
@@ -103532,7 +103444,6 @@ mayors	0	341
 melts	0	341
 mindfulness	0	341
 mined	0	341
-mj	0	341
 momma	0	341
 monstrous	0	341
 moran	0	341
@@ -103606,7 +103517,6 @@ unpublished	0	341
 untrue	0	341
 verbally	0	341
 vitality	0	341
-wc	0	341
 weeping	0	341
 whispering	0	341
 windshield	0	341
@@ -103682,14 +103592,12 @@ fiance	0	340
 finer	0	340
 fittings	0	340
 flushing	0	340
-fn	0	340
 freeing	0	340
 fused	0	340
 Goa	0	340
 gorge	0	340
 greenwood	0	340
 groves	0	340
-Gu	0	340
 gutted	0	340
 harp	0	340
 hartley	0	340
@@ -103709,7 +103617,6 @@ kimberly	0	340
 lacrosse	0	340
 leftover	0	340
 legalization	0	340
-lf	0	340
 localized	0	340
 Lori	0	340
 malibu	0	340
@@ -103735,7 +103642,6 @@ papal	0	340
 patton	0	340
 pepe	0	340
 peril	0	340
-pk	0	340
 playable	0	340
 plunged	0	340
 polly	0	340
@@ -103746,7 +103652,6 @@ precaution	0	340
 principally	0	340
 professionalism	0	340
 puppets	0	340
-pv	0	340
 rampage	0	340
 reassuring	0	340
 rebirth	0	340
@@ -103757,7 +103662,6 @@ renovations	0	340
 retina	0	340
 revolves	0	340
 rossi	0	340
-rr	0	340
 rutgers	0	340
 scattering	0	340
 scrape	0	340
@@ -103905,7 +103809,6 @@ Kremlin	0	339
 langley	0	339
 liners	0	339
 liv	0	339
-lv	0	339
 Madagascar	0	339
 magnum	0	339
 Malay	0	339
@@ -103929,7 +103832,6 @@ nesting	0	339
 nudity	0	339
 obligatory	0	339
 oceanic	0	339
-od	0	339
 oooh	0	339
 ornaments	0	339
 outpost	0	339
@@ -104025,7 +103927,6 @@ affidavit	0	338
 amc	0	338
 antics	0	338
 Antony	0	338
-ao	0	338
 appreciates	0	338
 area's	0	338
 artworks	0	338
@@ -104053,7 +103954,6 @@ chatter	0	338
 cheered	0	338
 chops	0	338
 cleric	0	338
-cn	0	338
 colbert	0	338
 comedic	0	338
 compile	0	338
@@ -104113,7 +104013,6 @@ hms	0	338
 hodges	0	338
 hoo	0	338
 hovering	0	338
-ht	0	338
 Hun	0	338
 hysteria	0	338
 impartial	0	338
@@ -104137,6 +104036,7 @@ latina	0	338
 Lee's	0	338
 leftovers	0	338
 louie	0	338
+lte	0	338
 madras	0	338
 magnets	0	338
 manageable	0	338
@@ -104272,7 +104172,6 @@ delusion	0	337
 demi	0	337
 depreciation	0	337
 designate	0	337
-dh	0	337
 discard	0	337
 discontent	0	337
 dixie	0	337
@@ -104333,14 +104232,12 @@ kinky	0	337
 Korea's	0	337
 landings	0	337
 launcher	0	337
-ld	0	337
 legality	0	337
 lenny	0	337
 lessen	0	337
 lifespan	0	337
 longitudinal	0	337
 loosen	0	337
-ly	0	337
 Macedonia	0	337
 mandy	0	337
 masculinity	0	337
@@ -104354,7 +104251,6 @@ moods	0	337
 morphine	0	337
 motherhood	0	337
 murderous	0	337
-nb	0	337
 nirvana	0	337
 notoriously	0	337
 nrl	0	337
@@ -104382,7 +104278,6 @@ reuse	0	337
 reyes	0	337
 risked	0	337
 ritchie	0	337
-rl	0	337
 roadway	0	337
 rustic	0	337
 rutherford	0	337
@@ -104452,7 +104347,6 @@ baffled	0	336
 baird	0	336
 barlow	0	336
 biochemistry	0	336
-bm	0	336
 boise	0	336
 bop	0	336
 breached	0	336
@@ -104480,7 +104374,6 @@ coyote	0	336
 crippling	0	336
 Cristina	0	336
 cromwell	0	336
-cy	0	336
 decorate	0	336
 decorating	0	336
 deductible	0	336
@@ -104530,7 +104423,6 @@ infect	0	336
 interruption	0	336
 intrigue	0	336
 itch	0	336
-JC	0	336
 joaquin	0	336
 Kurds	0	336
 lattice	0	336
@@ -104621,7 +104513,6 @@ unification	0	336
 vineyards	0	336
 wastes	0	336
 wastewater	0	336
-wb	0	336
 weaponry	0	336
 webpage	0	336
 wheeled	0	336
@@ -104631,7 +104522,6 @@ wildfire	0	336
 withheld	0	336
 withholding	0	336
 wreath	0	336
-wt	0	336
 yer	0	336
 administrations	0	335
 afar	0	335
@@ -104653,7 +104543,6 @@ bedside	0	335
 besieged	0	335
 biologist	0	335
 blowjob	0	335
-bn	0	335
 boilers	0	335
 bois	0	335
 bonnet	0	335
@@ -104865,7 +104754,6 @@ approving	0	334
 armoured	0	334
 ascension	0	334
 atheists	0	334
-ax	0	334
 bard	0	334
 bearded	0	334
 beetles	0	334
@@ -104887,7 +104775,6 @@ capitalize	0	334
 cheltenham	0	334
 Chesapeake	0	334
 chun	0	334
-ck	0	334
 classmate	0	334
 Claudio	0	334
 cognition	0	334
@@ -104911,7 +104798,6 @@ dickson	0	334
 disproportionate	0	334
 disturbances	0	334
 divisive	0	334
-dk	0	334
 dod	0	334
 ebony	0	334
 eduardo	0	334
@@ -104945,7 +104831,6 @@ homophobia	0	334
 houghton	0	334
 hume	0	334
 hymns	0	334
-ik	0	334
 indifference	0	334
 indispensable	0	334
 infirmary	0	334
@@ -104992,7 +104877,6 @@ mods	0	334
 Mongolia	0	334
 motivating	0	334
 munitions	0	334
-mx	0	334
 myrtle	0	334
 nemesis	0	334
 o'reilly	0	334
@@ -105086,7 +104970,6 @@ washer	0	334
 watered	0	334
 wick	0	334
 worldly	0	334
-wp	0	334
 achieves	0	333
 adept	0	333
 advantageous	0	333
@@ -105183,7 +105066,6 @@ hairstyle	0	333
 handwritten	0	333
 hardships	0	333
 harmonic	0	333
-hb	0	333
 headlights	0	333
 heartless	0	333
 hectic	0	333
@@ -105315,8 +105197,6 @@ weld	0	333
 werewolf	0	333
 Wilson's	0	333
 wrongful	0	333
-ww	0	333
-xu	0	333
 aba	0	332
 acknowledgement	0	332
 adored	0	332
@@ -105336,7 +105216,6 @@ behavioural	0	332
 Belgrade	0	332
 benefiting	0	332
 bethany	0	332
-bg	0	332
 biases	0	332
 blindly	0	332
 brig	0	332
@@ -105367,7 +105246,6 @@ dawg	0	332
 dentists	0	332
 deploying	0	332
 deserts	0	332
-df	0	332
 dictates	0	332
 dion	0	332
 dissatisfaction	0	332
@@ -105380,7 +105258,6 @@ endeavors	0	332
 enslaved	0	332
 ent	0	332
 entrances	0	332
-EQ	0	332
 escalation	0	332
 eureka	0	332
 exec	0	332
@@ -105422,7 +105299,6 @@ knuckles	0	332
 lady's	0	332
 lauderdale	0	332
 lifestyles	0	332
-lr	0	332
 macbeth	0	332
 magazine's	0	332
 mamma	0	332
@@ -105564,7 +105440,6 @@ capitalists	0	331
 categorized	0	331
 cba	0	331
 cbi	0	331
-cg	0	331
 chopper	0	331
 chromosomes	0	331
 chunky	0	331
@@ -105610,7 +105485,6 @@ extremism	0	331
 fairfield	0	331
 fairies	0	331
 faulkner	0	331
-fg	0	331
 finalized	0	331
 flagged	0	331
 fleets	0	331
@@ -105702,14 +105576,12 @@ rebate	0	331
 regulates	0	331
 reins	0	331
 resurgence	0	331
-rh	0	331
 Roc	0	331
 rollers	0	331
 rooster	0	331
 routed	0	331
 rufus	0	331
 rushes	0	331
-rx	0	331
 sakura	0	331
 salads	0	331
 Sanskrit	0	331
@@ -105765,7 +105637,6 @@ whitehall	0	331
 willard	0	331
 woe	0	331
 wrinkles	0	331
-ws	0	331
 abstraction	0	330
 adjunct	0	330
 administering	0	330
@@ -105864,7 +105735,6 @@ inverness	0	330
 ireland's	0	330
 isabelle	0	330
 jog	0	330
-jt	0	330
 jug	0	330
 KGB	0	330
 knoxville	0	330
@@ -106028,6 +105898,7 @@ daddy's	0	329
 dangling	0	329
 daredevil	0	329
 decentralized	0	329
+dei	0	329
 denominations	0	329
 denote	0	329
 detox	0	329
@@ -106082,7 +105953,6 @@ improbable	0	329
 impulses	0	329
 incarcerated	0	329
 ineligible	0	329
-iu	0	329
 jeb	0	329
 journalistic	0	329
 julien	0	329
@@ -106111,6 +105981,7 @@ mccann	0	329
 mckenna	0	329
 mcqueen	0	329
 meow	0	329
+mer	0	329
 minions	0	329
 mirage	0	329
 mockery	0	329
@@ -106156,7 +106027,6 @@ punctuation	0	329
 purification	0	329
 purported	0	329
 Putin's	0	329
-qi	0	329
 quotations	0	329
 ramifications	0	329
 readable	0	329
@@ -106207,7 +106077,6 @@ vader	0	329
 Verde	0	329
 viewpoints	0	329
 Vinci	0	329
-vu	0	329
 wacky	0	329
 wealthiest	0	329
 wearable	0	329
@@ -106234,7 +106103,6 @@ assorted	0	328
 barbarian	0	328
 bedrock	0	328
 bihar	0	328
-Bj	0	328
 blaine	0	328
 boardwalk	0	328
 boasting	0	328
@@ -106287,8 +106155,6 @@ disobedience	0	328
 dreamer	0	328
 dune	0	328
 dwellers	0	328
-eb	0	328
-ef	0	328
 electronically	0	328
 emancipation	0	328
 entropy	0	328
@@ -106345,7 +106211,6 @@ maynard	0	328
 mayoral	0	328
 medley	0	328
 mercenaries	0	328
-mh	0	328
 might've	0	328
 minimalist	0	328
 misled	0	328
@@ -106371,7 +106236,6 @@ prem	0	328
 proverbs	0	328
 puke	0	328
 puzzled	0	328
-Qu	0	328
 ramps	0	328
 recital	0	328
 recite	0	328
@@ -106386,7 +106250,6 @@ resale	0	328
 retake	0	328
 Rhine	0	328
 rips	0	328
-rj	0	328
 robb	0	328
 Rodrigo	0	328
 rosy	0	328
@@ -106423,10 +106286,10 @@ tenders	0	328
 timers	0	328
 tinker	0	328
 topography	0	328
-ua	0	328
 unexplained	0	328
 unintended	0	328
 unmanned	0	328
+uno	0	328
 unsolved	0	328
 unsuccessfully	0	328
 uptake	0	328
@@ -106532,7 +106395,6 @@ granger	0	327
 grasses	0	327
 gratification	0	327
 gruesome	0	327
-gw	0	327
 harshly	0	327
 hedges	0	327
 henrik	0	327
@@ -106550,11 +106412,9 @@ inserting	0	327
 intersections	0	327
 inventing	0	327
 invoice	0	327
-jb	0	327
 johan	0	327
 kelsey	0	327
 khalid	0	327
-kr	0	327
 kristin	0	327
 kun	0	327
 lacey	0	327
@@ -106564,7 +106424,6 @@ lew	0	327
 lexus	0	327
 limitless	0	327
 literate	0	327
-lm	0	327
 localization	0	327
 loki	0	327
 loretta	0	327
@@ -106654,6 +106513,7 @@ sob	0	327
 Socrates	0	327
 sophistication	0	327
 sourcing	0	327
+str	0	327
 straighten	0	327
 streamlined	0	327
 sweaters	0	327
@@ -107004,7 +106864,6 @@ disagrees	0	325
 district's	0	325
 donny	0	325
 downey	0	325
-dw	0	325
 eased	0	325
 easing	0	325
 elevations	0	325
@@ -107252,7 +107111,6 @@ dns	0	324
 drags	0	324
 drugged	0	324
 durban	0	324
-dx	0	324
 eachother	0	324
 eastward	0	324
 embroidery	0	324
@@ -107262,7 +107120,6 @@ enigma	0	324
 equivalents	0	324
 estranged	0	324
 euphoria	0	324
-ez	0	324
 farmer's	0	324
 feelin	0	324
 flattered	0	324
@@ -107340,7 +107197,6 @@ museum's	0	324
 naw	0	324
 netting	0	324
 nevermind	0	324
-nf	0	324
 nigeria's	0	324
 nigh	0	324
 nocturnal	0	324
@@ -107555,7 +107411,6 @@ gunmen	0	323
 hahahaha	0	323
 hawthorn	0	323
 healy	0	323
-hf	0	323
 hoard	0	323
 humming	0	323
 ignited	0	323
@@ -107609,7 +107464,6 @@ NOAA	0	323
 Norse	0	323
 nyt	0	323
 odin	0	323
-OJ	0	323
 overflowing	0	323
 overland	0	323
 overshadowed	0	323
@@ -107620,7 +107474,6 @@ pedals	0	323
 pesos	0	323
 peterborough	0	323
 philosophies	0	323
-pj	0	323
 plagiarism	0	323
 poked	0	323
 polk	0	323
@@ -107635,7 +107488,6 @@ pueblo	0	323
 pulpit	0	323
 puncture	0	323
 pussies	0	323
-qa	0	323
 recounts	0	323
 redhead	0	323
 relational	0	323
@@ -107693,7 +107545,6 @@ UNICEF	0	323
 unimportant	0	323
 uninsured	0	323
 untitled	0	323
-uw	0	323
 Uzbekistan	0	323
 valor	0	323
 vape	0	323
@@ -107949,7 +107800,6 @@ uttar	0	322
 versed	0	322
 vicki	0	322
 vlad	0	322
-vm	0	322
 weiner	0	322
 wharton	0	322
 whiff	0	322
@@ -108060,7 +107910,6 @@ forwarding	0	321
 fragrant	0	321
 gallant	0	321
 gazing	0	321
-gd	0	321
 generalization	0	321
 genitals	0	321
 geologist	0	321
@@ -108145,7 +107994,6 @@ propane	0	321
 publicized	0	321
 purest	0	321
 pvc	0	321
-qt	0	321
 queues	0	321
 Ramadan	0	321
 rambling	0	321
@@ -108291,7 +108139,6 @@ deplorable	0	320
 deranged	0	320
 detergent	0	320
 detour	0	320
-dg	0	320
 Dhaka	0	320
 diff	0	320
 dissenting	0	320
@@ -108615,7 +108462,6 @@ johnstone	0	319
 Jos	0	319
 keel	0	319
 kingsley	0	319
-kk	0	319
 kruger	0	319
 labourers	0	319
 leland	0	319
@@ -108647,7 +108493,6 @@ nonexistent	0	319
 notoriety	0	319
 nuclei	0	319
 nutty	0	319
-oa	0	319
 obedient	0	319
 oculus	0	319
 ogden	0	319
@@ -108847,7 +108692,6 @@ frees	0	318
 fringes	0	318
 Genoa	0	318
 geothermal	0	318
-gh	0	318
 gist	0	318
 github	0	318
 grievous	0	318
@@ -108992,7 +108836,6 @@ tout	0	318
 tripod	0	318
 tulip	0	318
 turnpike	0	318
-ud	0	318
 Ulysses	0	318
 unattended	0	318
 unbeatable	0	318
@@ -109006,9 +108849,7 @@ uttered	0	318
 vulture	0	318
 wares	0	318
 waterway	0	318
-wv	0	318
 xanax	0	318
-xs	0	318
 yves	0	318
 absentee	0	317
 accolades	0	317
@@ -109099,7 +108940,6 @@ dubois	0	317
 duluth	0	317
 dwarfs	0	317
 eastenders	0	317
-ek	0	317
 elgin	0	317
 embody	0	317
 enrolling	0	317
@@ -109110,13 +108950,11 @@ eruptions	0	317
 esoteric	0	317
 euthanasia	0	317
 faye	0	317
-fd	0	317
 felon	0	317
 flammable	0	317
 flanagan	0	317
 footnote	0	317
 fostered	0	317
-fp	0	317
 friggin	0	317
 frontman	0	317
 furthest	0	317
@@ -109137,7 +108975,6 @@ helpers	0	317
 hendricks	0	317
 hero's	0	317
 hess	0	317
-hh	0	317
 hilly	0	317
 hogs	0	317
 hone	0	317
@@ -109145,7 +108982,6 @@ horne	0	317
 howie	0	317
 humbly	0	317
 huron	0	317
-hw	0	317
 hyatt	0	317
 inciting	0	317
 incomprehensible	0	317
@@ -109226,11 +109062,9 @@ Shenzhen	0	317
 shilling	0	317
 shroud	0	317
 shutters	0	317
-sj	0	317
 skim	0	317
 slaps	0	317
 Slovak	0	317
-sn	0	317
 solicitation	0	317
 sooooo	0	317
 specifying	0	317
@@ -109241,7 +109075,6 @@ stupidest	0	317
 superseded	0	317
 surpassing	0	317
 swirling	0	317
-sy	0	317
 teas	0	317
 Telugu	0	317
 timbers	0	317
@@ -109254,7 +109087,6 @@ unforeseen	0	317
 unsigned	0	317
 unspoken	0	317
 upholding	0	317
-ux	0	317
 valet	0	317
 vehemently	0	317
 vendetta	0	317
@@ -109359,7 +109191,6 @@ foresight	0	316
 forsaken	0	316
 forsyth	0	316
 fundamentalist	0	316
-fw	0	316
 gabby	0	316
 gayle	0	316
 geniuses	0	316
@@ -109387,7 +109218,6 @@ Jiang	0	316
 kano	0	316
 kennel	0	316
 khan's	0	316
-kl	0	316
 knitted	0	316
 laird	0	316
 lighted	0	316
@@ -109450,7 +109280,6 @@ remodeling	0	316
 renters	0	316
 resorting	0	316
 retreats	0	316
-rg	0	316
 ringo	0	316
 rosary	0	316
 rundown	0	316
@@ -109493,7 +109322,6 @@ thong	0	316
 thrills	0	316
 thumping	0	316
 timeframe	0	316
-tk	0	316
 transcribed	0	316
 tropics	0	316
 tsar	0	316
@@ -109506,7 +109334,6 @@ vertigo	0	316
 vigilance	0	316
 viscount	0	316
 walkway	0	316
-wd	0	316
 Westerners	0	316
 whistler	0	316
 White's	0	316
@@ -110176,7 +110003,6 @@ forbids	0	313
 foreword	0	313
 fox's	0	313
 fsu	0	313
-fy	0	313
 gamblers	0	313
 garages	0	313
 goldie	0	313
@@ -110285,7 +110111,6 @@ retinal	0	313
 rgb	0	313
 rhodesia	0	313
 rsa	0	313
-RW	0	313
 scammers	0	313
 schizophrenic	0	313
 scorn	0	313
@@ -110338,7 +110163,6 @@ wai	0	313
 wcw	0	313
 wiz	0	313
 worsened	0	313
-xo	0	313
 adaptable	0	312
 adhered	0	312
 advancements	0	312
@@ -110485,7 +110309,6 @@ intoxication	0	312
 isotopes	0	312
 jagged	0	312
 josiah	0	312
-jv	0	312
 katharine	0	312
 kavanaugh	0	312
 labour's	0	312
@@ -110603,7 +110426,6 @@ tilting	0	312
 trailed	0	312
 treasured	0	312
 tungsten	0	312
-tw	0	312
 twigs	0	312
 txt	0	312
 ucl	0	312
@@ -110616,6 +110438,7 @@ unspeakable	0	312
 untimely	0	312
 ust	0	312
 uva	0	312
+vfl	0	312
 vida	0	312
 vous	0	312
 warrington	0	312
@@ -110701,7 +110524,6 @@ disqualification	0	311
 dizziness	0	311
 ducts	0	311
 dusted	0	311
-dv	0	311
 econ	0	311
 Emi	0	311
 enacting	0	311
@@ -110727,9 +110549,7 @@ fugitives	0	311
 gainesville	0	311
 galore	0	311
 genomic	0	311
-gk	0	311
 goon	0	311
-GQ	0	311
 graces	0	311
 grandkids	0	311
 groovy	0	311
@@ -110803,7 +110623,6 @@ omissions	0	311
 organiser	0	311
 ott	0	311
 outfield	0	311
-oy	0	311
 paddington	0	311
 paddock	0	311
 padre	0	311
@@ -110889,7 +110708,6 @@ unwarranted	0	311
 unwillingness	0	311
 vases	0	311
 vetting	0	311
-vg	0	311
 wailing	0	311
 walker's	0	311
 warwickshire	0	311
@@ -111064,7 +110882,6 @@ jodi	0	310
 judge's	0	310
 juliette	0	310
 junctions	0	310
-jw	0	310
 kathmandu	0	310
 kearney	0	310
 khz	0	310
@@ -111317,7 +111134,6 @@ crockett	0	309
 crowning	0	309
 crucifixion	0	309
 csgo	0	309
-cx	0	309
 Daniel's	0	309
 deduct	0	309
 delegations	0	309
@@ -111351,7 +111167,6 @@ exiles	0	309
 expressway	0	309
 fairest	0	309
 filament	0	309
-fk	0	309
 Flemish	0	309
 fra	0	309
 frank's	0	309
@@ -111396,8 +111211,6 @@ irritable	0	309
 jace	0	309
 jain	0	309
 jammu	0	309
-jl	0	309
-jm	0	309
 joss	0	309
 kendra	0	309
 kermit	0	309
@@ -111408,7 +111221,6 @@ leung	0	309
 leviathan	0	309
 ligaments	0	309
 lis	0	309
-lj	0	309
 lonesome	0	309
 lps	0	309
 lukewarm	0	309
@@ -111475,7 +111287,6 @@ prefect	0	309
 prevails	0	309
 pri	0	309
 propagate	0	309
-QR	0	309
 quot	0	309
 redefine	0	309
 reeling	0	309
@@ -111555,7 +111366,6 @@ wrecks	0	309
 wren	0	309
 wronged	0	309
 yoke	0	309
-za	0	309
 zuma	0	309
 acorn	0	308
 aga	0	308
@@ -112095,6 +111905,7 @@ roper	0	307
 rosters	0	307
 sacking	0	307
 scarring	0	307
+sch	0	307
 scheming	0	307
 scorched	0	307
 Scotsman	0	307
@@ -112157,7 +111968,6 @@ upland	0	307
 upped	0	307
 ushered	0	307
 vauxhall	0	307
-vb	0	307
 verbatim	0	307
 villiers	0	307
 Virgo	0	307
@@ -112401,7 +112211,6 @@ protruding	0	306
 puig	0	306
 pundit	0	306
 purify	0	306
-pw	0	306
 quack	0	306
 quarries	0	306
 raged	0	306
@@ -112500,7 +112309,6 @@ xenophobia	0	306
 xenophobic	0	306
 yakuza	0	306
 yuck	0	306
-ze	0	306
 zeros	0	306
 acreage	0	305
 affords	0	305
@@ -112981,7 +112789,6 @@ mtg	0	304
 muffled	0	304
 mugabe	0	304
 mulder	0	304
-mullins	0	304
 muppets	0	304
 Muses	0	304
 nacional	0	304
@@ -113081,7 +112888,6 @@ toothed	0	304
 tremble	0	304
 trillions	0	304
 trove	0	304
-ue	0	304
 unconsciously	0	304
 undated	0	304
 undefined	0	304
@@ -113131,7 +112937,6 @@ banco	0	303
 beaming	0	303
 Benin	0	303
 benn	0	303
-bh	0	303
 bigots	0	303
 biopic	0	303
 bleached	0	303
@@ -113256,7 +113061,6 @@ hospital's	0	303
 hove	0	303
 hunter's	0	303
 hvac	0	303
-hy	0	303
 hydrate	0	303
 hydrocarbon	0	303
 incessant	0	303
@@ -113430,7 +113234,6 @@ tru	0	303
 truncated	0	303
 trusty	0	303
 twig	0	303
-uf	0	303
 ulcer	0	303
 ummm	0	303
 unconfirmed	0	303
@@ -113758,7 +113561,6 @@ winfrey	0	302
 winn	0	302
 withdraws	0	302
 wither	0	302
-wk	0	302
 wobble	0	302
 yadav	0	302
 yeon	0	302
@@ -113790,6 +113592,7 @@ berserk	0	301
 berwick	0	301
 bickering	0	301
 bishop's	0	301
+bla	0	301
 bobo	0	301
 bovine	0	301
 braids	0	301
@@ -113915,9 +113718,7 @@ intermission	0	301
 iqbal	0	301
 irreplaceable	0	301
 kanji	0	301
-kh	0	301
 kilogram	0	301
-kn	0	301
 kombat	0	301
 kpop	0	301
 kush	0	301
@@ -114094,7 +113895,6 @@ whittaker	0	301
 why's	0	301
 xander	0	301
 xiaomi	0	301
-yd	0	301
 yeo	0	301
 yoghurt	0	301
 aac	0	300
@@ -114149,7 +113949,6 @@ brookings	0	300
 budgeted	0	300
 bugger	0	300
 buoy	0	300
-bv	0	300
 campaigner	0	300
 capacitors	0	300
 capes	0	300
@@ -114253,7 +114052,6 @@ lawton	0	300
 legalizing	0	300
 lentils	0	300
 leprosy	0	300
-lh	0	300
 liverpool's	0	300
 locust	0	300
 lombard	0	300
@@ -114423,7 +114221,6 @@ annotations	0	299
 anticipates	0	299
 apologetic	0	299
 apoptosis	0	299
-aq	0	299
 arcane	0	299
 argo	0	299
 aristocrat	0	299
@@ -114571,6 +114368,7 @@ inquiring	0	299
 internment	0	299
 interprets	0	299
 janine	0	299
+jap	0	299
 jekyll	0	299
 Jim's	0	299
 joni	0	299
@@ -114580,7 +114378,6 @@ jungles	0	299
 kalamazoo	0	299
 kawhi	0	299
 khartoum	0	299
-kj	0	299
 kushner	0	299
 lackluster	0	299
 largo	0	299
@@ -114750,7 +114547,6 @@ willows	0	299
 wishlist	0	299
 woulda	0	299
 wrexham	0	299
-xm	0	299
 zealous	0	299
 aditya	0	298
 ailment	0	298
@@ -114850,7 +114646,6 @@ divorcing	0	298
 docker	0	298
 docket	0	298
 drifts	0	298
-dy	0	298
 earphones	0	298
 electrified	0	298
 electrolytes	0	298
@@ -114961,7 +114756,6 @@ name's	0	298
 nea	0	298
 negate	0	298
 networked	0	298
-nn	0	298
 nomads	0	298
 nonsensical	0	298
 noor	0	298
@@ -115203,7 +114997,6 @@ drury	0	297
 duma	0	297
 dylan's	0	297
 dynasties	0	297
-ej	0	297
 elated	0	297
 elegantly	0	297
 ember	0	297
@@ -115281,7 +115074,6 @@ intents	0	297
 intoxicating	0	297
 jaded	0	297
 jihadists	0	297
-jn	0	297
 jovi	0	297
 juju	0	297
 kaepernick	0	297
@@ -115357,7 +115149,6 @@ pragmatism	0	297
 projectors	0	297
 proprietors	0	297
 Protestantism	0	297
-qs	0	297
 quan	0	297
 quantified	0	297
 receding	0	297
@@ -115376,7 +115167,6 @@ rhubarb	0	297
 riverdale	0	297
 romanticism	0	297
 rutland	0	297
-ry	0	297
 salesmen	0	297
 sapiens	0	297
 savers	0	297
@@ -115428,7 +115218,6 @@ totalled	0	297
 trombone	0	297
 truer	0	297
 tyrannical	0	297
-ug	0	297
 underscore	0	297
 unlocks	0	297
 untill	0	297
@@ -115494,3 +115283,384 @@ bok	0	296
 bondi	0	296
 bottomless	0	296
 bpm	0	296
+brando	0	296
+breakfasts	0	296
+bsa	0	296
+buena	0	296
+bunches	0	296
+caa	0	296
+caddy	0	296
+cade	0	296
+caledonian	0	296
+cautions	0	296
+cee	0	296
+cellphones	0	296
+chandigarh	0	296
+charted	0	296
+chasm	0	296
+chevalier	0	296
+chimpanzee	0	296
+chisel	0	296
+choirs	0	296
+cinder	0	296
+cirque	0	296
+citizen's	0	296
+coax	0	296
+coincidences	0	296
+commences	0	296
+commenter	0	296
+communicator	0	296
+complies	0	296
+comprehensively	0	296
+condor	0	296
+confectionery	0	296
+confrontations	0	296
+contented	0	296
+coverings	0	296
+crabtree	0	296
+crass	0	296
+crewe	0	296
+cuddles	0	296
+cull	0	296
+culver	0	296
+cymru	0	296
+dac	0	296
+deference	0	296
+deportations	0	296
+devoting	0	296
+diabolical	0	296
+dilated	0	296
+disarray	0	296
+disinformation	0	296
+disintegrated	0	296
+dismayed	0	296
+disregarding	0	296
+dolby	0	296
+dude's	0	296
+edwardian	0	296
+elector	0	296
+eloquently	0	296
+emojis	0	296
+expendable	0	296
+falkirk	0	296
+falklands	0	296
+fantastical	0	296
+farmington	0	296
+fennel	0	296
+fetching	0	296
+fieldwork	0	296
+Filipina	0	296
+firework	0	296
+firsts	0	296
+flattery	0	296
+fleur	0	296
+foolishly	0	296
+foreseen	0	296
+forgives	0	296
+forked	0	296
+formulating	0	296
+fracturing	0	296
+freedman	0	296
+futility	0	296
+gaal	0	296
+gabi	0	296
+geraldine	0	296
+grantham	0	296
+gruber	0	296
+handover	0	296
+hardin	0	296
+hedging	0	296
+helens	0	296
+heroines	0	296
+hexagonal	0	296
+hipsters	0	296
+hiro	0	296
+hospitable	0	296
+hummingbird	0	296
+ight	0	296
+impactful	0	296
+impasse	0	296
+impotence	0	296
+increment	0	296
+incursions	0	296
+inescapable	0	296
+infecting	0	296
+intermediaries	0	296
+invertebrates	0	296
+ipc	0	296
+jama	0	296
+jester	0	296
+jihadist	0	296
+jockeys	0	296
+juxtaposition	0	296
+Kashmiri	0	296
+kaya	0	296
+Kazakh	0	296
+keene	0	296
+kinect	0	296
+kites	0	296
+kline	0	296
+kofi	0	296
+kok	0	296
+kong's	0	296
+lesnar	0	296
+ligue	0	296
+likable	0	296
+limping	0	296
+lineups	0	296
+Luisa	0	296
+luster	0	296
+luthor	0	296
+madeira	0	296
+Maduro	0	296
+majoring	0	296
+majorities	0	296
+marcy	0	296
+maris	0	296
+maw	0	296
+mbc	0	296
+mcclure	0	296
+mcg	0	296
+melatonin	0	296
+mesmerizing	0	296
+metaphorically	0	296
+millwall	0	296
+mindanao	0	296
+misread	0	296
+misrepresented	0	296
+mme	0	296
+modulated	0	296
+mousse	0	296
+nai	0	296
+naught	0	296
+ncr	0	296
+necessitated	0	296
+nitrous	0	296
+northamptonshire	0	296
+obstructive	0	296
+occupiers	0	296
+odell	0	296
+odour	0	296
+oliver's	0	296
+ord	0	296
+oreo	0	296
+orientated	0	296
+oscillation	0	296
+oscillator	0	296
+outrun	0	296
+overpass	0	296
+pampered	0	296
+patagonia	0	296
+pathogenic	0	296
+peeking	0	296
+persevere	0	296
+pfeiffer	0	296
+pfft	0	296
+piped	0	296
+Pisces	0	296
+plasticity	0	296
+playfully	0	296
+polymerase	0	296
+practicality	0	296
+prawns	0	296
+precedents	0	296
+prerequisites	0	296
+pretzels	0	296
+proclaims	0	296
+procrastination	0	296
+profiting	0	296
+prospecting	0	296
+prune	0	296
+pte	0	296
+putative	0	296
+quirks	0	296
+racine	0	296
+radiate	0	296
+raton	0	296
+ray's	0	296
+reaping	0	296
+rectum	0	296
+refrigerators	0	296
+regrettable	0	296
+reprise	0	296
+restorative	0	296
+rfc	0	296
+rhyming	0	296
+rigby	0	296
+rojo	0	296
+rumbling	0	296
+salinity	0	296
+samsung's	0	296
+sandusky	0	296
+scolded	0	296
+Scrooge	0	296
+seb	0	296
+sena	0	296
+serials	0	296
+shakira	0	296
+shep	0	296
+shipyards	0	296
+shovels	0	296
+silt	0	296
+sisterhood	0	296
+sketched	0	296
+slr	0	296
+sma	0	296
+smuggler	0	296
+snape	0	296
+sodomy	0	296
+soe	0	296
+soldering	0	296
+solubility	0	296
+somers	0	296
+sonnet	0	296
+spacey	0	296
+spalding	0	296
+spectrometry	0	296
+spurious	0	296
+stephen's	0	296
+strat	0	296
+subgroups	0	296
+substandard	0	296
+sugarcane	0	296
+sundown	0	296
+suspecting	0	296
+swingers	0	296
+swiping	0	296
+synths	0	296
+takeaways	0	296
+talker	0	296
+taunt	0	296
+taunts	0	296
+tensile	0	296
+tether	0	296
+thayer	0	296
+thundering	0	296
+tightness	0	296
+tinkering	0	296
+todo	0	296
+toothless	0	296
+trayvon	0	296
+troubleshooting	0	296
+truffles	0	296
+Turkmenistan	0	296
+turntable	0	296
+Tuttle	0	296
+underdogs	0	296
+understandings	0	296
+undressed	0	296
+unknowns	0	296
+Uruguayan	0	296
+usaid	0	296
+utilise	0	296
+valhalla	0	296
+validating	0	296
+vasquez	0	296
+vermin	0	296
+vertebrates	0	296
+vertices	0	296
+voltages	0	296
+wack	0	296
+wardens	0	296
+weaves	0	296
+weirdos	0	296
+wentz	0	296
+westinghouse	0	296
+what'd	0	296
+whirl	0	296
+widget	0	296
+wineries	0	296
+witt	0	296
+woodbridge	0	296
+workman	0	296
+wright's	0	296
+X's	0	296
+ypg	0	296
+zap	0	296
+Aborigines	0	295
+abreast	0	295
+absurdly	0	295
+abv	0	295
+activision	0	295
+adage	0	295
+aguilera	0	295
+airtight	0	295
+albans	0	295
+all's	0	295
+altruistic	0	295
+amalgamated	0	295
+amorphous	0	295
+annulled	0	295
+anthems	0	295
+antioxidants	0	295
+antlers	0	295
+anu	0	295
+aquaman	0	295
+argh	0	295
+armaments	0	295
+arroyo	0	295
+ATMs	0	295
+audacious	0	295
+audubon	0	295
+aur	0	295
+auth	0	295
+battleships	0	295
+bayesian	0	295
+befriended	0	295
+beheading	0	295
+bff	0	295
+blaring	0	295
+bolder	0	295
+bookies	0	295
+boolean	0	295
+bourke	0	295
+boyer	0	295
+brash	0	295
+breads	0	295
+brookfield	0	295
+bumpers	0	295
+buoyancy	0	295
+burglars	0	295
+businesswoman	0	295
+buttermilk	0	295
+bypassed	0	295
+cai	0	295
+caledonia	0	295
+camila	0	295
+campaigners	0	295
+canisters	0	295
+captioned	0	295
+captors	0	295
+cassius	0	295
+cautionary	0	295
+centering	0	295
+chef's	0	295
+chez	0	295
+chimp	0	295
+chromatography	0	295
+classifying	0	295
+cleary	0	295
+clitoris	0	295
+coincidental	0	295
+colliding	0	295
+colliery	0	295
+consonants	0	295
+constituting	0	295
+corcoran	0	295
+coriander	0	295
+couches	0	295
+critters	0	295
+croc	0	295
+crucially	0	295
+cruelly	0	295
+daleks	0	295
+damnation	0	295
+darfur	0	295
+dave's	0	295
+debtors	0	295
+debunked	0	295
+decorator	0	295
+deletes	0	295
+delgado	0	295
+delirious	0	295
+denser	0	295

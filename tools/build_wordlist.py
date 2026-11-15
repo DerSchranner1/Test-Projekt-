@@ -44,6 +44,9 @@ def compound(w):
         if tcap in hun: return w[:1].upper() + w[1:]
         if tail in hunlow: return w
     return None
+SHORT_OK = set("""kg mg ml cm mm km qm dm hm ah oh hä hi ok zb lg vg mfg hdl xd pc tv cd dj wg ag eu wm em
+usw bzw ggf evt inkl zzgl vlt gn gm ka kp nö jo ne na tja hmm omg lol wtf btw sms app
+""".split())
 res = {}
 n = 0
 for w, b in de:
@@ -56,6 +59,10 @@ for w, b in de:
             if c: found = [c]; break
     if not found:
         if b > 520: continue  # seltene unbekannte Wörter weglassen
+        # Kurze Buchstabenfolgen, die das Wörterbuch nicht kennt („dt“, „df“, „ge“), sind fast immer
+        # Bruchstücke – nur behalten, wenn sie wirklich häufig sind oder bekannte Kürzel
+        if len(w) <= 2 and b > 440 and w not in SHORT_OK: continue
+        if len(w) == 3 and b > 490 and w not in SHORT_OK: continue
         found = [w]
     score = max(1, 900 - b)
     for form in found:
@@ -70,6 +77,7 @@ alpha_en = re.compile(r"^[a-z]+(?:'[a-z]+)?$")
 m = 0
 for w, b in en:
     if not alpha_en.match(w) or len(w) > 20: continue
+    if len(w) <= 2 and b > 420 and w not in bylow: continue   # seltene englische Kürzel weglassen
     es = max(1, 900 - b)
     form = bylow.get(w)
     if form is not None:

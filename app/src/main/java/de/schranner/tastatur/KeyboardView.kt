@@ -166,7 +166,11 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
     // ---------------------------------------------------------------- Layout
 
     /** Reihenabstand der Buchstabenreihen. Alles andere (Abstände, Schrift, Symbole) richtet sich danach. */
-    private fun rowHeight(): Float = dp(BASE_ROW_DP) * keyHeightPercent / 100f
+    private fun rowHeight(): Float {
+        // Im Querformat etwas flacher, damit vom Text noch genug zu sehen ist
+        val landscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+        return dp(BASE_ROW_DP) * keyHeightPercent / 100f * (if (landscape) 0.84f else 1f)
+    }
 
     private fun gapY(): Float = (rowHeight() * 0.215f).coerceIn(dp(5f), dp(10f))
 
@@ -407,7 +411,23 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
                 val t = touches.remove(e.getPointerId(idx))
-                if (t != null) onUp(t)
+                if (t != null) {
+                    if (t.gesturePossible && !t.longPressed && !t.consumed) {
+                        // Die Stelle, an der der Finger abhebt, gehört zur Wischspur. Bei sehr schnellen
+                        // Wischern kommen kaum Zwischenpunkte an – ohne sie endet das Wort zu früh.
+                        val x = e.getX(idx)
+                        val y = e.getY(idx)
+                        t.points += GestureDecoder.Pt(x, y)
+                        val dx = x - t.downX
+                        val dy = y - t.downY
+                        if (!t.gesture && sqrt(dx * dx + dy * dy) > letterKeyWidth() * 0.8f) {
+                            t.gesture = true
+                            cancelTimers()
+                            hidePreview()
+                        }
+                    }
+                    onUp(t)
+                }
             }
             MotionEvent.ACTION_CANCEL -> {
                 touches.clear()
@@ -457,9 +477,13 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
             }
         }
         if (t.longPressed) {
-            if (altsPopup.isShowing) {
-                val i = ((x - altsLeftInView) / altsCellWidth).toInt().coerceIn(0, altsView.items.size - 1)
-                altsView.selected = i
+            if (altsActive) {
+                // Finger weit weg vom Auswahlfeld (seitlich oder nach unten): nichts einfügen
+                val right = altsLeftInView + altsCellWidth * altsView.items.size
+                val away = x < altsLeftInView - altsCellWidth || x > right + altsCellWidth ||
+                    y > k.bounds.bottom + k.bounds.height()
+                altsView.selected = if (away) -1
+                else ((x - altsLeftInView) / altsCellWidth).toInt().coerceIn(0, altsView.items.size - 1)
             }
             return
         }
@@ -520,10 +544,10 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
         val k = t.key ?: return
         when {
             t.longPressed -> {
-                if (altsPopup.isShowing) {
+                if (altsActive) {
                     val s = altsView.items.getOrNull(altsView.selected)
                     hideAlts()
-                    if (s != null) listener?.onChar(applyShift(s))
+                    if (s != null) listener?.onChar(s)
                 }
             }
             t.spaceDrag || t.deleteSwipe -> {}
@@ -557,7 +581,7 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
             KeyType.SPACE -> { t.consumed = true; listener?.onSpaceLongPress() }
             KeyType.EMOJI -> { t.consumed = true; listener?.onEmojiLongPress() }
             KeyType.CHAR -> {
-                if (k.alts.isEmpty()) return
+                if (alternatesOf(k).isEmpty()) return
                 t.longPressed = true
                 hidePreview()
                 feedback()
@@ -599,28 +623,45 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
         if (previewPopup.isShowing) previewPopup.dismiss()
     }
 
+    /**
+     * Zeichen, die ein langer Druck anbietet. Die Taste selbst ist nicht dabei (dafür reicht normales
+     * Tippen), ebenso wenig Buchstaben, die auf diesem Layout eine eigene Taste haben (ä ö ü ß).
+     */
+    private fun alternatesOf(k: Key): List<String> = k.alts.filter { a ->
+        a != k.label && !(a.length == 1 && a[0].isLetter() && targetKeys.containsKey(a[0].lowercaseChar()))
+    }
+
+    /** Auswahl läuft (unabhängig davon, ob das Fenster dafür schon sichtbar ist). */
+    private var altsActive = false
+
     private fun showAlts(k: Key) {
-        if (windowToken == null) return
-        val items = listOf(k.label) + k.alts
-        altsView.items = items.map { applyShift(it) }
+        val items = alternatesOf(k).map { applyShift(it) }
+        if (items.isEmpty()) return
         altsCellWidth = max(k.bounds.width(), dp(34f))
-        val w = (altsCellWidth * items.size).toInt()
-        val h = (k.bounds.height() * 1.1f).toInt()
-        var left = k.bounds.centerX() - altsCellWidth / 2f
-        left = min(left, width - w.toFloat()).coerceAtLeast(0f)
+        val w = altsCellWidth * items.size
+        val cx = k.bounds.centerX()
+        // Das erste Zeichen (z. B. der Umlaut) liegt immer direkt über dem Finger und ist vorausgewählt.
+        // Passt die Reihe nach rechts nicht mehr hin, wächst sie nach links – in umgekehrter Reihenfolge.
+        val growRight = cx - altsCellWidth / 2f + w <= width || cx + altsCellWidth / 2f - w < 0f
+        var left = if (growRight) cx - altsCellWidth / 2f else cx + altsCellWidth / 2f - w
+        left = left.coerceIn(0f, max(0f, width - w))
         altsLeftInView = left
-        // Vorauswahl: erstes Sonderzeichen (z. B. Ziffer oder Umlaut)
-        altsView.selected = if (items.size > 1) 1 else 0
+        altsView.items = if (growRight) items else items.reversed()
+        altsView.selected = ((cx - left) / altsCellWidth).toInt().coerceIn(0, items.size - 1)
+        altsActive = true
+        if (windowToken == null) return
+        val h = (k.bounds.height() * 1.1f).toInt()
         val loc = IntArray(2)
         getLocationInWindow(loc)
         try {
-            altsPopup.width = w; altsPopup.height = h
+            altsPopup.width = w.toInt(); altsPopup.height = h
             altsPopup.showAtLocation(this, Gravity.NO_GRAVITY,
                 loc[0] + left.toInt(), loc[1] + k.bounds.top.toInt() - h - dp(4f).toInt())
         } catch (_: Exception) { }
     }
 
     private fun hideAlts() {
+        altsActive = false
         if (altsPopup.isShowing) altsPopup.dismiss()
     }
 

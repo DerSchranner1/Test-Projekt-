@@ -85,6 +85,55 @@ class KeyboardHarness(
         settle()
     }
 
+    private fun touch(action: Int, x: Float, y: Float, view: View = keyboard) {
+        val t = SystemClock.uptimeMillis()
+        view.dispatchTouchEvent(MotionEvent.obtain(t, t, action, x, y, 0))
+    }
+
+    fun letter(c: Char): Key = key { it.type == KeyType.CHAR && it.label.equals(c.toString(), ignoreCase = true) }
+    fun keyOf(type: KeyType): Key = key { it.type == type }
+
+    /** Lang drücken; danach optional um [slideCells] Felder zur Seite oder [slideDown] Tastenhöhen nach unten schieben. */
+    fun longPress(k: Key, slideCells: Float = 0f, slideDown: Float = 0f, release: Boolean = true) {
+        val x = k.bounds.centerX()
+        val y = k.bounds.centerY()
+        touch(MotionEvent.ACTION_DOWN, x, y)
+        shadowOf(Looper.getMainLooper()).idleFor(java.time.Duration.ofMillis(700))
+        if (!release) return
+        val x2 = x + slideCells * (k.bounds.width() + 15f)
+        val y2 = y + slideDown * k.bounds.height()
+        if (slideCells != 0f || slideDown != 0f) touch(MotionEvent.ACTION_MOVE, x2, y2)
+        touch(MotionEvent.ACTION_UP, x2, y2)
+        settle()
+    }
+
+    fun release(k: Key) { touch(MotionEvent.ACTION_UP, k.bounds.centerX(), k.bounds.centerY()); settle() }
+
+    /** Über die Buchstaben wischen (Wischen zum Schreiben). */
+    fun swipe(word: String) {
+        val pts = word.map { c -> letter(c).bounds.let { it.centerX() to it.centerY() } }
+        touch(MotionEvent.ACTION_DOWN, pts[0].first, pts[0].second)
+        for (i in 1 until pts.size) {
+            val (ax, ay) = pts[i - 1]
+            val (bx, by) = pts[i]
+            for (s in 1..8) touch(MotionEvent.ACTION_MOVE, ax + (bx - ax) * s / 8f, ay + (by - ay) * s / 8f)
+        }
+        touch(MotionEvent.ACTION_UP, pts.last().first, pts.last().second)
+        settle()
+    }
+
+    /** Auf einer Taste aufsetzen und waagerecht ziehen (Leertaste: Cursor, ⌫: Wörter löschen). */
+    fun drag(k: Key, dxPx: Float, steps: Int = 10) {
+        val x = k.bounds.centerX()
+        val y = k.bounds.centerY()
+        touch(MotionEvent.ACTION_DOWN, x, y)
+        for (s in 1..steps) touch(MotionEvent.ACTION_MOVE, x + dxPx * s / steps, y)
+        touch(MotionEvent.ACTION_UP, x + dxPx, y)
+        settle()
+    }
+
+    fun <T> field(name: String): T = ReflectionHelpers.getField(service, name)
+
     fun tap(label: String) = tapKey(key { it.type == KeyType.CHAR && it.label.equals(label, ignoreCase = true) })
     fun tap(type: KeyType) = tapKey(key { it.type == type })
 
