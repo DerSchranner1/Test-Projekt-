@@ -29,7 +29,8 @@ for line in open(words_path, encoding="utf-8"):
         vocab[w.lower()] = len(vocab)
         display.append(w)
 ids = list(vocab.keys())
-hunlow = set(l.strip() for l in open(hun_path, encoding="utf-8") if l[:1].islower())
+hun_all = set(l.strip() for l in open(hun_path, encoding="utf-8"))
+hunlow = set(w for w in hun_all if w[:1].islower())
 en_rank = {w.strip(): i for i, w in enumerate(open(en_path, encoding="utf-8"))}
 
 # Feste Schreibweisen für Marken und Abkürzungen
@@ -119,6 +120,72 @@ with open(heldout_path, "w", encoding="utf-8") as f:
     f.write("\n".join(heldout) + "\n")
 
 
+# ---- Häufige Falschschreibungen entfernen ----------------------------------------------------
+# Das Häufigkeits-Wörterbuch stammt aus echten Texten und enthält deshalb auch verbreitete Fehler
+# („vieleicht“, „standart“). Als Fehler gilt ein Wort, das
+#   - kein gültiges deutsches Wort ist und im Englischen nicht vorkommt,
+#   - in den Texten klein geschrieben wird (also kein Name ist) und
+#   - genau einen Tippfehler von einem deutlich häufigeren, gültigen Wort entfernt ist.
+LETTERS = "abcdefghijklmnopqrstuvwxyzäöüß"
+COLLOQUIAL = set("kannste haste biste willste gehste siehste weißte machste kommste haben'se".split())
+scores = {}
+en_scores = {}
+for w, sc in word_lines:
+    parts = sc.split("\t")
+    scores.setdefault(w.lower(), int(parts[0]))
+    en_scores.setdefault(w.lower(), int(parts[1]) if len(parts) > 1 else 0)
+
+
+def edits1(w):
+    for i in range(len(w) + 1):
+        if i < len(w):
+            yield w[:i] + w[i + 1:]
+            for c in LETTERS:
+                if c != w[i]:
+                    yield w[:i] + c + w[i + 1:]
+            if i + 1 < len(w) and w[i] != w[i + 1]:
+                yield w[:i] + w[i + 1] + w[i] + w[i + 2:]
+        for c in LETTERS:
+            yield w[:i] + c + w[i:]
+
+
+# Vorsilben, mit denen aus einem gültigen Verb ein weiteres gültiges Wort wird („rausgehen“, „reinkommen“)
+PREFIXES = """raus rein ran rum runter rüber rauf hoch ab an auf aus bei durch ein her hin los mit nach um unter
+über vor weg zu zurück zusammen weiter hinzu heraus herein hinaus hinein herum herunter hinunter fest frei
+fern heim hinter nieder vorbei dazu davon daran darauf""".split()
+PREFIX_SET = set(PREFIXES)
+
+
+def derived(low):
+    """Vorsilbe + gültiges Wort (auch mit eingeschobenem „zu“) oder Befehlsform eines Verbs?"""
+    for pre in PREFIXES:
+        if low.startswith(pre) and len(low) - len(pre) >= 4:
+            rest = low[len(pre):]
+            for r in (rest, rest[2:] if rest.startswith("zu") else None):
+                if r and len(r) >= 4 and r not in PREFIX_SET and (r in hunlow or scores.get(r, 0) > 0 and r in hunlow):
+                    return True
+    return (low + "e") in hunlow or (low + "en") in hunlow
+
+
+misspelled = set()
+for i, low in enumerate(ids):
+    sc = scores.get(low, 0)
+    if len(low) < 6 or sc <= 0 or en_scores.get(low, 0) > 0 or low in COLLOQUIAL or low in FIXED:
+        continue
+    if low in hunlow or (low[0].upper() + low[1:]) in hun_all or not low.isalpha() or derived(low):
+        continue
+    forms = surface.get(i)
+    if forms:
+        total = sum(forms.values())
+        lower = sum(c for f, c in forms.items() if f == f.lower())
+        if lower < 0.7 * total:
+            continue                      # meist groß geschrieben: Name oder Hauptwort
+    for v in edits1(low):
+        if v in hunlow and scores.get(v, 0) >= sc + 60:
+            misspelled.add(i)
+            break
+print("Falschschreibungen entfernt:", len(misspelled), sorted(ids[i] for i in misspelled), file=sys.stderr)
+
 # ---- Großschreibung im Wörterbuch verbessern -------------------------------------------------
 changed = 0
 for i, low in enumerate(ids):
@@ -142,11 +209,16 @@ for i, low in enumerate(ids):
 by_low = {low: display[i] for i, low in enumerate(ids)}
 with open(words_path, "w", encoding="utf-8") as f:
     seen = set()
+    bad_words = {ids[i] for i in misspelled}
     for w, score in word_lines:
         low = w.lower()
         if low in seen:
             continue
         seen.add(low)
+        if low in bad_words:
+            # Als bekannte Falschschreibung vermerken (Häufigkeit -1): wird nie vorgeschlagen und immer markiert
+            f.write(f"{low}\t-1\t0\n")
+            continue
         f.write(f"{by_low[low]}\t{score}\n")
 print("Schreibweise korrigiert:", changed, file=sys.stderr)
 
@@ -180,8 +252,9 @@ lines_tri = 0
 with open(out_path, "w", encoding="utf-8") as f:
     for p, lst in sorted(bi_by.items(), key=lambda x: -sum(c for c, _ in x[1])):
         total = sum(c for c, _ in lst)
-        if total < BI_CTX_MIN:
+        if total < BI_CTX_MIN or p in misspelled:
             continue
+        lst = [x for x in lst if x[1] not in misspelled]
         top = [(c, w) for c, w in sorted(lst, reverse=True)[: (60 if p == START else BI_TOP)] if c >= BI_MIN]
         if not top:
             continue
@@ -190,8 +263,9 @@ with open(out_path, "w", encoding="utf-8") as f:
         lines_bi += 1
     for ctx, lst in sorted(tri_by.items(), key=lambda x: -sum(c for c, _ in x[1])):
         total = sum(c for c, _ in lst)
-        if total < TRI_CTX_MIN:
+        if total < TRI_CTX_MIN or ctx // V in misspelled or ctx % V in misspelled:
             continue
+        lst = [x for x in lst if x[1] not in misspelled]
         top = [(c, w) for c, w in sorted(lst, reverse=True)[:TRI_TOP] if c >= TRI_MIN]
         if not top:
             continue

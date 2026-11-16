@@ -16,6 +16,7 @@ class PredictionQualityTest {
         Files.createTempDirectory("q").toFile(),
         if (withNgrams) ({ File("src/main/assets/ngrams.tsv").inputStream() }) else null,
         if (withNgrams) ({ File("src/main/assets/ngrams_en.tsv").inputStream() }) else null,
+        { name -> File("src/main/assets/$name").inputStream() },
     ).also { it.loadBlocking() }
 
     private val token = Regex("[\\p{L}]+(?:['’-][\\p{L}]+)*|[.!?…]+|\\d+")

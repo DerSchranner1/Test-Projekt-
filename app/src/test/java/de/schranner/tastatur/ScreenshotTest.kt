@@ -57,6 +57,21 @@ class ScreenshotTest {
         media.select(MediaPanel.Tab.STICKER); h.settle(); h.screenshot("18_sticker")
     }
 
+    @Test fun emojiSearchLive() {
+        val h = KeyboardHarness()
+        h.tap(KeyType.EMOJI)
+        h.layout()
+        h.clickAll { it is android.widget.TextView && it.text.toString() == "🔍" }
+        h.type("katze")
+        h.screenshot("20_emoji_suche_live")
+    }
+
+    @Test fun squiggleInStrip() {
+        val h = KeyboardHarness()
+        h.type("das ist ein fehelr ")
+        h.screenshot("19_kringel")
+    }
+
     @Test fun typoIsUnderlined() {
         val h = KeyboardHarness()
         h.type("das ist ein fehelr im text")

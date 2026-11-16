@@ -24,6 +24,7 @@ class TouchModelTest {
         Files.createTempDirectory("t").toFile(),
         { File("src/main/assets/ngrams.tsv").inputStream() },
         { File("src/main/assets/ngrams_en.tsv").inputStream() },
+        { name -> File("src/main/assets/$name").inputStream() },
     ).also { it.loadBlocking() }
 
     @Test fun centerAlwaysHitsItsKey() {

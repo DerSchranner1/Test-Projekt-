@@ -79,12 +79,50 @@ class FeaturesTest {
         val strong = KeyboardHarness { it.vibration = 100 }
         strong.type("a")
         assertTrue(vib.isVibrating)
-        assertEquals(30L, vib.milliseconds)
+        val letter = vib.milliseconds
+        strong.space()
+        assertTrue("Leertaste soll kräftiger sein als ein Buchstabe", vib.milliseconds > letter)
+        val weak = KeyboardHarness { it.vibration = 20 }
+        weak.type("a")
+        assertTrue(vib.milliseconds < letter)
         val off = KeyboardHarness { it.vibration = 0 }
-        vib.milliseconds.let { }  // Zustand vom ersten Tippen
         ReflectionHelpers.setField(vib, "vibrating", false)
         off.type("a")
         assertFalse(vib.isVibrating)
+    }
+
+    // ---------------------------------------------------------------- Datenschutz
+
+    @Test fun nothingIsLearnedWhenLearningIsOffOrIncognito() {
+        val off = KeyboardHarness { it.learnFromTyping = false }
+        off.type("qwzirbl qwzirbl qwzirbl ")
+        val engine = EngineHolder.get(context)
+        assertFalse(engine.isKnown("qwzirbl"))
+        assertTrue(engine.userWordList().isEmpty())
+        // Standard: Name ohne ähnliches Wort wird gelernt
+        val on = KeyboardHarness { it.learnFromTyping = true }
+        on.type("qwzirbl qwzirbl ")
+        assertTrue(EngineHolder.get(context).isKnown("qwzirbl"))
+    }
+
+    @Test fun clipboardHistoryCanBeSwitchedOff() {
+        val h = KeyboardHarness { it.clipboardHistory = false }
+        val cm = h.service.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        cm.setPrimaryClip(android.content.ClipData.newPlainText("", "geheim123"))
+        h.settle()
+        assertTrue(h.suggestions().none { it.contains("geheim123") })
+        assertFalse(java.io.File(context.filesDir, "clipboard.json").let { it.exists() && it.readText().contains("geheim123") })
+    }
+
+    @Test fun animatedEmojiAsksBeforeUsingTheNetwork() {
+        val h = KeyboardHarness()
+        h.tap(KeyType.EMOJI)
+        assertFalse(h.prefs.onlineAnimated)
+        h.service.commitAnimatedEmoji("😀")
+        h.settle()
+        // Noch nichts geladen und nichts eingefügt – erst die Zustimmung
+        assertEquals("", h.text)
+        assertFalse(h.prefs.onlineAnimated)
     }
 
     // ---------------------------------------------------------------- Diktieren ohne Schlüssel

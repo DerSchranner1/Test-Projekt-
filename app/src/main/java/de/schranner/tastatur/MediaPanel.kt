@@ -61,7 +61,15 @@ class MediaPanel(
     private var loadToken = 0
 
     // Inhalte
-    private var emojiItems: List<EmojiData.Emoji> = emptyList()
+    /** Emoji-Liste: Überschriften und Zeilen mit Emojis – alle Gruppen untereinander, wie bei Gboard. */
+    private sealed class Row {
+        class Header(val title: String) : Row()
+        class Cells(val items: List<EmojiData.Emoji>) : Row()
+    }
+    private var emojiRows: List<Row> = emptyList()
+    /** Zeile, bei der jede Gruppe der unteren Leiste beginnt (0 = zuletzt verwendet). */
+    private var sectionStart = IntArray(0)
+    private var columns = 8
     private var gifItems: List<GiphyClient.Item> = emptyList()
     private var ownItems: List<File> = emptyList()
     /** Große Emojis im Raster (Emoji-Sticker oder animierte Emojis). */
@@ -69,7 +77,7 @@ class MediaPanel(
     private var glyphAnimated = false
 
     private val tabViews = HashMap<Tab, TextView>()
-    private val emojiGrid = GridView(context)
+    private val emojiList = android.widget.ListView(context)
     private val variantRow = LinearLayout(context)
     private val variantScroll = HorizontalScrollView(context)
     private val mediaBox = LinearLayout(context)
@@ -86,11 +94,11 @@ class MediaPanel(
         tab = t
         tabViews.forEach { (k, v) -> styleChip(v, k == t) }
         hideVariants()
-        emojiGrid.visibility = if (t == Tab.EMOJI) VISIBLE else GONE
+        emojiList.visibility = if (t == Tab.EMOJI) VISIBLE else GONE
         mediaBox.visibility = if (t == Tab.EMOJI) GONE else VISIBLE
         emojiCats.visibility = if (t == Tab.EMOJI) VISIBLE else INVISIBLE
         when (t) {
-            Tab.EMOJI -> if (emojiQuery != null) showEmojiSearch() else selectEmojiCategory(emojiCategory)
+            Tab.EMOJI -> if (emojiQuery != null) showEmojiSearch() else showAllEmojis(emojiCategory)
             Tab.GIF -> showGifs()
             Tab.STICKER -> { buildStickerChips(); showStickerSource() }
         }
@@ -108,30 +116,62 @@ class MediaPanel(
     }
 
     fun refreshRecents() {
-        if (tab == Tab.EMOJI && emojiQuery == null && emojiCategory == 0) selectEmojiCategory(0)
+        // Beim Öffnen: zuletzt verwendete oben, darunter alle Emojis
+        if (tab == Tab.EMOJI && emojiQuery == null) showAllEmojis(0)
+    }
+
+    private fun columnCount(): Int {
+        val w = if (width > 0) width else resources.displayMetrics.widthPixels
+        return ((w - dp(8f)) / dp(42f)).coerceIn(5, 14)
+    }
+
+    /** Alle Emojis als eine durchgehende Liste; [jumpTo] springt zu einer Gruppe (0 = Anfang). */
+    private fun showAllEmojis(jumpTo: Int) {
+        EmojiData.ensureLoaded(context)
+        emojiQuery = null
+        columns = columnCount()
+        val rows = ArrayList<Row>()
+        val starts = IntArray(EmojiData.categories.size + 1)
+        val recent = recentEmojis().take(columns * 2).map { EmojiData.Emoji(it, false, emptyList(), "") }
+        if (recent.isNotEmpty()) {
+            rows += Row.Header("Zuletzt verwendet")
+            recent.chunked(columns).forEach { rows += Row.Cells(it) }
+        }
+        EmojiData.categories.forEachIndexed { i, c ->
+            starts[i + 1] = rows.size
+            rows += Row.Header(c.name)
+            c.emojis.chunked(columns).forEach { rows += Row.Cells(it) }
+        }
+        emojiRows = rows
+        sectionStart = starts
+        emojiAdapter.notifyDataSetChanged()
+        selectEmojiCategory(jumpTo)
     }
 
     private fun selectEmojiCategory(i: Int) {
-        EmojiData.ensureLoaded(context)
-        emojiQuery = null
         emojiCategory = i
-        emojiItems = if (i == 0) {
-            recentEmojis().map { EmojiData.Emoji(it, false, emptyList(), "") }
-                .ifEmpty { EmojiData.categories[0].emojis }
-        } else EmojiData.categories[i - 1].emojis
-        emojiAdapter.notifyDataSetChanged()
-        emojiGrid.setSelection(0)
+        if (emojiQuery != null) { showAllEmojis(i); return }
+        emojiList.setSelection(sectionStart.getOrElse(i) { 0 })
+        // Ohne zuletzt verwendete Emojis beginnt die Liste direkt mit den Smileys
+        highlightCategory(if (i == 0 && sectionStart.getOrElse(1) { 0 } == 0) 1 else i)
+    }
+
+    private fun highlightCategory(i: Int) {
         emojiCatViews.forEachIndexed { j, tv -> tv.alpha = if (j == i) 1f else 0.45f }
     }
 
     private fun showEmojiSearch() {
         EmojiData.ensureLoaded(context)
         val q = emojiQuery ?: return
-        emojiItems = EmojiData.search(q)
+        columns = columnCount()
+        val found = EmojiData.search(q)
+        val rows = ArrayList<Row>()
+        rows += Row.Header(if (found.isEmpty()) "Kein Emoji für „$q“ gefunden" else "Suche: $q")
+        found.chunked(columns).forEach { rows += Row.Cells(it) }
+        emojiRows = rows
         emojiAdapter.notifyDataSetChanged()
-        emojiGrid.setSelection(0)
+        emojiList.setSelection(0)
         emojiCatViews.forEach { it.alpha = 0.45f }
-        if (emojiItems.isEmpty()) Toast.makeText(context, "Kein Emoji für „$q“ gefunden", Toast.LENGTH_SHORT).show()
     }
 
     // ---- Hauttöne und andere Varianten (langes Drücken)
@@ -266,6 +306,16 @@ class MediaPanel(
         }
     }
 
+    /** Zustimmung einholen, bevor etwas aus dem Netz geladen wird. */
+    fun askConsent(text: String, onAllow: () -> Unit) {
+        showStatus(text)
+        status.setOnClickListener {
+            status.setOnClickListener(null)
+            showStatus(null)
+            onAllow()
+        }
+    }
+
     private fun showStatus(text: String?) {
         status.text = text ?: ""
         status.visibility = if (text == null) GONE else VISIBLE
@@ -300,17 +350,59 @@ class MediaPanel(
     // ------------------------------------------------------------------ Adapter
 
     private val emojiAdapter = object : BaseAdapter() {
-        override fun getCount() = emojiItems.size
-        override fun getItem(position: Int) = emojiItems[position]
+        override fun getCount() = emojiRows.size
+        override fun getItem(position: Int) = emojiRows[position]
         override fun getItemId(position: Int) = position.toLong()
+        override fun getViewTypeCount() = 2
+        override fun getItemViewType(position: Int) = if (emojiRows[position] is Row.Header) 0 else 1
+        override fun isEnabled(position: Int) = false
         override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
-            val tv = (convertView as? TextView) ?: TextView(context).apply {
-                gravity = Gravity.CENTER
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f)
-                layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44f))
+            when (val row = emojiRows[position]) {
+                is Row.Header -> {
+                    val tv = (convertView as? TextView) ?: TextView(context).apply {
+                        setTextColor(theme.hint)
+                        setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+                        setPadding(dp(10f), dp(8f), dp(10f), dp(2f))
+                    }
+                    tv.text = row.title
+                    return tv
+                }
+                is Row.Cells -> {
+                    val line = (convertView as? LinearLayout)?.takeIf { it.childCount == columns }
+                        ?: LinearLayout(context).apply {
+                            orientation = HORIZONTAL
+                            setPadding(dp(4f), 0, dp(4f), 0)
+                            repeat(columns) {
+                                addView(TextView(context).apply {
+                                    gravity = Gravity.CENTER
+                                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 26f)
+                                }, LayoutParams(0, dp(44f), 1f))
+                            }
+                        }
+                    for (i in 0 until columns) {
+                        val cell = line.getChildAt(i) as TextView
+                        val e = row.items.getOrNull(i)
+                        if (e == null) {
+                            cell.text = ""
+                            cell.setOnClickListener(null)
+                            cell.setOnLongClickListener(null)
+                            cell.isClickable = false
+                            continue
+                        }
+                        cell.text = preferred(e)
+                        cell.setOnClickListener {
+                            hideVariants()
+                            host.commitEmoji(preferred(e)); host.haptic(it)
+                        }
+                        cell.setOnLongClickListener {
+                            val shown = showVariants(e)
+                            if (shown) host.haptic(it)
+                            shown
+                        }
+                    }
+                    return line
+                }
             }
-            tv.text = preferred(emojiItems[position])
-            return tv
         }
     }
 
@@ -414,24 +506,25 @@ class MediaPanel(
 
         // --- Inhalt
         val contentFrame = FrameLayout(context)
-        emojiGrid.apply {
-            numColumns = GridView.AUTO_FIT
-            columnWidth = dp(42f)
-            stretchMode = GridView.STRETCH_COLUMN_WIDTH
-            setPadding(dp(4f), 0, dp(4f), dp(4f))
+        emojiList.apply {
+            divider = null
+            dividerHeight = 0
+            setPadding(0, 0, 0, dp(4f))
             clipToPadding = false
             adapter = emojiAdapter
-            setOnItemClickListener { _, v, pos, _ ->
-                hideVariants()
-                host.commitEmoji(preferred(emojiItems[pos])); host.haptic(v)
-            }
-            setOnItemLongClickListener { _, v, pos, _ ->
-                val shown = showVariants(emojiItems[pos])
-                if (shown) host.haptic(v)
-                shown
-            }
+            // Beim Blättern die passende Gruppe in der unteren Leiste hervorheben
+            setOnScrollListener(object : android.widget.AbsListView.OnScrollListener {
+                override fun onScrollStateChanged(view: android.widget.AbsListView?, state: Int) {}
+                override fun onScroll(view: android.widget.AbsListView?, first: Int, visible: Int, total: Int) {
+                    if (emojiQuery != null || sectionStart.isEmpty()) return
+                    var current = 0
+                    for (i in sectionStart.indices) if (i > 0 && sectionStart[i] <= first) current = i
+                    if (first == 0) current = if (sectionStart.getOrElse(1) { 0 } == 0) 1 else 0
+                    highlightCategory(current)
+                }
+            })
         }
-        contentFrame.addView(emojiGrid)
+        contentFrame.addView(emojiList)
 
         mediaBox.orientation = VERTICAL
         val scroll = HorizontalScrollView(context).apply { isHorizontalScrollBarEnabled = false }
@@ -493,8 +586,26 @@ class MediaPanel(
         }, LayoutParams(dp(52f), dp(42f)))
         addView(bottom, LayoutParams(LayoutParams.MATCH_PARENT, dp(42f)))
 
-        selectEmojiCategory(if (recentEmojis().isEmpty()) 1 else 0)
         select(Tab.EMOJI)
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        if (w > 0 && columnCount() != columns && tab == Tab.EMOJI) {
+            post { if (emojiQuery != null) showEmojiSearch() else showAllEmojis(emojiCategory) }
+        }
+    }
+
+    /** Für Tests: das erste sichtbare Emoji antippen. */
+    fun tapFirstEmoji(): String? {
+        for (r in 0 until emojiList.childCount) {
+            val line = emojiList.getChildAt(r) as? LinearLayout ?: continue
+            val cell = line.getChildAt(0) as? TextView ?: continue
+            if (cell.text.isNullOrEmpty()) continue
+            cell.performClick()
+            return cell.text.toString()
+        }
+        return null
     }
 
     companion object {

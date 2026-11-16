@@ -5,7 +5,6 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.view.MotionEvent
 import android.view.View
-import android.widget.GridView
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -117,6 +116,47 @@ class InteractionTest {
         assertTrue(h.suggestions().none { it in listOf("dt", "df", "dg") })
     }
 
+    @Test fun longPressOnSpaceTurnsKeyboardIntoTrackpad() {
+        val h = KeyboardHarness()
+        h.type("hallo welt")
+        val moves = ArrayList<String>()
+        val real = h.service
+        h.keyboard.listener = object : KeyboardView.Listener by real {
+            override fun onCursorMove(steps: Int) { moves += "x$steps" }
+            override fun onCursorMoveVertical(steps: Int) { moves += "y$steps" }
+        }
+        val space = h.keyOf(KeyType.SPACE)
+        // lang drücken, dann nach links und nach oben schieben
+        h.longPress(space, release = false)
+        val t = android.os.SystemClock.uptimeMillis()
+        val x = space.bounds.centerX()
+        val y = space.bounds.centerY()
+        h.keyboard.dispatchTouchEvent(MotionEvent.obtain(t, t, MotionEvent.ACTION_MOVE, x - 120f, y, 0))
+        h.keyboard.dispatchTouchEvent(MotionEvent.obtain(t, t, MotionEvent.ACTION_MOVE, x - 120f, y - 160f, 0))
+        h.keyboard.dispatchTouchEvent(MotionEvent.obtain(t, t, MotionEvent.ACTION_UP, x - 120f, y - 160f, 0))
+        h.settle()
+        println("Tastfeld-Bewegungen: $moves")
+        assertTrue(moves.any { it.startsWith("x-") })
+        assertTrue(moves.any { it.startsWith("y-") })
+        assertEquals("Hallo welt", h.text)           // kein Leerzeichen getippt
+    }
+
+    @Test fun unknownWordIsSquiggledInTheStripAndGrammarHintWorks() {
+        val h = KeyboardHarness()
+        h.type("das unterkringeln ")
+        val slots: Array<android.widget.TextView?> = h.field("slots")
+        val marked = slots.filterIsInstance<SquiggleTextView>().firstOrNull { it.squiggle }
+        assertTrue("unbekanntes Wort soll unterkringelt sein", marked != null && marked.text.toString() == "unterkringeln")
+        h.type("funktioniert ")
+        println("Grammatik-Hinweis: " + h.suggestions())
+        assertTrue(h.suggestions().contains("Unterkringeln"))
+        h.pick("Unterkringeln")
+        assertEquals("Das Unterkringeln funktioniert ", h.text)
+        // Nach „beim“ gleich groß
+        h.type("beim lauf")
+        assertTrue(h.suggestions().contains("Laufen"))
+    }
+
     @Test fun swipeOnBackspaceDeletesWords() {
         val h = KeyboardHarness()
         h.type("eins zwei drei")
@@ -141,18 +181,50 @@ class InteractionTest {
         h.tap(KeyType.EMOJI)
         val media = h.field<MediaPanel>("mediaPanel")
         assertEquals(View.VISIBLE, media.visibility)
-        val grid = ReflectionHelpers.getField<GridView>(media, "emojiGrid")
         h.layout()
-        grid.performItemClick(grid.getChildAt(0), 0, 0)
+        val first = media.tapFirstEmoji()
         h.settle()
-        assertTrue(h.text.startsWith("Hi "))
-        assertTrue("Emoji fehlt: ${h.text}", h.text.length > 3)
+        assertTrue("Emoji fehlt: ${h.text}", first != null && h.text == "Hi $first")
+        // Wieder öffnen: zuletzt verwendete stehen oben, darunter alle Gruppen (nichts wirkt „leer“)
+        h.tap(KeyType.EMOJI)
+        h.layout()
+        val rows = ReflectionHelpers.getField<List<Any>>(media, "emojiRows")
+        assertTrue("nur ${rows.size} Zeilen", rows.size > 150)
         // Suche
         media.search(MediaPanel.Tab.EMOJI, "pizza")
         h.settle()
-        grid.performItemClick(grid.getChildAt(0), 0, 0)
+        media.tapFirstEmoji()
         h.settle()
         assertTrue(h.text.endsWith("🍕"))
+    }
+
+    @Test fun emojiSearchWorksFromTheSearchButton() {
+        val h = KeyboardHarness()
+        h.type("hi ")
+        h.tap(KeyType.EMOJI)
+        h.layout()
+        // Lupe im Emoji-Bereich antippen: die Tastatur erscheint mit Suchzeile
+        assertTrue("Lupe nicht gefunden", h.clickAll { it is android.widget.TextView && it.text.toString() == "🔍" })
+        assertEquals("searchRow", h.visibleRow())
+        h.type("pizza")
+        h.layout()
+        assertEquals("Hi ", h.text)
+        // Treffer stehen schon beim Tippen in der Leiste
+        val hits = h.field<android.widget.LinearLayout>("searchHits")
+        val shown = (0 until hits.childCount).map { (hits.getChildAt(it) as android.widget.TextView).text.toString() }
+        println("Emoji-Suche live: $shown")
+        assertTrue("keine Treffer: $shown", "🍕" in shown)
+        hits.getChildAt(shown.indexOf("🍕")).performClick()
+        h.settle()
+        assertEquals("Hi 🍕", h.text)
+        // Enter zeigt alle Treffer groß im Emoji-Bereich
+        h.tap(KeyType.ENTER)
+        h.layout()
+        val media = h.field<MediaPanel>("mediaPanel")
+        assertEquals(View.VISIBLE, media.visibility)
+        media.tapFirstEmoji()
+        h.settle()
+        assertEquals("Hi 🍕🍕", h.text)
     }
 
     @Test fun copiedTextIsOfferedForPasting() {

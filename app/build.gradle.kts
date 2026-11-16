@@ -6,13 +6,20 @@ plugins {
 android {
     namespace = "de.schranner.tastatur"
     compileSdk = 35
+    ndkVersion = "28.2.13676358"
 
     defaultConfig {
         applicationId = "de.schranner.tastatur"
         minSdk = 29
         targetSdk = 34
-        versionCode = 6
-        versionName = "0.6"
+        versionCode = 7
+        versionName = "0.7"
+
+        // Offline-Spracherkennung (whisper.cpp) für 64-Bit-ARM – das sind praktisch alle aktuellen Handys
+        ndk { abiFilters += "arm64-v8a" }
+        externalNativeBuild {
+            cmake { arguments += listOf("-DCMAKE_BUILD_TYPE=Release", "-DANDROID_STL=c++_static") }
+        }
     }
 
     signingConfigs {
@@ -38,6 +45,13 @@ android {
     }
     kotlinOptions {
         jvmTarget = "17"
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
     }
 
     testOptions {

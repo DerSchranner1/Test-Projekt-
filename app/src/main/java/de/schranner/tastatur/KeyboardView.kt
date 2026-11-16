@@ -34,7 +34,7 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
         fun onChar(text: String)
         fun onAction(type: KeyType)
         fun onCursorMove(steps: Int)
-        fun onSpaceLongPress()
+        fun onCursorMoveVertical(steps: Int)
         fun onEmojiLongPress()
         fun onDeleteWord()
         fun onGesture(path: List<GestureDecoder.Pt>)
@@ -118,6 +118,9 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
         var consumed = false
         var longPressed = false
         var spaceDrag = false
+        /** Leertaste lang gedrückt: die Tastatur wird zum Tastfeld, der Finger schiebt den Cursor. */
+        var trackpad = false
+        var lastCursorY = 0f
         var deleteSwipe = false
         var lastCursorX = downX
         var downY = 0f
@@ -132,6 +135,7 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
     private val repeatRunnable = object : Runnable {
         override fun run() {
             listener?.onAction(KeyType.DELETE)
+            feedback(Haptics.Kind.TICK)
             handler.postDelayed(this, REPEAT_INTERVAL)
         }
     }
@@ -290,6 +294,21 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
     override fun onDraw(canvas: Canvas) {
         canvas.drawColor(theme.background)
         val pressed = touches.values.mapNotNull { if (it.consumed || it.gesture) null else it.key }.toSet()
+        if (anyTrackpad) {
+            // Tastfeld: leere Tasten zeigen, dass jetzt der Cursor bewegt wird
+            keyPaint.color = theme.key
+            keyPaint.alpha = 110
+            for (row in rows) for (k in row) {
+                val r = minOf(dp(7f), k.bounds.height() / 3f)
+                canvas.drawRoundRect(k.bounds, r, r, keyPaint)
+            }
+            keyPaint.alpha = 255
+            textPaint.color = theme.hint
+            textPaint.typeface = Typeface.DEFAULT
+            textPaint.textSize = rowHeight() * 0.34f
+            canvas.drawText("◀  Finger bewegen = Cursor  ▶", width / 2f, height / 2f, textPaint)
+            return
+        }
         for (row in rows) for (k in row) drawKey(canvas, k, k in pressed)
         if (gestureTrail) {
             val g = touches.values.firstOrNull { it.gesture } ?: return
@@ -442,7 +461,7 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
 
     private fun onDown(t: Touch) {
         val k = t.key ?: return
-        feedback()
+        feedback(if (k.type == KeyType.CHAR) Haptics.Kind.KEY else Haptics.Kind.SPECIAL)
         when (k.type) {
             KeyType.DELETE -> {
                 listener?.onAction(KeyType.DELETE)
@@ -456,7 +475,7 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
                 showPreview(k)
                 scheduleLongPress(t, LONG_PRESS)
             }
-            KeyType.SPACE -> scheduleLongPress(t, LONG_PRESS_SPACE)
+            KeyType.SPACE -> scheduleLongPress(t, LONG_PRESS_TRACKPAD)
             KeyType.EMOJI -> scheduleLongPress(t, LONG_PRESS_SPACE)
             else -> {}
         }
@@ -482,25 +501,37 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
                 val right = altsLeftInView + altsCellWidth * altsView.items.size
                 val away = x < altsLeftInView - altsCellWidth || x > right + altsCellWidth ||
                     y > k.bounds.bottom + k.bounds.height()
+                val before = altsView.selected
                 altsView.selected = if (away) -1
                 else ((x - altsLeftInView) / altsCellWidth).toInt().coerceIn(0, altsView.items.size - 1)
+                if (altsView.selected != before) feedback(Haptics.Kind.TICK)
             }
             return
         }
         when (k.type) {
             KeyType.SPACE -> {
-                if (!t.spaceDrag && abs(x - t.downX) > dp(14f)) {
+                if (!t.spaceDrag && !t.trackpad && abs(x - t.downX) > dp(14f)) {
                     t.spaceDrag = true
                     cancelTimers()
                     t.lastCursorX = x
                 }
-                if (t.spaceDrag) {
+                if (t.spaceDrag || t.trackpad) {
                     val step = dp(11f)
                     val steps = ((x - t.lastCursorX) / step).toInt()
                     if (steps != 0) {
                         listener?.onCursorMove(steps)
                         t.lastCursorX += steps * step
-                        feedback()
+                        feedback(Haptics.Kind.TICK)
+                    }
+                }
+                if (t.trackpad) {
+                    // Im Tastfeld-Modus auch zeilenweise nach oben und unten
+                    val stepY = dp(26f)
+                    val lines = ((y - t.lastCursorY) / stepY).toInt()
+                    if (lines != 0) {
+                        listener?.onCursorMoveVertical(lines)
+                        t.lastCursorY += lines * stepY
+                        feedback(Haptics.Kind.TICK)
                     }
                 }
             }
@@ -514,7 +545,7 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
                 } else if (t.deleteSwipe && t.lastCursorX - x > dp(35f)) {
                     t.lastCursorX = x
                     listener?.onDeleteWord()
-                    feedback()
+                    feedback(Haptics.Kind.SPECIAL)
                 }
             }
             KeyType.CHAR -> {
@@ -550,7 +581,7 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
                     if (s != null) listener?.onChar(s)
                 }
             }
-            t.spaceDrag || t.deleteSwipe -> {}
+            t.spaceDrag || t.deleteSwipe || t.trackpad -> {}
             k.type == KeyType.DELETE -> {}
             else -> fire(k)
         }
@@ -578,13 +609,20 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
         if (t.consumed || touches[t.id] !== t) return
         val k = t.key ?: return
         when (k.type) {
-            KeyType.SPACE -> { t.consumed = true; listener?.onSpaceLongPress() }
+            KeyType.SPACE -> {
+                // Wie „3D Touch“ beim iPhone: die Tastatur wird zum Tastfeld für den Cursor
+                t.trackpad = true
+                t.lastCursorX = t.points.lastOrNull()?.x ?: t.downX
+                t.lastCursorY = t.downY
+                feedback(Haptics.Kind.POPUP)
+                invalidate()
+            }
             KeyType.EMOJI -> { t.consumed = true; listener?.onEmojiLongPress() }
             KeyType.CHAR -> {
                 if (alternatesOf(k).isEmpty()) return
                 t.longPressed = true
                 hidePreview()
-                feedback()
+                feedback(Haptics.Kind.POPUP)
                 showAlts(k)
             }
             else -> {}
@@ -596,7 +634,9 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
         handler.removeCallbacks(repeatRunnable)
     }
 
-    private fun feedback() { haptics?.tap() }
+    private fun feedback(kind: Haptics.Kind = Haptics.Kind.KEY) { haptics?.play(kind) }
+
+    private val anyTrackpad: Boolean get() = touches.values.any { it.trackpad }
 
     // ---------------------------------------------------------------- Popups
 
@@ -711,6 +751,7 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
         const val BASE_ROW_DP = 37.3f
         const val LONG_PRESS = 330L
         const val LONG_PRESS_SPACE = 650L
+        const val LONG_PRESS_TRACKPAD = 380L
         const val REPEAT_DELAY = 400L
         const val REPEAT_INTERVAL = 45L
     }

@@ -22,11 +22,27 @@ class SuggestionEngine(
     dataDir: File,
     private val openNgrams: (() -> java.io.InputStream)? = null,
     private val openNgramsEn: (() -> java.io.InputStream)? = null,
+    /** Öffnet weitere Daten nach Namen: „valid.bloom“ (gültige Wortformen), „grammar_de.tsv“ (Verben). */
+    private val openExtra: ((String) -> java.io.InputStream)? = null,
 ) {
     constructor(context: Context) : this(
         { context.assets.open("words.tsv") }, context.filesDir,
         { context.assets.open("ngrams.tsv") }, { context.assets.open("ngrams_en.tsv") },
+        { name -> context.assets.open(name) },
     )
+
+    /**
+     * Aus dem Geschriebenen lernen? Aus, wenn der Nutzer es abgeschaltet hat oder die App um
+     * „nicht lernen“ bittet (z. B. Inkognito-Fenster im Browser).
+     */
+    @Volatile var learning = true
+
+    /** Alle gültigen Wortformen – damit auch seltene richtige Wörter nicht als Fehler gelten. */
+    @Volatile private var valid: BloomFilter? = null
+    /** Verbreitete Falschschreibungen („vieleicht“): immer markieren, nie vorschlagen. */
+    private val knownBad = HashSet<String>()
+    @Volatile private var infinitives: Set<String> = emptySet()
+    @Volatile private var finite: Set<String> = emptySet()
 
     /**
      * @param scoreDe/scoreEn Häufigkeit je Sprache: 900 + 100·log10(Anteil), 0 = kommt nicht vor
@@ -54,6 +70,8 @@ class SuggestionEngine(
         val bi: Followers?, val tri: Followers?,        // deutsche Wortfolgen
         val biEn: Followers?, val triEn: Followers?,    // englische Wortfolgen
         val en: Float,                                  // Anteil Englisch (0..1)
+        val nominal: Boolean = false,                   // nach „beim“, „zum“ …: ein Verb wird hier zum Hauptwort
+        val article: Boolean = false,                   // nach „das“, „ein“ …: könnte ein Hauptwort sein
     ) {
         val hasStatic get() = bi != null || biEn != null
     }
@@ -65,8 +83,43 @@ class SuggestionEngine(
         val de = ngrams
         val eng = ngramsEn
         val key3 = if (p2 != null) "$p2 $p1" else null
-        return Ctx(bigrams[p1], de[p1], key3?.let { de[it] }, eng[p1], key3?.let { eng[it] }, en)
+        return Ctx(
+            bigrams[p1], de[p1], key3?.let { de[it] }, eng[p1], key3?.let { eng[it] }, en,
+            nominal = en < 0.5f && p1 in NOMINAL_CONTEXT, article = en < 0.5f && p1 in ARTICLES,
+        )
     }
+
+    // ------------------------------------------------------------ Hauptwörter aus Verben
+
+    /**
+     * Sieht das Wort wie ein Verb in der Grundform aus („machen“, „anrufen“, „unterkringeln“)?
+     * Bekannte Verben stehen in einer Liste; unbekannte Wörter auf -eln/-ern zählen ebenfalls.
+     */
+    private fun isVerbLike(low: String): Boolean {
+        if (low.length < 4 || low in NOT_NOMINAL) return false
+        val inf = infinitives
+        if (low in inf) return true
+        for (pre in VERB_PREFIXES) {
+            if (low.length > pre.length + 3 && low.startsWith(pre) && low.substring(pre.length) in inf) return true
+        }
+        val known = dict[low]
+        return (known == null || known.scoreDe <= 0f) && low.length >= 6 && (low.endsWith("eln") || low.endsWith("ern"))
+    }
+
+    /**
+     * Grammatik-Hinweis im Nachhinein: „Das unterkringeln funktioniert“ – folgt auf „das/ein/mein … + Verb“
+     * ein gebeugtes Verb, war das erste Verb ein Hauptwort und gehört groß.
+     * @return die richtige Schreibweise von [prev], oder null
+     */
+    @Synchronized
+    fun nounFromVerb(prev2: String?, prev: String?, word: String): String? {
+        if (!loaded || prev == null || prev2 == null) return null
+        if (english > 0.5f || !prev[0].isLowerCase()) return null
+        if (prev2.lowercase() !in ARTICLES) return null
+        if (word.lowercase() !in finite || !isVerbLike(prev.lowercase())) return null
+        return prev.replaceFirstChar { it.uppercase() }
+    }
+
 
     // ------------------------------------------------------------ Sprache (Deutsch/Englisch)
 
@@ -188,6 +241,7 @@ class SuggestionEngine(
                 val de = p[1].toFloatOrNull() ?: continue
                 val en = p.getOrNull(2)?.toFloatOrNull() ?: 0f
                 val low = w.lowercase()
+                if (de < 0f) { knownBad += low; continue }
                 if (!dict.containsKey(low)) dict[low] = Entry(low, w, de, en, p.getOrNull(3))
             }
         }
@@ -205,6 +259,19 @@ class SuggestionEngine(
         }
         rebuildIndex()
         computeFirstLetters()
+        openExtra?.let { open ->
+            try { valid = BloomFilter.read(open("valid.bloom")) } catch (_: Exception) { }
+            try {
+                open("grammar_de.tsv").bufferedReader(Charsets.UTF_8).useLines { lines ->
+                    for (line in lines) {
+                        val t = line.indexOf('\t')
+                        if (t < 0) continue
+                        val set = HashSet(line.substring(t + 1).split(' '))
+                        if (line.startsWith("I")) infinitives = set else if (line.startsWith("F")) finite = set
+                    }
+                }
+            } catch (_: Exception) { }
+        }
     }
 
     @Synchronized
@@ -229,7 +296,10 @@ class SuggestionEngine(
         if (!loaded) return true
         if (word.any { it.isDigit() }) return true
         val low = word.lowercase()
-        if (dict.containsKey(low) || (userWords[low] ?: 0) >= LEARN_THRESHOLD) return true
+        if ((userWords[low] ?: 0) >= LEARN_THRESHOLD) return true
+        if (low in knownBad) return false
+        if (dict.containsKey(low)) return true
+        if (low.length > 1 && valid?.contains(low.replace('’', '\'')) == true) return true
         // Wortverbindungen mit Bindestrich: alle Teile prüfen
         if (low.contains('-')) return low.split('-').filter { it.isNotEmpty() }.all { isKnown(it) }
         // Zusammengesetzte Wörter (Haustür, Autobahnraststätte …)
@@ -280,10 +350,14 @@ class SuggestionEngine(
         // Das getippte Wort selbst etwas bevorzugen, wenn es bekannt ist
         if (isKnown(typed)) scores[low] = (scores[low] ?: score(low, c)) + 2.5f
 
-        return scores.entries.sortedByDescending { it.value }
-            .take(6)
-            .map { matchCase(display(it.key, c), typed) }
-            .distinct()
+        val out = ArrayList<String>(8)
+        for (e in scores.entries.sortedByDescending { it.value }.take(6)) {
+            val shown = matchCase(display(e.key, c), typed)
+            out += shown
+            // Nach „das“, „ein“, „mein“ … kann ein Verb auch ein Hauptwort sein: beide Schreibweisen anbieten
+            if (c.article && shown[0].isLowerCase() && isVerbLike(e.key)) out += shown.replaceFirstChar { it.uppercase() }
+        }
+        return out.distinct()
     }
 
     /** Korrekturvorschläge für ein fertiges, unbekanntes Wort. */
@@ -291,11 +365,14 @@ class SuggestionEngine(
     fun correctionsFor(word: String, prev: String?): List<String> {
         if (!loaded) return emptyList()
         val c = ctx(prev, null)
-        return corrections(word.lowercase())
-            .map { (w, d) -> w to score(w, c) - d * 4.5f }
-            .sortedByDescending { it.second }
-            .take(3)
-            .map { matchCase(display(it.first), word) }
+        val out = ArrayList<String>(4)
+        for ((w, _) in corrections(word.lowercase()).map { (w, d) -> w to score(w, c) - d * 4.5f }
+            .sortedByDescending { it.second }.take(3)) {
+            val shown = matchCase(display(w, c), word)
+            if (c.article && shown[0].isLowerCase() && isVerbLike(w)) out += shown.replaceFirstChar { it.uppercase() }
+            out += shown
+        }
+        return out.distinct().take(3)
     }
 
     /**
@@ -421,10 +498,19 @@ class SuggestionEngine(
     /** Wort wurde fertig geschrieben – merken (für Vorhersage und eigenes Wörterbuch). */
     @Synchronized
     fun learn(word: String, prev: String?, sentenceStart: Boolean) {
+        if (!learning) return
         if (!loaded || word.length < 2 || word.length > 40) return
         if (word.any { it.isDigit() }) return
         val low = word.lowercase()
         if (!dict.containsKey(low)) {
+            // Von selbst gelernt wird nur, was nicht nach Tippfehler aussieht: keine bekannte
+            // Falschschreibung und kein Wort, das fast wie ein bekanntes aussieht. Solche Wörter
+            // nimmt man bewusst mit „+“ auf – sonst würde zweimal Vertippen den Fehler „lernen“.
+            val alreadyMine = (userWords[low] ?: 0) >= LEARN_THRESHOLD
+            if (!alreadyMine && (low in knownBad || corrections(low).isNotEmpty())) {
+                learnFollower(low, prev, sentenceStart)
+                return
+            }
             val c = (userWords[low] ?: 0) + 1
             userWords[low] = c
             if (!sentenceStart || userCasing[low] == null) userCasing[low] = word
@@ -434,8 +520,14 @@ class SuggestionEngine(
             val e = dict[low]!!
             if (word != e.word && word != e.wordEn && word != word.lowercase()) userCasing[low] = word
         }
+        learnFollower(low, prev, sentenceStart)
+    }
+
+    /** Merken, welches Wort auf welches folgt (für die Vorhersage des nächsten Worts). */
+    private fun learnFollower(low: String, prev: String?, sentenceStart: Boolean) {
         val key = if (sentenceStart) START else prev?.lowercase()
-        if (key != null && key.length < 40) {
+        // Unbekannte, nicht gelernte Wörter (mögliche Tippfehler) nicht als Folgewort vorschlagen
+        if (key != null && key.length < 40 && (dict.containsKey(low) || (userWords[low] ?: 0) >= LEARN_THRESHOLD)) {
             val m = bigrams.getOrPut(key) { HashMap() }
             m[low] = (m[low] ?: 0) + 1
         }
@@ -583,12 +675,22 @@ class SuggestionEngine(
 
     /** Schreibweise: eigene Vorliebe > Schreibweise im Zusammenhang („Vielen Dank“) > Wörterbuch. */
     private fun display(low: String, c: Ctx): String {
-        userCasing[low]?.let { return it }
         val english = c.en > 0.5f
         val first = if (english) c.triEn else c.tri
         val second = if (english) c.biEn else c.bi
-        first?.let { f -> f.index(low).let { i -> if (i >= 0) f.cased[i]?.let { return it } } }
-        second?.let { f -> f.index(low).let { i -> if (i >= 0) f.cased[i]?.let { return it } } }
+        // 1. Wie wird das Wort in genau diesem Zusammenhang geschrieben? („Vielen Dank“, „zum einen“)
+        var seenInContext = false
+        for (f in listOf(first, second)) {
+            f ?: continue
+            val i = f.index(low)
+            if (i >= 0) { seenInContext = true; f.cased[i]?.let { return it } }
+        }
+        // 2. Nach „beim“, „zum“, „vom“ … wird ein Verb zum Hauptwort („beim Unterkringeln“)
+        if (c.nominal && !seenInContext && isVerbLike(low)) {
+            return (userCasing[low] ?: dict[low]?.word ?: low).replaceFirstChar { it.uppercase() }
+        }
+        // 3. Eigene Vorliebe, sonst Wörterbuch
+        userCasing[low]?.let { return it }
         val e = dict[low] ?: return low
         return if (english) e.wordEn ?: e.word else e.word
     }
@@ -683,6 +785,25 @@ class SuggestionEngine(
         private const val PRIOR_EN = 0.03f
         private const val FLOOR_SCORE = 150f
         private const val LN10 = 2.3026f
+
+        /** Nach diesen Wörtern (Verhältniswort + Artikel) ist ein folgendes Verb ein Hauptwort. */
+        private val NOMINAL_CONTEXT = setOf(
+            "beim", "zum", "vom", "ins", "fürs", "aufs", "durchs", "ans", "ums", "übers", "im", "am",
+        )
+        /** Nach diesen Wörtern kann ein Verb ein Hauptwort sein („das Essen“) oder nicht („das essen wir“). */
+        private val ARTICLES = setOf(
+            "das", "des", "dieses", "dies", "ein", "kein", "mein", "dein", "sein", "ihr", "unser", "euer",
+        )
+        /** Sehen aus wie Verben, sind in diesen Zusammenhängen aber fast nie Hauptwörter. */
+        private val NOT_NOMINAL = setOf(
+            "einen", "sein", "meinen", "deinen", "seinen", "eigenen", "werden", "haben", "weiten", "gleichen",
+            "morgen", "gegen", "wegen", "eben", "neben", "sieben", "zusammen", "offen", "selten", "oben", "unten",
+        )
+        private val VERB_PREFIXES = listOf(
+            "ab", "an", "auf", "aus", "bei", "durch", "ein", "her", "hin", "los", "mit", "nach", "um", "unter", "über",
+            "vor", "weg", "zu", "zurück", "zusammen", "weiter", "raus", "rein", "ran", "rum", "runter", "rüber", "hoch",
+            "fest", "heraus", "herein", "hinaus", "hinein", "herum", "herunter", "vorbei", "wieder",
+        )
 
         /** Buchstaben, die gleich klingen und oft verwechselt werden. */
         private val SOUND_ALIKE = setOf("dt", "bp", "gk", "fv", "sz", "ck", "xs", "yi", "ei")

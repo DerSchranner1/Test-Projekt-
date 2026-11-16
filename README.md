@@ -24,18 +24,32 @@ Eine dunkle, schlichte Android-Tastatur für Deutsch und Englisch. Sie bringt Ti
 - **Größe ändern:** oben ziehen ändert die Größe, unten ziehen den Abstand zum Rand.
 
 **Diktieren**
-- 🎤 antippen und sprechen. Der Text erscheint schon beim Sprechen im Textfeld.
-- **Ohne Einrichtung** nutzt die Tastatur die Spracherkennung des Handys: wenn möglich auf dem Gerät, als Dauerdiktat und mit automatischen Satzzeichen. Gesprochene Satzzeichen („Komma“, „Fragezeichen“, „neue Zeile“) werden umgewandelt.
-- **Mit kostenlosem Groq-Schlüssel** läuft die Erkennung über Whisper large-v3 und ist deutlich genauer.
+- 🎤 antippen und sprechen. Die Aufnahme endet von selbst, wenn du fertig bist.
+- **Offline (privat):** Whisper läuft direkt auf dem Handy (whisper.cpp). Dafür wird in den Einstellungen einmal ein Modell geladen: „Genau“ (190 MB) oder „Schnell“ (60 MB). Danach braucht das Diktieren kein Internet und die Aufnahme verlässt das Handy nicht.
+- **Ohne Modell** nutzt die Tastatur die Spracherkennung des Handys. Gesprochene Satzzeichen („Komma“, „Fragezeichen“, „neue Zeile“) werden umgewandelt.
+- **Mit kostenlosem Groq-Schlüssel** läuft die Erkennung online über Whisper large-v3 (nur wenn du das einschaltest).
 
-**Rechtschreibung**
-- Unbekannte Wörter werden rot unterstrichen. Die App bringt außerdem eine Rechtschreibprüfung für das ganze Handy mit, die in den Systemeinstellungen ausgewählt wird.
-- Die Vibration beim Tippen ist per Regler einstellbar.
+**Rechtschreibung (ohne Internet)**
+- Die Tastatur kennt rund 500.000 gültige Wortformen. Unbekannte Wörter werden im Text rot markiert und in der Vorschlagsleiste rot unterkringelt, daneben stehen Korrekturen.
+- Großschreibung im Zusammenhang: Nach „Das unterkringeln funktioniert“ wird „Unterkringeln“ vorgeschlagen.
+- Die App bringt außerdem eine Rechtschreibprüfung für das ganze Handy mit, die in den Systemeinstellungen ausgewählt wird.
+
+**Tippgefühl**
+- Unterschiedliche Vibration für Buchstaben, Sondertasten, langes Drücken, Cursor-Schritte, Bestätigungen und Fehler. Die Stärke ist per Regler einstellbar.
+- Leertaste lange halten macht die Tastatur zum Tastfeld: Finger bewegen verschiebt den Cursor in alle Richtungen.
 
 **Bedienung**
-- Leertaste halten und wischen bewegt den Cursor.
+- Auf der Leertaste wischen bewegt den Cursor.
+- 🔍 im Emoji-Bereich: Treffer erscheinen schon beim Tippen in der Leiste.
 - Auf ⌫ nach links wischen löscht ganze Wörter.
 - Zweimal Leertaste setzt einen Punkt, zweimal ⇧ schaltet die Feststelltaste ein.
+
+## Datenschutz
+
+- Alles, was du tippst, bleibt auf dem Handy. Wortvorschläge, Rechtschreibung, Wischen und das Offline-Diktat arbeiten ohne Internet.
+- Ins Internet geht die App nur, wenn du es auslöst: Modell-Download (huggingface.co), Groq-Diktat, GIPHY-Suche und animierte Emojis (jeweils abschaltbar bzw. erst nach Zustimmung).
+- In Passwortfeldern und im Inkognito-Modus wird nichts gelernt. Kopiertes wird nach einer Stunde gelöscht, Passwörter gar nicht gespeichert.
+- Gelernte Wörter und Zwischenablage lassen sich in den Einstellungen löschen. Cloud-Backups der App-Daten sind abgeschaltet.
 
 ## Gemessene Qualität
 
@@ -71,6 +85,9 @@ Die Wortdaten in `app/src/main/assets/` entstehen mit den Skripten in `tools/`:
 2. `build_ngrams.py` erzeugt `ngrams.tsv` (deutsche Wortfolgen) und korrigiert Schreibweisen.
 3. `build_ngrams_en.py` erzeugt `ngrams_en.tsv` (englische Wortfolgen).
 4. `build_emoji.py` erzeugt `emoji.tsv` und `emoji_words.tsv`.
+5. `build_spell.py` erzeugt `valid.bloom` (gültige Wortformen) und `grammar_de.tsv` (Verbformen).
+
+Das Offline-Diktat wird aus `app/src/main/cpp/` gebaut und braucht NDK 28.2.13676358 und CMake 3.22.1.
 
 ## Lizenzen der Wortdaten
 
@@ -78,3 +95,5 @@ Die Wortdaten in `app/src/main/assets/` entstehen mit den Skripten in `tools/`:
 - Deutsche Rechtschreibung und Großschreibung: igerman98 / hunspell-de-de (GPL-2+)
 - Wortfolgen: [Tatoeba](https://tatoeba.org) (CC BY 2.0 FR) und [Mozilla Common Voice](https://github.com/common-voice/common-voice) (CC0)
 - Emojis: Reihenfolge und Gruppen aus [googlefonts/emoji-metadata](https://github.com/googlefonts/emoji-metadata) (Apache 2.0), Suchwörter aus Unicode CLDR (Unicode-Lizenz), animierte Emojis von [Noto Animated Emoji](https://googlefonts.github.io/noto-emoji-animation/) (CC BY 4.0)
+- Offline-Diktat: [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (MIT), Modelle von OpenAI Whisper (MIT)
+- Englische Rechtschreibung: hunspell-en-us / SCOWL

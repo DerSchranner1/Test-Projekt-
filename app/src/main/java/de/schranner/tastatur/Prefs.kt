@@ -55,6 +55,26 @@ class Prefs(context: Context) {
         get() = sp.getBoolean(KEY_ESZETT, false)
         set(v) = sp.edit().putBoolean(KEY_ESZETT, v).apply()
 
+    /** Diktieren: "auto" (erst offline, dann Groq, sonst Handy) oder "groq" (Groq bevorzugen). */
+    var voiceEngine: String
+        get() = sp.getString(KEY_VOICE_ENGINE, "auto") ?: "auto"
+        set(v) = sp.edit().putString(KEY_VOICE_ENGINE, v).apply()
+
+    /** Aus dem eigenen Schreiben lernen (Wörter und Wortfolgen, bleibt auf dem Gerät). */
+    var learnFromTyping: Boolean
+        get() = sp.getBoolean(KEY_LEARN, true)
+        set(v) = sp.edit().putBoolean(KEY_LEARN, v).apply()
+
+    /** Verlauf der Zwischenablage führen. */
+    var clipboardHistory: Boolean
+        get() = sp.getBoolean(KEY_CLIP_HISTORY, true)
+        set(v) = sp.edit().putBoolean(KEY_CLIP_HISTORY, v).apply()
+
+    /** Animierte Emojis von Google laden (erst nach Zustimmung). */
+    var onlineAnimated: Boolean
+        get() = sp.getBoolean(KEY_ONLINE_ANIMATED, false)
+        set(v) = sp.edit().putBoolean(KEY_ONLINE_ANIMATED, v).apply()
+
     /** Stärke der unsichtbaren Treffhilfe in Prozent (0 = aus). */
     var touchAssist: Int
         get() = sp.getInt(KEY_TOUCH_ASSIST, 50).coerceIn(0, 100)
@@ -117,6 +137,10 @@ class Prefs(context: Context) {
         const val KEY_ESZETT = "eszett_key"
         const val KEY_ONE_HANDED = "one_handed"
         const val KEY_TOUCH_ASSIST = "touch_assist"
+        const val KEY_VOICE_ENGINE = "voice_engine"
+        const val KEY_LEARN = "learn_from_typing"
+        const val KEY_CLIP_HISTORY = "clipboard_history"
+        const val KEY_ONLINE_ANIMATED = "online_animated"
         const val SIZE_MIN = 75
         const val SIZE_MAX = 165
         const val BOTTOM_MAX = 90

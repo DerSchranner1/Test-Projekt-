@@ -84,6 +84,16 @@ class SettingsActivity : Activity() {
         if (intent.getBooleanExtra(EXTRA_ASK_MIC, false)) askMic()
     }
 
+    override fun onStart() {
+        super.onStart()
+        ModelDownload.onChange = { if (!isFinishing) build() }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        ModelDownload.onChange = null
+    }
+
     // ================================================================== Seite
 
     private fun build() {
@@ -154,23 +164,62 @@ class SettingsActivity : Activity() {
         // ---- Diktieren
         anchors[PAGE_VOICE] = card("Diktieren")
         val groq = prefs.groqKey.isNotBlank()
+        val whisper = OfflineWhisper(this)
+        val model = whisper.installed()
+        val canOffline = WhisperNative.ensureLoaded()
+        val online = groq && (prefs.voiceEngine == "groq" || model == null || !canOffline)
         when {
-            groq && groqOk == false -> status("✗  Der Schlüssel funktioniert nicht", bad)
-            groq && groqOk == true -> status("✓  Whisper ist aktiv (sehr genaue Erkennung)", good)
-            groq -> status("Whisper ist eingerichtet", good)
+            online && groqOk == false -> status("✗  Der Groq-Schlüssel funktioniert nicht", bad)
+            online -> status("✓  Aktiv: Whisper über Groq (online, am genauesten)", good)
+            model != null && canOffline -> status("✓  Aktiv: Offline-Erkennung „${model.title}“ – nichts verlässt das Handy", good)
             else -> status("Aktiv: Spracherkennung des Handys", dim)
         }
+
+        label("Offline (privat)")
+        val dl = ModelDownload
+        when {
+            !canOffline -> hint("Auf diesem Gerät nicht verfügbar (braucht einen 64-Bit-Prozessor).")
+            dl.running -> {
+                val m = dl.model!!
+                body("Lädt „${m.title}“ … ${dl.done * 100 / m.bytes} %  (${dl.done / 1_000_000} von ${m.bytes / 1_000_000} MB)")
+                button("Abbrechen") { dl.cancel() }
+            }
+            else -> {
+                dl.message?.let { hint(it) }
+                if (model == null) {
+                    body("Die Spracherkennung läuft dann komplett auf dem Handy: kein Konto, kein Schlüssel, und deine Aufnahme verlässt das Gerät nicht. Dafür wird einmal ein Modell geladen (am besten im WLAN).")
+                }
+                for (m in OfflineWhisper.Model.entries) {
+                    if (whisper.isInstalled(m)) {
+                        button("„${m.title}“ löschen (${m.size} frei machen)") { whisper.delete(m); build() }
+                    } else {
+                        val what = if (m == OfflineWhisper.Model.SMALL) "erkennt deutlich besser, braucht ein paar Sekunden" else "schneller, macht mehr Fehler"
+                        button("„${m.title}“ laden – ${m.size}", primary = model == null && m == OfflineWhisper.Model.SMALL) {
+                            dl.start(this, m); build()
+                        }
+                        hint("${m.title}: $what.")
+                    }
+                }
+            }
+        }
+
+        label("Online mit Groq (am genauesten)")
         if (!groq) {
-            body("Diktieren funktioniert sofort. Deutlich genauer wird es mit Whisper – dafür brauchst du einmalig einen kostenlosen Schlüssel (etwa 1 Minute):")
+            body("Noch genauer und schneller ist Whisper im Netz. Dafür brauchst du einmalig einen kostenlosen Schlüssel (etwa 1 Minute):")
             body("1. Unten auf den Knopf tippen und mit Google anmelden\n2. „Create API Key“ antippen und den Schlüssel kopieren\n3. Zurück in diese App wechseln – der Schlüssel wird automatisch erkannt")
-            button("Schlüssel-Seite öffnen", primary = true) {
+            button("Schlüssel-Seite öffnen") {
                 awaitingGroq = true
                 open("https://console.groq.com/keys")
             }
             button("Kopierten Schlüssel einfügen") { if (!takeFromClipboard(force = "groq")) manualKey("groq") }
-            hint("Mit Whisper wird die Aufnahme zum Erkennen an den Dienst Groq geschickt.")
+            hint("Mit Groq wird die Aufnahme zum Erkennen an diesen Dienst geschickt.")
         } else {
-            button("Schlüssel entfernen") { prefs.groqKey = ""; groqOk = null; build() }
+            if (model != null && canOffline) {
+                switch("Groq statt Offline-Erkennung benutzen", prefs.voiceEngine == "groq") {
+                    prefs.voiceEngine = if (it) "groq" else "auto"; build()
+                }
+            }
+            button("Groq-Schlüssel entfernen") { prefs.groqKey = ""; groqOk = null; prefs.voiceEngine = "auto"; build() }
         }
 
         // ---- GIFs & Sticker
@@ -212,6 +261,33 @@ class SettingsActivity : Activity() {
         }
         hint("Manche Apps zeichnen ihre Textfelder selbst und zeigen deshalb keine Unterstreichungen.")
 
+        // ---- Datenschutz
+        card("Datenschutz")
+        body("Die Tastatur arbeitet auf dem Handy. Wortvorschläge, Rechtschreibung, Wischen, Emojis und die Offline-Spracherkennung brauchen kein Internet.")
+        body("Das Handy verlässt nur etwas, wenn du es selbst einschaltest:\n" +
+            "• Groq: deine Sprachaufnahme\n" +
+            "• GIPHY: deine GIF-Suche\n" +
+            "• Animierte Emojis: welches Emoji du auswählst (Google)\n" +
+            "• Spracherkennung des Handys: je nach Handy die Aufnahme (Google)\n" +
+            "• Modell laden: einmaliger Download")
+        hint("Was du tippst, wird nie gesendet. Gelernte Wörter, Zwischenablage und Schlüssel liegen nur im privaten Speicher der App und sind von Backups ausgeschlossen. In Passwort-Feldern und Inkognito-Fenstern wird nichts gelernt.")
+        switch("Aus meinem Schreiben lernen", prefs.learnFromTyping) { prefs.learnFromTyping = it }
+        switch("Zwischenablage-Verlauf (1 Stunde)", prefs.clipboardHistory) { on ->
+            prefs.clipboardHistory = on
+            if (!on) ClipboardStore(this).clearUnpinned()
+        }
+        switch("Animierte Emojis aus dem Netz laden", prefs.onlineAnimated) { prefs.onlineAnimated = it }
+        button("Gelernte Wörter löschen") {
+            EngineHolder.get(this).clearUserData()
+            getSharedPreferences("settings", MODE_PRIVATE).edit()
+                .putLong("user_data_cleared", System.currentTimeMillis()).apply()
+            Toast.makeText(this, "Gelernte Wörter gelöscht", Toast.LENGTH_SHORT).show()
+        }
+        button("Zwischenablage-Verlauf löschen") {
+            ClipboardStore(this).let { c -> c.items.toList().forEach { c.remove(it) } }
+            Toast.makeText(this, "Zwischenablage-Verlauf gelöscht", Toast.LENGTH_SHORT).show()
+        }
+
         // ---- Ausprobieren
         card("Ausprobieren")
         card!!.addView(EditText(this).apply {
@@ -226,7 +302,8 @@ class SettingsActivity : Activity() {
 
         page.addView(TextView(this).apply {
             text = "Wortdaten: wordfreq (CC BY-SA 4.0), igerman98 (GPL), Tatoeba (CC BY 2.0 FR), Mozilla Common Voice (CC0). " +
-                "Emojis: Reihenfolge von Google (Apache 2.0), Suchwörter Unicode CLDR, animierte Emojis Noto (CC BY 4.0)."
+                "Emojis: Reihenfolge von Google (Apache 2.0), Suchwörter Unicode CLDR, animierte Emojis Noto (CC BY 4.0). " +
+                "Offline-Spracherkennung: whisper.cpp (MIT), Modelle von OpenAI (MIT). Englische Rechtschreibung: SCOWL."
             setTextColor(dim)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
             setPadding(dp(6f), dp(16f), dp(6f), 0)

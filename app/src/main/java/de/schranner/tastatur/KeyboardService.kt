@@ -61,7 +61,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     private sealed class Sugg(val label: String) {
         class Word(val word: String, label: String = word) : Sugg(label)
         class Correction(val target: String, val replacement: String) : Sugg(replacement)
-        class AddWord(val word: String) : Sugg("+ „$word“")
+        class AddWord(val word: String) : Sugg(word)
         class Emoji(val emoji: String) : Sugg(emoji)
         class Paste(val text: String) : Sugg(ClipboardStore.smartLabel(text))
     }
@@ -90,6 +90,9 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     private var shown = arrayOfNulls<Sugg>(3)
     private var mediaPanel: MediaPanel? = null
     private lateinit var searchRow: LinearLayout
+    private lateinit var searchHits: LinearLayout
+    private lateinit var searchHitsScroll: android.widget.HorizontalScrollView
+    private lateinit var searchButton: TextView
     private lateinit var searchText: TextView
     private var clipPanel: View? = null
     private var clipAdapter: ClipAdapter? = null
@@ -123,6 +126,9 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     private var assistToken = 0
     private var composingSentenceStart = false
     private var correctionTarget: String? = null
+        set(v) { field = v; if (v == null) correctionFix = null }
+    /** Bei einem Grammatik-Hinweis: die richtige Schreibweise des früheren Worts. */
+    private var correctionFix: String? = null
     private var correctionPrev: String? = null
     private var lastAutoSpace = false
     private var lastSpaceTime = 0L
@@ -237,6 +243,10 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         selecting = false
         haptics.strength = prefs.vibration
         keyboard.haptics = haptics
+        // Datenschutz: nicht lernen, wenn abgeschaltet oder die App darum bittet (z. B. Inkognito-Fenster)
+        val incognito = info.imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING != 0
+        engine.learning = prefs.learnFromTyping && !incognito
+        clip.enabled = prefs.clipboardHistory
         keyboard.keyHeightPercent = prefs.keyHeightPercent
         keyboard.spaceLabel = "DE · EN"
         applyOneHanded()
@@ -570,8 +580,14 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         repeat(kotlin.math.abs(steps)) { sendDownUpKeyEvents(code) }
     }
 
-    override fun onSpaceLongPress() {
-        (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).showInputMethodPicker()
+    override fun onCursorMoveVertical(steps: Int) {
+        val ic = currentInputConnection ?: return
+        if (composing.isNotEmpty()) {
+            composing.setLength(0)
+            ic.finishComposingText()
+        }
+        val code = if (steps < 0) KeyEvent.KEYCODE_DPAD_UP else KeyEvent.KEYCODE_DPAD_DOWN
+        repeat(kotlin.math.abs(steps)) { sendDownUpKeyEvents(code) }
     }
 
     override fun onEmojiLongPress() = openSettings(null, false)
@@ -619,6 +635,24 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
             ic.commitText(w, 1)
         }
         engine.learn(w, prev, composingSentenceStart)
+        // „Das unterkringeln funktioniert“: das Wort davor war ein Hauptwort und gehört groß
+        val fixed = engine.nounFromVerb(composingPrev2, prev, w)
+        if (fixed != null && prev != null) {
+            if (prefs.autocorrect) replaceEarlierWord(prev, fixed)
+            else { correctionTarget = prev; correctionPrev = composingPrev2; correctionFix = fixed }
+        }
+    }
+
+    /** Ein früheres Wort vor dem Cursor ersetzen; alles danach bleibt stehen. */
+    private fun replaceEarlierWord(target: String, replacement: String) {
+        val ic = currentInputConnection ?: return
+        val before = ic.getTextBeforeCursor(CONTEXT_CHARS, 0)?.toString() ?: return
+        val m = Regex("(?<![\\p{L}\\p{N}])" + Regex.escape(target) + "(?![\\p{L}\\p{N}])").findAll(before).lastOrNull() ?: return
+        val tail = before.substring(m.range.last + 1)
+        ic.beginBatchEdit()
+        ic.deleteSurroundingText(before.length - m.range.first, 0)
+        ic.commitText(replacement + tail, 1)
+        ic.endBatchEdit()
     }
 
     /** Die Wörter vor dem Cursor (letztes Wort, das davor, Satzanfang?, Sprache). */
@@ -636,6 +670,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         val typed = composing.toString()
         val target = correctionTarget
         val targetPrev = correctionPrev
+        val fix = correctionFix
         val clipText = recentClip()
 
         if (searchTarget != null) return
@@ -690,6 +725,9 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
                         if (items.size >= 3) items[2] = Sugg.Emoji(e) else items += Sugg.Emoji(e)
                     }
                 }
+            } else if (target != null && fix != null) {
+                // Grammatik-Hinweis: nur die richtige Schreibweise anbieten
+                items += Sugg.Correction(target, fix)
             } else if (target != null) {
                 val corr = engine.correctionsFor(target, targetPrev)
                 items += Sugg.AddWord(target)
@@ -716,11 +754,13 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
             val tv = slots[i] ?: continue
             val s = shown[i]
             tv.text = s?.label ?: ""
+            // Unbekanntes Wort: rot unterkringelt (sichtbar auch in Apps, die im Text nichts markieren)
+            (tv as? SquiggleTextView)?.squiggle = s is Sugg.AddWord
             tv.setTypeface(null, if (i == 1 && s is Sugg.Word) Typeface.BOLD else Typeface.NORMAL)
             tv.setTextColor(
                 when (s) {
                     is Sugg.Correction -> theme.accent
-                    is Sugg.AddWord -> theme.hint
+                    is Sugg.AddWord -> theme.barText
                     else -> theme.barText
                 },
             )
@@ -753,8 +793,13 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
                 correctionTarget = null
             }
             is Sugg.Correction -> {
-                applyCorrection(s.target, s.replacement)
-                engine.forget(s.target)
+                if (correctionFix != null) {
+                    replaceEarlierWord(s.target, s.replacement)
+                    correctionTarget = null
+                } else {
+                    applyCorrection(s.target, s.replacement)
+                    engine.forget(s.target)
+                }
             }
             is Sugg.AddWord -> {
                 engine.addWord(s.word)
@@ -849,7 +894,11 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     override fun onListening(engineName: String) {
         voiceUi = true
         updateBar()
-        voiceStatus.text = if (engineName == "Whisper") "Ich höre zu … tippe ■ zum Beenden" else "Ich höre zu …"
+        voiceStatus.text = when {
+            engineName != "Whisper" -> "Ich höre zu …"
+            voice.engine() == VoiceInput.Engine.OFFLINE -> "Ich höre zu (offline) … ■ oder kurz still sein"
+            else -> "Ich höre zu … ■ oder kurz still sein"
+        }
         levelView.level = 0f
     }
 
@@ -1010,7 +1059,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         suggRow.addView(iconButton(R.drawable.ic_apps) { toolbarForced = true; updateBar() },
             LinearLayout.LayoutParams(dp(46f), ViewGroup.LayoutParams.MATCH_PARENT))
         for (i in 0..2) {
-            val tv = TextView(this).apply {
+            val tv = SquiggleTextView(this, theme.typo).apply {
                 gravity = Gravity.CENTER
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
                 setTextColor(theme.barText)
@@ -1113,9 +1162,18 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
             background = GradientDrawable().apply { setColor(theme.key); cornerRadius = dp(18f).toFloat() }
         }
         searchRow.addView(searchText, LinearLayout.LayoutParams(0, dp(36f), 1f).apply { gravity = Gravity.CENTER_VERTICAL })
-        searchRow.addView(barButton("Suchen") { runSearch() }.apply {
+        // Emoji-Suche: Treffer erscheinen schon beim Tippen direkt in der Leiste
+        searchHits = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        searchHitsScroll = android.widget.HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            visibility = View.GONE
+            addView(searchHits, ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        }
+        searchRow.addView(searchHitsScroll, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1.6f))
+        searchButton = barButton("Suchen") { runSearch() }.apply {
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f); setTextColor(theme.accent); setTypeface(null, Typeface.BOLD)
-        }, LinearLayout.LayoutParams(dp(76f), ViewGroup.LayoutParams.MATCH_PARENT))
+        }
+        searchRow.addView(searchButton, LinearLayout.LayoutParams(dp(76f), ViewGroup.LayoutParams.MATCH_PARENT))
         frame.addView(searchRow, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         frame.addView(suggRow, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         frame.addView(toolRow, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
@@ -1523,6 +1581,13 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
 
     /** Animiertes Emoji (Noto Animated Emoji von Google, CC BY 4.0) als GIF senden – ohne Schlüssel. */
     override fun commitAnimatedEmoji(e: String) {
+        if (!prefs.onlineAnimated) {
+            // Datenschutz: erst fragen, bevor etwas aus dem Netz geladen wird
+            mediaPanel?.askConsent(
+                "Animierte Emojis werden von einem Google-Server geladen. Dabei wird übertragen, welches Emoji du auswählst. Tippe hier, um das zu erlauben.",
+            ) { prefs.onlineAnimated = true; commitAnimatedEmoji(e) }
+            return
+        }
         if (!supportsMime("image/gif")) {
             commitEmoji(e)
             toast("Diese App nimmt keine animierten Bilder an – Emoji eingefügt")
@@ -1600,6 +1665,40 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         }
         searchText.text = if (searchQuery.isEmpty()) "🔍 $target suchen …" else "🔍 $searchQuery▏"
         searchText.setTextColor(if (searchQuery.isEmpty()) theme.hint else theme.text)
+        updateSearchHits()
+    }
+
+    /** Emoji-Treffer zur aktuellen Eingabe; Antippen fügt das Emoji sofort ein. */
+    private fun updateSearchHits() {
+        val emoji = searchTarget == MediaPanel.Tab.EMOJI
+        val q = searchQuery.toString().trim()
+        val found = if (emoji && q.isNotEmpty()) {
+            EmojiData.ensureLoaded(this)
+            EmojiData.search(q, 30)
+        } else emptyList()
+        searchHits.removeAllViews()
+        for (e in found) {
+            searchHits.addView(TextView(this).apply {
+                text = e.text
+                gravity = Gravity.CENTER
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
+                setTextColor(theme.text)
+                background = rippleBg()
+                setOnClickListener { haptics.tap(); commitEmoji(e.text) }
+            }, LinearLayout.LayoutParams(dp(42f), ViewGroup.LayoutParams.MATCH_PARENT))
+        }
+        if (emoji && q.isNotEmpty() && found.isEmpty()) {
+            searchHits.addView(TextView(this).apply {
+                text = "nichts gefunden"
+                gravity = Gravity.CENTER
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+                setTextColor(theme.hint)
+                setPadding(dp(8f), 0, dp(8f), 0)
+            }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        }
+        searchHitsScroll.scrollTo(0, 0)
+        searchHitsScroll.visibility = if (emoji && q.isNotEmpty()) View.VISIBLE else View.GONE
+        searchButton.visibility = if (emoji && q.isNotEmpty()) View.GONE else View.VISIBLE
     }
 
     private fun runSearch() {
@@ -1636,6 +1735,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
 
     private fun applyGesture(words: List<String>) {
         if (words.isEmpty()) {
+            haptics.play(Haptics.Kind.REJECT)
             toast("Wort nicht erkannt")
             return
         }

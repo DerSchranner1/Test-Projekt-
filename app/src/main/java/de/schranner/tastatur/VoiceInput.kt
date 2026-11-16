@@ -22,8 +22,8 @@ import kotlin.math.sqrt
 
 /**
  * Diktieren.
- * - Mit (kostenlosem) Groq-Schlüssel: Aufnahme auf dem Handy, Erkennung mit Whisper large-v3 –
- *   deutlich genauer als die eingebaute Erkennung, inkl. Satzzeichen.
+ * - Offline (privat): Whisper läuft auf dem Handy, sobald das Modell geladen wurde. Nichts verlässt das Gerät.
+ * - Mit (kostenlosem) Groq-Schlüssel: Erkennung mit Whisper large-v3 im Netz – am genauesten.
  * - Ohne Schlüssel: die Spracherkennung des Handys – wenn möglich auf dem Gerät, als Dauerdiktat
  *   mit Zwischenergebnissen und automatischen Satzzeichen.
  */
@@ -52,11 +52,29 @@ class VoiceInput(private val context: Context, private val prefs: Prefs) {
 
     val isActive: Boolean get() = recording || recognizer != null
 
-    fun useWhisper() = prefs.groqKey.isNotBlank()
+    enum class Engine { OFFLINE, GROQ, ANDROID }
+
+    val offline = OfflineWhisper(context)
+
+    /** Welche Erkennung wird benutzt? Ohne andere Wahl gilt: erst offline, dann Groq, sonst die des Handys. */
+    fun engine(): Engine {
+        val hasKey = prefs.groqKey.isNotBlank()
+        return when {
+            prefs.voiceEngine == "groq" && hasKey -> Engine.GROQ
+            offline.ready() -> Engine.OFFLINE
+            hasKey -> Engine.GROQ
+            else -> Engine.ANDROID
+        }
+    }
+
+    fun useWhisper() = engine() != Engine.ANDROID
 
     fun start() {
         if (isActive) return
-        if (useWhisper()) startWhisper() else startAndroid()
+        when (val e = engine()) {
+            Engine.ANDROID -> startAndroid()
+            else -> startWhisper(e)
+        }
     }
 
     /** Aufnahme beenden – bei Whisper wird danach erkannt. */
@@ -76,10 +94,10 @@ class VoiceInput(private val context: Context, private val prefs: Prefs) {
 
     @Volatile private var cancelled = false
 
-    // ------------------------------------------------------------- Whisper (Groq)
+    // ------------------------------------------------------------- Whisper (offline oder Groq)
 
     @SuppressLint("MissingPermission")
-    private fun startWhisper() {
+    private fun startWhisper(engine: Engine) {
         val rate = 16000
         val minBuf = AudioRecord.getMinBufferSize(rate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
         val rec = try {
@@ -100,6 +118,8 @@ class VoiceInput(private val context: Context, private val prefs: Prefs) {
             var peak = 0.0
             val maxSamples = rate * 60 * 5 // höchstens 5 Minuten
             var total = 0
+            var spoken = 0          // Abschnitte mit Sprache
+            var quiet = 0           // Stille in Folge (je 0,1 s)
             try {
                 rec.startRecording()
                 while (recording && total < maxSamples) {
@@ -114,6 +134,9 @@ class VoiceInput(private val context: Context, private val prefs: Prefs) {
                     total += n
                     val rms = sqrt(sum / n)
                     if (rms > peak) peak = rms
+                    // Nach dem Sprechen und 2,5 Sekunden Stille von selbst aufhören
+                    if (rms > 700) { spoken++; quiet = 0 } else if (rms < 350) quiet++
+                    if (spoken >= 4 && quiet >= 25) recording = false
                     val level = (rms / 3000.0).coerceIn(0.0, 1.0).toFloat()
                     main.post { callback?.onLevel(level) }
                 }
@@ -130,9 +153,16 @@ class VoiceInput(private val context: Context, private val prefs: Prefs) {
             }
             main.post { callback?.onProcessing() }
             val result = try {
-                transcribe(wav(pcm.toByteArray(), rate))
+                if (engine == Engine.OFFLINE) {
+                    // Auf dem Gerät – die Aufnahme bleibt im Arbeitsspeicher und wird danach verworfen
+                    val language = if (prefs.voiceLanguage == "auto") "auto" else prefs.voiceLanguage
+                    offline.transcribe(pcm.toByteArray(), language, buildPrompt())
+                        ?: throw IllegalStateException("offline")
+                } else {
+                    transcribe(wav(pcm.toByteArray(), rate))
+                }
             } catch (e: Exception) {
-                main.post { callback?.onError(friendlyError(e)) }
+                main.post { callback?.onError(if (engine == Engine.OFFLINE) "Offline-Erkennung fehlgeschlagen" else friendlyError(e)) }
                 return@Thread
             }
             if (cancelled) return@Thread

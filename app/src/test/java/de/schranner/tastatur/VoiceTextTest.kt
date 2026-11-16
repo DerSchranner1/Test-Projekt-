@@ -26,10 +26,16 @@ class VoiceTextTest {
         assertEquals("Haus und Hof", VoiceText.fitToContext("Haus und Hof", false, dict))
     }
 
-    @Test fun hapticStrengthMapsToDurationAndAmplitude() {
-        assertEquals(6L, Haptics.durationMs(0))
-        assertEquals(30L, Haptics.durationMs(100))
-        assert(Haptics.amplitude(10) < Haptics.amplitude(90))
-        assertEquals(255, Haptics.amplitude(100))
+    @Test fun hapticsDifferByActionAndStrength() {
+        val k = Haptics.Kind.KEY
+        // Stärker eingestellt = kräftiger
+        assert(Haptics.scale(k, 20) < Haptics.scale(k, 90))
+        assert(Haptics.amplitude(k, 20) < Haptics.amplitude(k, 90))
+        // Aktionen fühlen sich unterschiedlich an: Cursor-Schritt < Buchstabe < Leertaste < Aufklappen
+        val s = 60
+        assert(Haptics.scale(Haptics.Kind.TICK, s) < Haptics.scale(k, s))
+        assert(Haptics.scale(k, s) < Haptics.scale(Haptics.Kind.SPECIAL, s))
+        assert(Haptics.scale(Haptics.Kind.SPECIAL, s) < Haptics.scale(Haptics.Kind.POPUP, s))
+        assertEquals(1f, Haptics.scale(Haptics.Kind.POPUP, 100), 0.001f)
     }
 }
