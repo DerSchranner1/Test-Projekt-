@@ -5,7 +5,7 @@
 1. App öffnen (am Rechner `index.html`, am Handy die installierte App).
 2. **+ Audio laden** antippen und alle Titel auswählen – oder am Rechner die Dateien ins Fenster ziehen.
 3. Titel in die richtige Reihenfolge ziehen.
-4. Bei jedem Titel auf **✎** tippen: Titel umbenennen und **Farbgruppe** wählen (vorgegeben: Show, Garde, Elfer).
+4. Bei jedem Titel auf **✎** tippen: Titel umbenennen und **Farbgruppe** wählen (vorgegeben: Show, Garde, Elfer – eigene kannst du anlegen).
    Der Titel wird aus der Datei gelesen (MP3, M4A, OGG/FLAC). Steht dort nichts, nimmt die App den Dateinamen.
 5. **Farben der Gruppen:** bei der Gruppe auf **✎** tippen → Name ändern, Farbe aus der Palette antippen, Speichern.
    Neue Gruppen über **+ Neue Gruppe**.
@@ -38,7 +38,8 @@ Jedes Lied bekommt eine eigene Farbe in der Wellenform und **eigenes Tempo und e
 die Zählung fängt am Liedwechsel wieder mit 1 an.
 
 Unter **Lieder in der Datei**:
-- **Farbfeld** antippen → Farbe wählen; **Namensfeld** → z. B. „Prinzengarde“, „Schautanz Teil 2“
+- **Farbfeld** antippen → Farbe wählen – entweder eine eigene **Farbe mit Bezeichnung** (siehe unten) oder nur eine Farbe;
+  **Namensfeld** → z. B. „Prinzengarde“, „Schautanz Teil 2“
 - **Zeit** antippen → an den Liedanfang springen
 - **⇤** → Liedanfang auf die aktuelle Stelle legen (wenn die Grenze nicht genau stimmt)
 - **✕** → mit dem Lied davor zusammenführen (wenn fälschlich geteilt)
@@ -47,15 +48,26 @@ Unter **Lieder in der Datei**:
 
 Tempo, „Hier ist die 1“ und „Erkennen“ wirken immer auf das Lied, in dem du gerade bist (steht neben „Tempo“).
 
+**Farben mit Bezeichnung:** Unter ⚙ → „Farben mit Bezeichnung“ legst du eigene Farben mit Namen an,
+z. B. Rot = „Garde tanzt“, Blau = „Alle“, Gelb = „Solo“. Diese wählst du dann für die Lieder aus;
+änderst du später die Farbe einer Bezeichnung, ändern sich alle Lieder mit dieser Bezeichnung mit.
+
+**Farbe des ganzen Titels:** ✎ beim Titel → „Eigene Farbe des Titels“. Ohne eigene Farbe gilt die Farbe der Gruppe.
+
 ## 4. Zählen (1–8)
 
-Beim Laden erkennt die App das Tempo (BPM) und wo die „1“ ist. Unten in der Detail-Wellenform stehen die
+Beim Laden verfolgt die App jeden einzelnen Schlag und erkennt, wo die „1“ ist – auch nach Schnitten
+innerhalb eines Lieds, wie sie bei zusammengeschnittener Show-Musik üblich sind. Unten in der Detail-Wellenform stehen die
 Zählzeiten 1 2 3 4 5 6 7 8 über der Musik, groß oben rechts siehst du die aktuelle Zahl und den wievielten Achter.
 
-- **Stimmt die 1 nicht?** An die richtige Stelle schieben und **Hier ist die 1** drücken. Feinjustieren mit ◀ 10 ms / 10 ms ▶.
+- **Stimmt die 1 nicht?** An die richtige Stelle schieben und **Hier ist die 1** drücken – ab dort wird neu mit 1 gezählt,
+  davor bleibt alles, wie es war. So kannst du ein Lied Stück für Stück von vorne korrigieren. Feinjustieren mit ◀ 10 ms / 10 ms ▶.
 - **Stimmt das Tempo nicht?** **½** oder **×2** versuchen, oder bei laufender Musik mindestens 4× im Takt auf **Tap** tippen.
-- **Mitzählen:** Aus / Stimme („eins, zwei, … acht“) / Klick. Läuft beim Abspielen mit.
-  Hinkt die Stimme hinterher: ⚙ → „Mitzählen früher/später“ nach links.
+- **Mitzählen:** Aus / Stimme / Klick. Daneben die **Stimme** wählen (Deutsch Frau/Mann, Englisch Frau/Mann
+  oder eigene Aufnahme) und die **Lautstärke** einstellen.
+- **Eigene Stimme:** ⚙ → „● Eigene aufnehmen“ → Start → „eins – zwei – … – acht“ mit kurzen Pausen sprechen.
+  Die App schneidet die Wörter selbst und nimmt ab dann deine Stimme. (Die App fragt einmal nach dem Mikrofon.)
+- Hinkt die Stimme hinterher: ⚙ → „Mitzählen früher/später“ nach links.
 - **Einrasten:** Marker, Cue-Punkte und Springen landen genau auf einer Zählzeit (1–8) oder nur auf der 1 eines Achters.
 - **−8 / +8** springen einen Achter zurück bzw. vor.
 

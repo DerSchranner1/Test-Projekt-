@@ -336,3 +336,21 @@ dialog h2 { margin-top: 0; }
 @media (max-width: 420px) {
   .time .sep, .time #timeDur { display: none; }
 }
+
+.sel {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 8px; padding: 5px 8px; font-size: 12px;
+}
+.row-inline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mcolor.big { width: 40px; height: 34px; }
+.label-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.label-list li { display: grid; grid-template-columns: 34px minmax(0, 1fr) 30px; gap: 6px; align-items: center; }
+.label-list input[type=text] {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; min-width: 0;
+}
+.record-status { font-size: 15px; padding: 10px; border-radius: 8px; background: var(--panel-2); text-align: center; }
+.record-status.rec { color: #fff; background: var(--danger); }
+.chip.label-chip { display: inline-flex; align-items: center; gap: 6px; }
+.chip.label-chip::before { content: ''; width: 12px; height: 12px; border-radius: 3px; background: var(--c); }
+.chip.label-chip.on::before { background: #111; }
+.song-label { font-size: 10px; color: var(--muted); }

@@ -21,10 +21,20 @@ const DEFAULT_GROUPS = [
   { id: 'g-elfer', name: 'Elfer', color: '#e5484d' },
 ];
 const OLD_EXAMPLE_GROUPS = ['g-einmarsch', 'g-garde', 'g-tusch', 'g-buett', 'g-pause'];
+const CURRENT_GROUPS_VERSION = 3;
 // Farben für die einzelnen Lieder in einer Datei
 const SEG_COLORS = ['#ff7a1a', '#4cc9f0', '#3ddc97', '#f72585', '#ffd23f', '#b388ff', '#e5484d', '#14b8a6', '#a3e635', '#3b82f6'];
+const VOICES = [
+  { id: 'de-frau', name: 'Deutsch – Frau' },
+  { id: 'de-frau2', name: 'Deutsch – Frau 2' },
+  { id: 'de-mann', name: 'Deutsch – Mann' },
+  { id: 'en-frau', name: 'Englisch – Frau' },
+  { id: 'en-mann', name: 'Englisch – Mann' },
+  { id: 'own', name: 'Eigene Aufnahme' },
+];
 const DEFAULT_SETTINGS = {
   countMode: 'off',     // off | voice | click
+  voice: 'de-frau',
   countVolume: 0.8,
   countOffsetMs: 0,
   snap: 'beat',         // off | beat | eight
@@ -39,7 +49,8 @@ const state = {
   // Titel: {id, name, artist, fileName, duration, groupId, markers[], cueIn, cueOut, peaks[], segments[]}
   // segments: die Lieder in der Datei: {id, start, name, color, bpm, beatOffset}
   tracks: [],
-  groupsVersion: 2,
+  groupsVersion: 3,
+  colorLabels: [],   // eigene Farben mit Bezeichnung: {id, name, color}
   volume: 1,
   autoNext: false,
   settings: { ...DEFAULT_SETTINGS },
@@ -225,17 +236,59 @@ async function decodeLow(blob) {
 }
 
 let featCache = { id: null, F: null };
-async function analyseBlob(blob, id = null) {
+
+// Analyse im Hintergrund-Thread, damit die App nicht einfriert (Rückfall: im Hauptthread)
+let worker = null, workerFailed = false, jobId = 0;
+const jobs = new Map();
+function getWorker() {
+  if (worker || workerFailed) return worker;
+  try {
+    const url = URL.createObjectURL(new Blob([Analysis.workerSource()], { type: 'text/javascript' }));
+    worker = new Worker(url);
+    worker.onmessage = (e) => {
+      const job = jobs.get(e.data.id);
+      if (!job) return;
+      if (e.data.progress != null) return job.onProgress?.(e.data.progress);
+      jobs.delete(e.data.id);
+      if (e.data.error) job.reject(new Error(e.data.error));
+      else job.resolve(e.data.result);
+    };
+    worker.onerror = (e) => {
+      console.warn('Worker-Fehler, rechne im Hauptthread', e);
+      workerFailed = true;
+      worker = null;
+      for (const job of jobs.values()) job.fallback();
+      jobs.clear();
+    };
+  } catch (e) {
+    workerFailed = true;
+  }
+  return worker;
+}
+
+function runAnalysis(mono, sr, onProgress) {
+  const direct = () => Analysis.analyse(mono, sr, { onProgress });
+  const w = getWorker();
+  if (!w) return Promise.resolve().then(direct);
+  return new Promise((resolve, reject) => {
+    const id = ++jobId;
+    const copy = new Float32Array(mono);
+    jobs.set(id, { resolve, reject, onProgress, fallback: () => resolve(direct()) });
+    w.postMessage({ id, mono: copy, sr }, [copy.buffer]);
+  });
+}
+
+async function analyseBlob(blob, id = null, label = '') {
   const buf = await decodeLow(blob);
   const mono = mixMono(buf);
   const { peaks, hi } = makePeaks(mono, buf.sampleRate);
-  const { segments, F } = Analysis.analyse(mono, buf.sampleRate);
-  if (id) featCache = { id, F };
-  return { duration: buf.duration, peaks, hi, segments };
+  const r = await runAnalysis(mono, buf.sampleRate, (p) => toast(`Analysiere ${label}… ${Math.round(p * 100)} %`, 30000));
+  if (id) featCache = { id, F: r.F };
+  return { duration: buf.duration, peaks, hi, segments: r.segments, beats: r.beats, ones: r.ones };
 }
 
 async function featuresFor(t) {
-  if (featCache.id === t.id) return featCache.F;
+  if (featCache.id === t.id && featCache.F) return featCache.F;
   toast('Analysiere …', 30000);
   const buf = await decodeLow(await getFile(t.id));
   featCache = { id: t.id, F: Analysis.features(mixMono(buf), buf.sampleRate) };
@@ -246,9 +299,8 @@ function toSegments(list, old = []) {
   return list.map((x, i) => ({
     id: uid(),
     start: x.start,
-    bpm: x.bpm,
-    beatOffset: x.beatOffset,
     name: old[i]?.name || '',
+    labelId: old[i]?.labelId || null,
     color: list.length > 1 ? old[i]?.color || SEG_COLORS[i % SEG_COLORS.length] : old[0]?.color ?? null,
   }));
 }
@@ -337,7 +389,7 @@ async function addFiles(files) {
     toast(`Lade „${file.name || 'Audio'}“ …`, 60000);
     try {
       const id = uid();
-      const [info, tags] = await Promise.all([analyseBlob(file, id), readTags(file)]);
+      const [info, tags] = await Promise.all([analyseBlob(file, id, `„${file.name || 'Audio'}“ `), readTags(file)]);
       await putFile(id, file);
       await putHi(id, info.hi);
       hiCache.set(id, info.hi);
@@ -353,6 +405,8 @@ async function addFiles(files) {
         cueIn: 0,
         cueOut: null,
         segments: toSegments(info.segments),
+        beats: info.beats,
+        ones: info.ones,
       });
       ok++;
       save();
@@ -371,7 +425,10 @@ async function addFiles(files) {
   if (!currentId && state.tracks.length) load(state.tracks[0].id, false);
 }
 
-/* ---------- Lieder in der Datei und Zählzeiten ---------- */
+/* ---------- Lieder in der Datei und Zählzeiten ----------
+ * t.beats: Zeit jedes Schlags (s), t.ones: Indizes der Schläge, an denen die Zählung mit 1 beginnt
+ * (Liedanfänge, Schnitte, eigene Korrekturen). Dazwischen wird 1–8 weitergezählt.
+ */
 function segIndexAt(t, time) {
   const list = t?.segments || [];
   let i = 0;
@@ -380,50 +437,101 @@ function segIndexAt(t, time) {
 }
 const segAt = (t, time) => t?.segments?.[segIndexAt(t, time)];
 const segEnd = (t, i) => (i + 1 < t.segments.length ? t.segments[i + 1].start : t.duration);
-const segName = (t, i) => t.segments[i]?.name || `Lied ${i + 1}`;
-function segColor(t, sg) {
-  return sg?.color || group(t?.groupId)?.color || getComputedStyle(document.documentElement).getPropertyValue('--played').trim();
+function segName(t, i) {
+  const sg = t.segments[i];
+  return sg?.name || colorLabel(sg?.labelId)?.name || `Lied ${i + 1}`;
 }
-const beatLen = (sg) => (sg?.bpm ? 60 / sg.bpm : 0);
-const beatIdx = (sg, time) => Math.floor((time - sg.beatOffset) / beatLen(sg) + 1e-6);
-const beatTime = (sg, k) => sg.beatOffset + k * beatLen(sg);
+function segColor(t, sg) {
+  return sg?.color || t?.color || group(t?.groupId)?.color || getComputedStyle(document.documentElement).getPropertyValue('--played').trim();
+}
+const colorLabel = (id) => (id ? state.colorLabels.find((l) => l.id === id) : null);
+
+// Index des letzten Elements <= x (−1, wenn keins)
+function bsearch(arr, x) {
+  let lo = 0, hi = arr.length - 1, r = -1;
+  while (lo <= hi) {
+    const m = (lo + hi) >> 1;
+    if (arr[m] <= x + 1e-6) { r = m; lo = m + 1; } else hi = m - 1;
+  }
+  return r;
+}
+const hasBeats = (t) => !!t?.beats?.length;
+function anchorOf(t, k) {
+  const ones = t.ones || [];
+  const j = bsearch(ones, k);
+  return j >= 0 ? ones[j] : ones[0] ?? 0;
+}
+const countOfBeat = (t, k) => mod(k - anchorOf(t, k), 8) + 1;
+// Schläge eines Lieds: [erster, hinter letztem)
+function segBeatRange(t, i) {
+  const b = t.beats || [];
+  return [bsearch(b, t.segments[i].start - 0.03) + 1, bsearch(b, segEnd(t, i) - 0.03) + 1];
+}
+function segBpm(t, i) {
+  if (!hasBeats(t)) return null;
+  const [a, e] = segBeatRange(t, i);
+  return Analysis.bpmOfBeats(t.beats.slice(a, e));
+}
 
 // Zählzeit an einer Stelle: welches Lied, welche Zahl (1–8), welcher Achter
 function countAt(t, time) {
   if (!t?.segments?.length) return null;
-  const i = segIndexAt(t, time), sg = t.segments[i];
-  if (!sg.bpm) return { seg: i, count: null };
-  const k = beatIdx(sg, time);
-  const firstOne = Math.ceil((sg.start - 0.05 - sg.beatOffset) / beatLen(sg) / 8) * 8;
-  return { seg: i, k, count: mod(k, 8) + 1, eight: Math.floor((k - firstOne) / 8) + 1 };
+  const i = segIndexAt(t, time);
+  if (!hasBeats(t)) return { seg: i, count: null };
+  const k = bsearch(t.beats, time + 0.005);
+  const [a, e] = segBeatRange(t, i);
+  if (k < a || k >= e || time - t.beats[k] > 2.5) return { seg: i, count: null };
+  let eight = 0;
+  for (let j = a; j <= k; j++) if (countOfBeat(t, j) === 1) eight++;
+  return { seg: i, k, count: countOfBeat(t, k), eight };
 }
 
 function snap(time, t = current(), mode = state.settings.snap) {
-  if (!t?.segments?.length || mode === 'off') return time;
-  const i = segIndexAt(t, time), sg = t.segments[i];
-  if (!sg.bpm) return time;
-  const unit = beatLen(sg) * (mode === 'eight' ? 8 : 1);
-  let v = sg.beatOffset + Math.round((time - sg.beatOffset) / unit) * unit;
+  if (!hasBeats(t) || mode === 'off') return time;
+  const b = t.beats;
+  const k = bsearch(b, time);
+  let best = null, bd = Infinity;
+  const consider = (j) => {
+    if (j < 0 || j >= b.length) return;
+    if (mode === 'eight' && countOfBeat(t, j) !== 1) return;
+    const d = Math.abs(b[j] - time);
+    if (d < bd) { bd = d; best = b[j]; }
+  };
+  const range = mode === 'eight' ? 8 : 1;
+  for (let j = k - range + 1; j <= k + range; j++) consider(j);
   // nah an einer Liedgrenze: genau auf die Grenze
-  if (i > 0 && Math.abs(time - sg.start) < Math.abs(time - v)) v = sg.start;
-  if (v < sg.start - 0.001) v += unit;
-  return clamp(Math.min(v, segEnd(t, i)), 0, t.duration);
+  const i = segIndexAt(t, time);
+  if (i > 0 && Math.abs(time - t.segments[i].start) < bd) best = t.segments[i].start;
+  return best == null ? time : clamp(best, 0, t.duration);
 }
 
-// nächster Schlag nach „after“, auch über Liedgrenzen hinweg
+// nächster Schlag nach „after“
 function nextBeat(t, after) {
-  const i0 = segIndexAt(t, after);
-  for (let i = i0; i < t.segments.length; i++) {
-    const sg = t.segments[i], end = segEnd(t, i);
-    if (!sg.bpm) continue;
-    const b = beatLen(sg);
-    const k = i === i0
-      ? Math.floor((after - sg.beatOffset) / b + 1e-9) + 1
-      : Math.ceil((sg.start - 0.02 - sg.beatOffset) / b);
-    const tb = beatTime(sg, k);
-    if (tb < end - 0.5 * b) return { time: tb, count: mod(k, 8) + 1 };
-  }
-  return null;
+  if (!hasBeats(t)) return null;
+  const k = bsearch(t.beats, after) + 1;
+  return k < t.beats.length ? { time: t.beats[k], count: countOfBeat(t, k) } : null;
+}
+
+// Schläge in [a, e) ersetzen; localOnes zählen ab a
+function replaceBeats(t, a, e, nb, localOnes) {
+  const delta = nb.length - (e - a);
+  t.beats.splice(a, e - a, ...nb.map((x) => Math.round(x * 1000) / 1000));
+  const ones = [
+    ...t.ones.filter((k) => k < a),
+    ...localOnes.filter((j) => j >= 0 && j < nb.length).map((j) => a + j),
+    ...t.ones.filter((k) => k >= e).map((k) => k + delta),
+  ];
+  t.ones = [...new Set(ones)].sort((x, y) => x - y);
+}
+
+// aus einem alten Raster (Tempo + Lage der 1) Schläge erzeugen
+function gridBeats(from, to, bpm, oneAt) {
+  const bl = 60 / bpm;
+  const beats = [];
+  let k0 = Math.ceil((from - 0.02 - oneAt) / bl);
+  for (let k = k0; oneAt + k * bl < to - 0.5 * bl; k++) beats.push(oneAt + k * bl);
+  const firstOne = beats.findIndex((x) => Math.abs(mod(Math.round((x - oneAt) / bl), 8)) === 0);
+  return { beats, ones: firstOne >= 0 ? [firstOne] : [0] };
 }
 
 /* ---------- Playback ---------- */
@@ -458,14 +566,18 @@ async function load(id, autoplay = true, at = null) {
 async function ensureDetail(t) {
   if (hiCache.has(t.id)) return;
   let hi = await getHi(t.id).catch(() => null);
-  const needTempo = !t.segments;
+  const needTempo = !t.segments || !t.beats;
   if (!hi || needTempo) {
     try {
-      toast('Analysiere Wellenform, Lieder und Takt …', 30000);
       const info = await analyseBlob(await getFile(t.id), t.id);
       hi = info.hi;
       await putHi(t.id, hi);
-      if (needTempo) { t.segments = toSegments(info.segments); save(); }
+      if (needTempo) {
+        t.segments = toSegments(info.segments, t.segments || []);
+        t.beats = info.beats;
+        t.ones = info.ones;
+        save();
+      }
       toast('Analyse fertig');
     } catch (e) {
       console.warn(e);
@@ -519,23 +631,22 @@ function jump(dir) {
   const t = current();
   if (!t) return;
   const now = audio.currentTime;
-  const c = countAt(t, now + 0.05);
-  const sg = c && t.segments[c.seg];
-  if (!state.settings.jumpEight || !sg?.bpm) return seek(now + dir * 5);
-  const startOfEight = Math.floor(c.k / 8) * 8;
-  const k = dir < 0 ? (c.k - startOfEight >= 1 ? startOfEight : startOfEight - 8) : startOfEight + 8;
-  let target = beatTime(sg, k);
-  if (dir < 0 && target < sg.start - 0.01) {
-    // über den Liedanfang zurück: erst an den Anfang, dann in den letzten Achter davor
-    if (now - sg.start > 0.3 || c.seg === 0) target = sg.start;
-    else {
-      const prev = t.segments[c.seg - 1];
-      target = prev.bpm ? beatTime(prev, Math.floor(beatIdx(prev, sg.start - 0.05) / 8) * 8) : prev.start;
-      target = Math.max(target, prev.start);
-    }
+  if (!state.settings.jumpEight || !hasBeats(t)) return seek(now + dir * 5);
+  const b = t.beats;
+  let k = bsearch(b, now + 0.05);
+  if (k < 0) return seek(dir < 0 ? 0 : b[0]);
+  // Anfang des aktuellen Achters
+  let s1 = k;
+  while (s1 > 0 && countOfBeat(t, s1) !== 1 && k - s1 < 8) s1--;
+  let target;
+  if (dir < 0) {
+    if (k > s1 || now - b[k] > 0.3) target = s1;
+    else { target = s1 - 1; while (target > 0 && countOfBeat(t, target) !== 1 && s1 - target < 8) target--; }
+  } else {
+    target = k + 1;
+    while (target < b.length - 1 && countOfBeat(t, target) !== 1 && target - k < 8) target++;
   }
-  if (dir > 0 && target >= segEnd(t, c.seg) - 0.01) target = segEnd(t, c.seg);
-  seek(Math.max(0, target));
+  seek(b[clamp(target, 0, b.length - 1)]);
 }
 
 function replay() {
@@ -614,18 +725,166 @@ function syncPlayBtn() {
 }
 
 /* ---------- Mitzählen (Stimme / Klick) ---------- */
-let countBuffers = null;
+const voiceCache = new Map(); // id -> AudioBuffer[]
 let lastCountTime = null;
+let countBuffers = null;
 
-async function loadCountSounds() {
-  if (countBuffers) return countBuffers;
-  countBuffers = await Promise.all((window.COUNT_SOUNDS || []).map(async (uri) => {
-    const bin = atob(uri.split(',')[1]);
-    const bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    return ctx().decodeAudioData(bytes.buffer);
-  }));
-  return countBuffers;
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const sc = document.createElement('script');
+    sc.src = src;
+    sc.onload = resolve;
+    sc.onerror = () => reject(new Error('Stimme nicht gefunden'));
+    document.head.append(sc);
+  });
+}
+
+async function loadCountSounds(id = state.settings.voice) {
+  if (voiceCache.has(id)) return (countBuffers = voiceCache.get(id));
+  let buffers;
+  if (id === 'own') {
+    const rec = await getHi('voice:own').catch(() => null);
+    if (!rec) throw new Error('Noch keine eigene Stimme aufgenommen');
+    buffers = rec.parts.map((data) => {
+      const b = ctx().createBuffer(1, data.length, rec.sr);
+      b.copyToChannel(data, 0);
+      return b;
+    });
+  } else {
+    if (!window.COUNT_VOICES?.[id]) await loadScript(`voices/${id}.js`);
+    buffers = await Promise.all(window.COUNT_VOICES[id].map(async (uri) => {
+      const bin = atob(uri.split(',')[1]);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return ctx().decodeAudioData(bytes.buffer);
+    }));
+  }
+  voiceCache.set(id, buffers);
+  if (id === state.settings.voice) countBuffers = buffers;
+  return buffers;
+}
+
+async function setVoice(id) {
+  state.settings.voice = id;
+  save();
+  renderVoiceSelects();
+  try {
+    await loadCountSounds(id);
+  } catch (e) {
+    toast(e.message, 3000);
+  }
+}
+
+function renderVoiceSelects() {
+  for (const sel of [$('voiceSel'), $('setVoice')]) {
+    sel.replaceChildren(...VOICES.map((v) => new Option(v.name, v.id)));
+    sel.value = state.settings.voice;
+  }
+  $('countVol').value = state.settings.countVolume;
+}
+
+async function testVoice() {
+  ensureGraph();
+  try {
+    if (state.settings.countMode !== 'click') await loadCountSounds();
+  } catch (e) { return toast(e.message, 3000); }
+  const c = ctx();
+  const mode = state.settings.countMode;
+  if (mode === 'off') state.settings.countMode = 'voice';
+  for (let i = 0; i < 8; i++) playCount(i + 1, c.currentTime + 0.1 + i * 0.5);
+  state.settings.countMode = mode;
+}
+
+/* Eigene Stimme: 10 s aufnehmen, an den Pausen in 8 Wörter schneiden */
+async function recordVoice() {
+  const status = $('recordStatus');
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true, autoGainControl: true } });
+  } catch (e) {
+    status.textContent = 'Kein Zugriff aufs Mikrofon – bitte erlauben';
+    return;
+  }
+  const c = ctx();
+  const src = c.createMediaStreamSource(stream);
+  const proc = c.createScriptProcessor(4096, 1, 1);
+  const chunks = [];
+  proc.onaudioprocess = (e) => chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+  const mute = c.createGain();
+  mute.gain.value = 0;
+  src.connect(proc).connect(mute).connect(c.destination);
+  status.classList.add('rec');
+  for (let s = 10; s > 0; s--) {
+    status.textContent = `● Aufnahme … ${s}`;
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  status.classList.remove('rec');
+  proc.disconnect();
+  src.disconnect();
+  stream.getTracks().forEach((t) => t.stop());
+  const len = chunks.reduce((n, x) => n + x.length, 0);
+  const all = new Float32Array(len);
+  let o = 0;
+  for (const x of chunks) { all.set(x, o); o += x.length; }
+  const parts = splitWords(all, c.sampleRate);
+  if (parts.length !== 8) {
+    status.textContent = `${parts.length} Wörter erkannt statt 8 – bitte nochmal, mit kurzen Pausen dazwischen.`;
+    return;
+  }
+  await putHi('voice:own', { sr: c.sampleRate, parts });
+  voiceCache.delete('own');
+  await setVoice('own');
+  status.textContent = 'Gespeichert ✓ – „Eigene Aufnahme“ ist jetzt ausgewählt.';
+  testVoice();
+}
+
+function splitWords(x, sr) {
+  const hop = Math.round(sr / 100);
+  const n = Math.floor(x.length / hop);
+  const db = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    let e = 0;
+    for (let j = i * hop; j < (i + 1) * hop; j++) e += x[j] * x[j];
+    db[i] = 10 * Math.log10(e / hop + 1e-12);
+  }
+  const sorted = Array.from(db).sort((a, b) => a - b);
+  const noise = sorted[Math.floor(n * 0.2)], peak = sorted[Math.floor(n * 0.995)];
+  const thr = Math.max(noise + 10, peak - 32);
+  let segs = [];
+  for (let i = 0; i < n; i++) {
+    if (db[i] < thr) continue;
+    let j = i;
+    while (j < n && db[j] >= thr - 6) j++;
+    segs.push([i, j]);
+    i = j;
+  }
+  // kleine Lücken (z. B. in „sieben“) schließen, Kurzes verwerfen
+  const merged = [];
+  for (const sg of segs) {
+    const last = merged[merged.length - 1];
+    if (last && sg[0] - last[1] < 15) last[1] = sg[1];
+    else merged.push([...sg]);
+  }
+  segs = merged.filter(([a, b]) => b - a >= 8);
+  while (segs.length > 8) {
+    // die zwei am engsten beieinander liegenden zusammenfassen
+    let bi = 0, bg = Infinity;
+    for (let i = 0; i + 1 < segs.length; i++) { const g = segs[i + 1][0] - segs[i][1]; if (g < bg) { bg = g; bi = i; } }
+    segs.splice(bi, 2, [segs[bi][0], segs[bi + 1][1]]);
+  }
+  return segs.map(([a, b]) => {
+    const s0 = Math.max(0, (a - 2) * hop), s1 = Math.min(x.length, (b + 6) * hop);
+    const part = x.slice(s0, s1);
+    let m = 0;
+    for (const v of part) m = Math.max(m, Math.abs(v));
+    const g = m ? 0.9 / m : 1;
+    const fade = Math.round(sr * 0.005);
+    for (let i = 0; i < part.length; i++) {
+      const f = Math.min(1, i / fade, (part.length - 1 - i) / fade);
+      part[i] *= g * f;
+    }
+    return part;
+  });
 }
 
 function resetCountSchedule() {
@@ -660,7 +919,7 @@ function scheduler() {
   const t = current();
   if (!t || audio.paused) return;
   if (audio.currentTime >= cueOut(t) && t.cueOut != null) onEnded();
-  if (state.settings.countMode === 'off' || !t.segments || !audioCtx || scrub) return;
+  if (state.settings.countMode === 'off' || !hasBeats(t) || !audioCtx || scrub) return;
   const now = audio.currentTime;
   const rate = audio.playbackRate || 1;
   const nb = nextBeat(t, lastCountTime ?? now - 0.03);
@@ -798,22 +1057,73 @@ function setCue(which, at = viewTime()) {
 
 /* ---------- Tempo und Lieder bearbeiten ---------- */
 // Tempo-Änderungen gelten für das Lied an der aktuellen Stelle
+function curSegIndex() {
+  const t = current();
+  return t?.segments ? segIndexAt(t, viewTime()) : -1;
+}
 function curSeg() {
   const t = current();
-  return t?.segments ? t.segments[segIndexAt(t, viewTime())] : null;
+  return t?.segments?.[curSegIndex()] ?? null;
 }
-
-function setTempo(bpm, offset) {
-  const sg = curSeg();
-  if (!sg) return;
-  sg.bpm = bpm ? Math.round(clamp(bpm, 40, 240) * 100) / 100 : null;
-  if (offset != null) sg.beatOffset = offset;
+function afterBeatEdit() {
   save();
   resetCountSchedule();
   renderTempo();
   renderSongs();
   renderMarkers();
   draw();
+}
+
+// gleichmäßiges Raster mit neuem Tempo, ausgerichtet am Schlag an der aktuellen Stelle
+function setTempo(bpm) {
+  const t = current();
+  const i = curSegIndex();
+  if (!t || i < 0 || !bpm) return;
+  bpm = clamp(bpm, 40, 240);
+  t.beats ??= [];
+  t.ones ??= [];
+  const [a, e] = segBeatRange(t, i);
+  const now = viewTime();
+  let k = bsearch(t.beats, now);
+  if (k < a || k >= e) k = -1;
+  const anchorTime = k >= 0 ? t.beats[k] : now;
+  const cnt = k >= 0 ? countOfBeat(t, k) : 1;
+  const bl = 60 / bpm;
+  const oneAt = anchorTime - (cnt - 1) * bl;
+  const g = gridBeats(t.segments[i].start, segEnd(t, i), bpm, oneAt);
+  replaceBeats(t, a, e, g.beats, g.ones);
+  afterBeatEdit();
+}
+
+function scaleTempo(f) {
+  const t = current();
+  const i = curSegIndex();
+  if (!hasBeats(t) || i < 0) return;
+  const [a, e] = segBeatRange(t, i);
+  if (e - a < 4) return;
+  const part = t.beats.slice(a, e);
+  const firstOne = (t.ones.find((k) => k >= a && k < e) ?? a) - a;
+  let nb, ones;
+  if (f < 1) {
+    // halbieren: jeden zweiten Schlag behalten, die 1 bleibt erhalten
+    nb = part.filter((_, j) => mod(j - firstOne, 2) === 0);
+    ones = [0];
+  } else {
+    nb = [];
+    part.forEach((x, j) => { nb.push(x); if (j + 1 < part.length) nb.push((x + part[j + 1]) / 2); });
+    ones = [firstOne * 2];
+  }
+  replaceBeats(t, a, e, nb, ones);
+  afterBeatEdit();
+}
+
+function nudge(sec) {
+  const t = current();
+  const i = curSegIndex();
+  if (!hasBeats(t) || i < 0) return;
+  const [a, e] = segBeatRange(t, i);
+  for (let k = a; k < e; k++) t.beats[k] = Math.round((t.beats[k] + sec) * 1000) / 1000;
+  afterBeatEdit();
 }
 
 let taps = [];
@@ -832,26 +1142,36 @@ function tapTempo() {
   }
 }
 
+// Ab dieser Stelle neu mit 1 zählen
 function setOne(at = viewTime(), msg = true) {
-  const sg = curSeg();
-  if (!sg) return;
-  if (!sg.bpm) return toast('Erst Tempo erkennen oder antippen');
-  setTempo(sg.bpm, Math.round(at * 1000) / 1000);
-  if (msg) toast('Zählzeit gesetzt: hier ist die 1');
+  const t = current();
+  if (!hasBeats(t)) return toast('Erst Tempo erkennen oder antippen');
+  const b = t.beats;
+  let k = bsearch(b, at);
+  if (k < 0 || (k + 1 < b.length && Math.abs(b[k + 1] - at) < Math.abs(b[k] - at))) k++;
+  k = clamp(k, 0, b.length - 1);
+  t.ones = [...t.ones.filter((j) => Math.abs(j - k) >= 8), k].sort((x, y) => x - y);
+  afterBeatEdit();
+  if (msg) toast('Ab hier wird neu mit 1 gezählt');
 }
 
-// Tempo nur für das aktuelle Lied neu erkennen
+// Tempo und Schläge nur für das aktuelle Lied neu erkennen
 async function redetect() {
   const t = current();
-  if (!t) return;
+  const i = curSegIndex();
+  if (!t || i < 0) return;
   try {
     const F = await featuresFor(t);
-    const i = segIndexAt(t, viewTime());
-    const sg = t.segments[i];
-    const tempo = Analysis.detectTempo(F, sg.start, segEnd(t, i));
-    if (!tempo) return toast('Kein Takt erkannt – bitte Tap benutzen');
-    setTempo(tempo.bpm, tempo.beatOffset);
-    toast(`${segName(t, i)}: ${tempo.bpm} BPM – „Hier ist die 1“ zum Korrigieren`, 3000);
+    const r = Analysis.analyseRange(F, t.segments[i].start, segEnd(t, i));
+    if (!r.beats.length) return toast('Kein Takt erkannt – bitte Tap benutzen');
+    t.beats ??= [];
+    t.ones ??= [];
+    const end = segEnd(t, i);
+    while (r.beats.length > 1 && i + 1 < t.segments.length && end - r.beats[r.beats.length - 1] < 0.5 * (r.beats[1] - r.beats[0])) r.beats.pop();
+    const [a, e] = segBeatRange(t, i);
+    replaceBeats(t, a, e, r.beats, r.ones);
+    afterBeatEdit();
+    toast(`${segName(t, i)}: ${segBpm(t, i)} BPM erkannt`, 2500);
   } catch (e) {
     console.warn(e);
     toast('Erkennung fehlgeschlagen');
@@ -862,14 +1182,16 @@ async function redetect() {
 async function detectSongs() {
   const t = current();
   if (!t) return;
-  if (t.segments?.length > 1 && !confirm('Lieder neu erkennen? Eigene Grenzen, Tempos und Zählzeiten werden ersetzt (Namen und Farben bleiben).')) return;
+  if (t.segments?.length > 1 && !confirm('Lieder neu erkennen? Eigene Grenzen und Zählkorrekturen werden ersetzt (Namen und Farben bleiben).')) return;
   try {
     const F = await featuresFor(t);
     toast('Suche Lieder …', 30000);
     await new Promise((r) => setTimeout(r, 30));
-    t.segments = toSegments(Analysis.songsFromFeatures(F), t.segments);
-    save();
-    resetCountSchedule();
+    const r = Analysis.songsFromFeatures(F);
+    t.segments = toSegments(r.segments, t.segments);
+    t.beats = r.beats;
+    t.ones = r.ones;
+    afterBeatEdit();
     renderAll();
     toast(t.segments.length > 1 ? `${t.segments.length} Lieder erkannt` : 'Ein durchgehendes Lied erkannt', 3000);
   } catch (e) {
@@ -888,21 +1210,26 @@ function colorizeSegments(t) {
   }
 }
 
+function addOneAt(t, time) {
+  if (!hasBeats(t)) return;
+  const k = bsearch(t.beats, time - 0.03) + 1;
+  if (k < t.beats.length && !t.ones.includes(k)) t.ones = [...t.ones, k].sort((x, y) => x - y);
+}
+
 // An der aktuellen Stelle ein neues Lied beginnen lassen
-async function splitHere() {
+function splitHere() {
   const t = current();
   if (!t?.segments) return;
-  const at = snap(viewTime(), t, 'eight');
+  const at = snap(viewTime(), t, 'beat');
   const i = segIndexAt(t, at);
   const sg = t.segments[i];
   if (at - sg.start < 2 || segEnd(t, i) - at < 2) return toast('Zu nah an einer Liedgrenze');
-  const ns = { ...sg, id: uid(), start: Math.round(at * 1000) / 1000, name: '', color: null };
-  if (sg.bpm) ns.beatOffset = at; // neues Lied beginnt auf der 1
-  t.segments.splice(i + 1, 0, ns);
+  t.segments.splice(i + 1, 0, { id: uid(), start: Math.round(at * 1000) / 1000, name: '', labelId: null, color: null });
   colorizeSegments(t);
-  save();
+  addOneAt(t, at);
+  afterBeatEdit();
   renderAll();
-  toast(`${segName(t, i + 1)} beginnt bei ${fmt(at, true)} – „Erkennen“ prüft das Tempo`, 3000);
+  toast(`${segName(t, i + 1)} beginnt bei ${fmt(at, true)} – mit 1`, 2500);
 }
 
 function mergeSong(i) {
@@ -911,8 +1238,7 @@ function mergeSong(i) {
   if (!confirm(`„${segName(t, i)}“ mit dem Lied davor zusammenführen?`)) return;
   t.segments.splice(i, 1);
   if (t.segments.length === 1) t.segments[0].color = null;
-  save();
-  resetCountSchedule();
+  afterBeatEdit();
   renderAll();
 }
 
@@ -922,13 +1248,14 @@ function setSongStart(i) {
   const at = snap(viewTime(), t, 'beat');
   const lo = t.segments[i - 1].start + 2, hi = segEnd(t, i) - 2;
   if (at < lo || at > hi) return toast('Die Grenze muss zwischen den Nachbarliedern liegen');
-  const sg = t.segments[i];
-  const shift = at - sg.start;
-  sg.start = Math.round(at * 1000) / 1000;
-  // die 1 wandert mit, wenn sie am Liedanfang lag
-  if (sg.bpm && Math.abs(sg.beatOffset - (sg.start - shift)) < 0.05) sg.beatOffset = sg.start;
-  save();
-  resetCountSchedule();
+  const old = t.segments[i].start;
+  if (hasBeats(t)) {
+    const k = bsearch(t.beats, old - 0.03) + 1;
+    t.ones = t.ones.filter((j) => j !== k);
+  }
+  t.segments[i].start = Math.round(at * 1000) / 1000;
+  addOneAt(t, at);
+  afterBeatEdit();
   renderAll();
 }
 
@@ -967,7 +1294,8 @@ function renderGroups() {
 function tempoText(t) {
   const n = t.segments?.length || 0;
   if (n > 1) return `${n} Lieder`;
-  return t.segments?.[0]?.bpm ? `${t.segments[0].bpm} BPM` : null;
+  const bpm = n ? segBpm(t, 0) : null;
+  return bpm ? `${bpm} BPM` : null;
 }
 
 let dragId = null;
@@ -983,7 +1311,7 @@ function renderTracks() {
     if (t.id === currentId) li.classList.add('playing');
 
     const stripe = el('span', { className: 'stripe' });
-    stripe.style.background = g?.color || '#4a4a58';
+    stripe.style.background = t.color || g?.color || '#4a4a58';
     const title = el('span', { className: 'title' },
       el('span', { className: 't1', textContent: (t.id === currentId && !audio.paused ? '▶ ' : '') + t.name }),
       el('span', { className: 't2', textContent: [t.artist, g?.name, tempoText(t), t.markers.length ? `◆${t.markers.length}` : null].filter(Boolean).join(' · ') }));
@@ -1038,7 +1366,7 @@ function renderNow() {
   $('nowSub').textContent = t ? [t.artist, g?.name].filter(Boolean).join(' · ') || '–' : '–';
   $('nowColor').style.background = g?.color || '#4a4a58';
   $('timeDur').textContent = fmt(t?.duration || 0);
-  const eight = state.settings.jumpEight && curSeg()?.bpm;
+  const eight = state.settings.jumpEight && hasBeats(t);
   $('backBtn').textContent = eight ? '−8' : '-5s';
   $('fwdBtn').textContent = eight ? '+8' : '+5s';
 }
@@ -1052,13 +1380,14 @@ function renderCues() {
 function renderTempo() {
   const t = current();
   const sg = curSeg();
-  const inp = $('bpmInput');
-  if (document.activeElement !== inp) inp.value = sg?.bpm ?? '';
-  const multi = t?.segments?.length > 1;
   const i = t ? segIndexAt(t, viewTime()) : 0;
+  const bpm = t?.segments ? segBpm(t, i) : null;
+  const inp = $('bpmInput');
+  if (document.activeElement !== inp) inp.value = bpm ?? '';
+  const multi = t?.segments?.length > 1;
   $('tempoSeg').textContent = multi ? segName(t, i) : '';
   $('tempoSeg').style.color = multi ? segColor(t, sg) : '';
-  $('countBox').classList.toggle('off', !sg?.bpm);
+  $('countBox').classList.toggle('off', !bpm);
   for (const seg of ['countModeSeg', 'snapSeg']) {
     const key = seg === 'countModeSeg' ? 'countMode' : 'snap';
     for (const b of $(seg).children) b.classList.toggle('on', b.dataset.v === state.settings[key]);
@@ -1076,21 +1405,24 @@ function renderSongs() {
     const color = el('button', { className: 'mcolor', title: 'Farbe des Lieds' });
     color.style.background = segColor(t, sg);
     color.onclick = async () => {
-      const c = await pickColor(sg.color);
+      const c = await pickColor(sg.color, sg.labelId);
       if (!c) return;
-      sg.color = c;
+      sg.color = c.color;
+      sg.labelId = c.labelId;
       colorizeSegments(t);
       save();
       renderSongs();
       draw();
     };
-    const name = el('input', { type: 'text', value: sg.name, placeholder: `Lied ${i + 1}`, maxLength: 40 });
+    const lab = colorLabel(sg.labelId);
+    const name = el('input', { type: 'text', value: sg.name, placeholder: lab?.name || `Lied ${i + 1}`, maxLength: 40 });
     name.oninput = () => { sg.name = name.value; save(); draw(); };
     const startB = el('button', { className: 'mmini time', textContent: fmt(sg.start), title: 'Zum Liedanfang springen' });
     startB.onclick = () => { seek(sg.start); if (state.settings.markerPlay) play(); };
     const here = el('button', { className: 'mmini', textContent: '⇤', title: 'Liedanfang auf die aktuelle Stelle legen', disabled: i === 0 });
     here.onclick = () => setSongStart(i);
-    const bpm = el('span', { className: 'song-bpm', textContent: sg.bpm ? `${sg.bpm}` : '–', title: 'BPM' });
+    const sb = segBpm(t, i);
+    const bpm = el('span', { className: 'song-bpm', textContent: sb ? `${sb}` : '–', title: 'BPM' });
     const del = el('button', { className: 'mmini del', textContent: '✕', title: 'Mit dem Lied davor zusammenführen', disabled: i === 0 });
     del.onclick = () => mergeSong(i);
     const li = el('li', { className: i === curI ? 'cur' : '' }, color, name, startB, here, bpm, del);
@@ -1121,7 +1453,7 @@ function renderMarkers() {
     color.style.background = m.color;
     color.onclick = async () => {
       const c = await pickColor(m.color);
-      if (c) { m.color = c; save(); renderMarkers(); draw(); }
+      if (c) { m.color = c.color; save(); renderMarkers(); draw(); }
     };
     const inB = el('button', { className: 'mmini', textContent: 'In', title: 'Als Cue-In (Start) setzen' });
     inB.onclick = () => setCue('in', m.time);
@@ -1172,13 +1504,64 @@ function swatches(container, selected, onPick) {
   }
 }
 
-function pickColor(currentColor) {
+// Liefert {color, labelId} oder null
+function pickColor(currentColor, currentLabel = null) {
   return new Promise((resolve) => {
     const dlg = $('colorDlg');
-    swatches($('colorDlgSwatches'), currentColor, (c) => { dlg.close(); resolve(c); });
-    dlg.onclose = () => resolve(null);
+    let done = false;
+    const finish = (v) => { if (done) return; done = true; dlg.close(); resolve(v); };
+    swatches($('colorDlgSwatches'), currentLabel ? null : currentColor, (c) => finish({ color: c, labelId: null }));
+    const box = $('colorDlgLabels');
+    box.replaceChildren();
+    $('colorDlgLabelBox').style.display = state.colorLabels.length ? '' : 'none';
+    for (const l of state.colorLabels) {
+      const b = el('button', { type: 'button', className: 'chip label-chip' + (l.id === currentLabel ? ' on' : ''), textContent: l.name || 'ohne Namen' });
+      b.style.setProperty('--c', l.color);
+      b.onclick = () => finish({ color: l.color, labelId: l.id });
+      box.append(b);
+    }
+    dlg.onclose = () => { if (!done) { done = true; resolve(null); } };
     dlg.showModal();
   });
+}
+
+function renderLabelList() {
+  const ul = $('labelList');
+  ul.replaceChildren();
+  if (!state.colorLabels.length) ul.append(el('li', { className: 'empty', textContent: 'Noch keine – z. B. „Garde tanzt“, „Alle“, „Solo“, „Pause“.' }));
+  for (const l of state.colorLabels) {
+    const sw = el('button', { type: 'button', className: 'mcolor big' });
+    sw.style.background = l.color;
+    sw.onclick = async () => {
+      const dlg = $('colorDlg');
+      $('settingsDlg').close();
+      const c = await new Promise((resolve) => {
+        swatches($('colorDlgSwatches'), l.color, (x) => { dlg.close(); resolve(x); });
+        $('colorDlgLabelBox').style.display = 'none';
+        dlg.onclose = () => resolve(null);
+        dlg.showModal();
+      });
+      if (c) {
+        l.color = c;
+        // alle Lieder mit dieser Bezeichnung umfärben
+        for (const t of state.tracks) for (const sg of t.segments || []) if (sg.labelId === l.id) sg.color = c;
+        save();
+        renderAll();
+      }
+      openSettings();
+    };
+    const name = el('input', { type: 'text', value: l.name, placeholder: 'Bezeichnung', maxLength: 30 });
+    name.oninput = () => { l.name = name.value; save(); renderSongs(); draw(); };
+    const del = el('button', { type: 'button', className: 'mmini del', textContent: '✕', title: 'Löschen' });
+    del.onclick = () => {
+      state.colorLabels = state.colorLabels.filter((x) => x !== l);
+      for (const t of state.tracks) for (const sg of t.segments || []) if (sg.labelId === l.id) sg.labelId = null;
+      save();
+      renderLabelList();
+      renderSongs();
+    };
+    ul.append(el('li', {}, sw, name, del));
+  }
 }
 
 function openGroupDialog(g) {
@@ -1215,6 +1598,20 @@ function openGroupDialog(g) {
 function openTrackDialog(t) {
   const dlg = $('trackDlg');
   let groupId = t.groupId || '';
+  let color = t.color || null, labelId = t.labelId || null;
+  const paintColor = () => {
+    $('trackDlgColor').style.background = color || group(groupId)?.color || '#4a4a58';
+    $('trackDlgColorName').textContent = color ? colorLabel(labelId)?.name || 'eigene Farbe' : 'Farbe der Gruppe';
+  };
+  $('trackDlgColor').onclick = async () => {
+    dlg.close('keep');
+    const c = await pickColor(color, labelId);
+    if (c) { color = c.color; labelId = c.labelId; }
+    paintColor();
+    dlg.returnValue = '';
+    dlg.showModal();
+  };
+  $('trackDlgColorReset').onclick = () => { color = null; labelId = null; paintColor(); };
   $('trackDlgName').value = t.name;
   $('trackDlgArtist').value = t.artist || '';
   $('trackDlgInfo').textContent = `Datei: ${t.fileName || '–'} · Länge ${fmt(t.duration)}${tempoText(t) ? ' · ' + tempoText(t) : ''}`;
@@ -1224,17 +1621,20 @@ function openTrackDialog(t) {
     for (const g of [{ id: '', name: 'keine', color: '#4a4a58' }, ...state.groups]) {
       const b = el('button', { type: 'button', className: 'chip' + (g.id === groupId ? ' on' : ''), textContent: g.name });
       b.style.setProperty('--c', g.color);
-      b.onclick = () => { groupId = g.id; paint(); };
+      b.onclick = () => { groupId = g.id; paint(); paintColor(); };
       box.append(b);
     }
   };
   paint();
+  paintColor();
   $('trackDlgDelete').onclick = async () => { if (await removeTrack(t.id)) dlg.close(); };
   dlg.onclose = () => {
     if (dlg.returnValue !== 'save') return;
     t.name = $('trackDlgName').value.trim() || t.name;
     t.artist = $('trackDlgArtist').value.trim();
     t.groupId = groupId;
+    t.color = color;
+    t.labelId = labelId;
     save();
     renderAll();
   };
@@ -1250,6 +1650,8 @@ function openSettings() {
   $('setCountVol').value = s.countVolume;
   $('setCountOffset').value = s.countOffsetMs;
   $('setCountOffsetVal').textContent = `${s.countOffsetMs} ms`;
+  renderVoiceSelects();
+  renderLabelList();
   $('settingsDlg').showModal();
 }
 for (const [id, key, prop] of [
@@ -1260,6 +1662,7 @@ for (const [id, key, prop] of [
   $(id).addEventListener('input', (e) => {
     state.settings[key] = prop === 'checked' ? e.target.checked : +e.target.value;
     $('setCountOffsetVal').textContent = `${state.settings.countOffsetMs} ms`;
+    $('countVol').value = state.settings.countVolume;
     save();
     renderNow();
   });
@@ -1442,48 +1845,43 @@ function drawZoom() {
     g.fillText('Detailansicht wird berechnet …', 10, mid);
   }
 
-  // Zählzeiten 1–8, je Lied mit eigenem Tempo
+  // Liedgrenzen
+  segs.forEach((sg, i) => {
+    if (i === 0 || sg.start < start || sg.start > start + span) return;
+    g.fillStyle = segColor(t, sg);
+    g.fillRect(X(sg.start) - 1, 0, 3, h);
+    g.font = '700 11px system-ui, sans-serif';
+    g.textAlign = 'left';
+    g.textBaseline = 'middle';
+    g.fillText(segName(t, i), X(sg.start) + 5, top + 8);
+  });
+  // Zählzeiten 1–8 an den erkannten Schlägen
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  let anyGrid = false;
-  segs.forEach((sg, i) => {
-    const a = Math.max(start, sg.start), b = Math.min(start + span, segEnd(t, i));
-    if (b <= a) return;
-    if (i > 0 && sg.start >= start) {
-      // Liedgrenze
-      g.fillStyle = segColor(t, sg);
-      g.fillRect(X(sg.start) - 1, 0, 3, h);
-      g.font = '700 11px system-ui, sans-serif';
-      g.textAlign = 'left';
-      g.fillText(segName(t, i), X(sg.start) + 5, top + 8);
-      g.textAlign = 'center';
-    }
-    if (!sg.bpm) return;
-    anyGrid = true;
-    const bl = beatLen(sg);
-    const step = pxPerSec * bl < 14 ? 2 : 1;
-    for (let k = Math.ceil((a - sg.beatOffset) / bl - 1e-6); k <= Math.floor((b - sg.beatOffset) / bl); k++) {
-      const bt = beatTime(sg, k);
-      if (bt < sg.start - 0.02 || bt >= segEnd(t, i) - 0.5 * bl) continue;
-      const x = X(bt);
-      const c = mod(k, 8) + 1;
+  if (hasBeats(t)) {
+    const b = t.beats;
+    let k = Math.max(0, bsearch(b, start));
+    const avg = b.length > 1 ? (b[b.length - 1] - b[0]) / (b.length - 1) : 0.5;
+    const step = pxPerSec * avg < 14 ? 2 : 1;
+    for (; k < b.length && b[k] <= start + span; k++) {
+      const x = X(b[k]);
+      const c = countOfBeat(t, k);
       const one = c === 1;
       g.fillStyle = one ? 'rgba(255,210,63,.55)' : 'rgba(255,255,255,.12)';
       g.fillRect(Math.round(x), COUNT_H, one ? 2 : 1, h - COUNT_H);
-      if (one || mod(k, step) === 0) {
+      if (one || mod(c - 1, step) === 0) {
         g.font = one ? '700 13px system-ui, sans-serif' : '600 11px system-ui, sans-serif';
         g.fillStyle = one ? css('--accent-2') : c === 5 ? '#ddd' : '#999';
         g.fillText(String(c), x, COUNT_H / 2);
       }
     }
-  });
-  g.textAlign = 'left';
-  if (!anyGrid) {
+  } else {
+    g.textAlign = 'left';
     g.fillStyle = css('--muted');
     g.font = '11px system-ui, sans-serif';
-    g.textBaseline = 'middle';
     g.fillText('Kein Takt – „Erkennen“ oder „Tap“ benutzen', 8, COUNT_H / 2);
   }
+  g.textAlign = 'left';
 
   g.fillStyle = css('--accent-2');
   if (t.cueIn > 0) g.fillRect(X(t.cueIn), top, 2, h - top);
@@ -1705,7 +2103,9 @@ async function importSet(file) {
       t.cueIn = src.cueIn || 0;
       t.cueOut = src.cueOut ?? null;
       if (src.segments) t.segments = src.segments.map((x) => ({ ...x, id: uid() }));
-      else if (src.bpm !== undefined) t.segments = [{ id: uid(), start: 0, bpm: src.bpm, beatOffset: src.beatOffset || 0, name: '', color: null }];
+      if (src.beats) { t.beats = src.beats; t.ones = src.ones || [0]; }
+      else if (t.segments) migrateTrack(t, src);
+      if (src.color !== undefined) t.color = src.color;
       t.markers = (src.markers || []).map((m) => ({ ...m, id: uid() }));
     }
     const pos = (t) => { const i = order.indexOf(t.id); return i < 0 ? order.length : i; };
@@ -1747,24 +2147,36 @@ $('zoomIn').onclick = () => setZoom(-1);
 $('zoomOut').onclick = () => setZoom(1);
 
 $('bpmInput').onchange = (e) => setTempo(+e.target.value || null);
-$('bpmHalf').onclick = () => curSeg()?.bpm && setTempo(curSeg().bpm / 2);
-$('bpmDouble').onclick = () => curSeg()?.bpm && setTempo(curSeg().bpm * 2);
+$('bpmHalf').onclick = () => scaleTempo(0.5);
+$('bpmDouble').onclick = () => scaleTempo(2);
 $('tapBtn').onclick = tapTempo;
 $('detectBtn').onclick = redetect;
 $('detectSongsBtn').onclick = detectSongs;
 $('splitBtn').onclick = splitHere;
 $('setOneBtn').onclick = () => setOne();
-$('nudgeBack').onclick = () => curSeg()?.bpm && setTempo(curSeg().bpm, curSeg().beatOffset - 0.01);
-$('nudgeFwd').onclick = () => curSeg()?.bpm && setTempo(curSeg().bpm, curSeg().beatOffset + 0.01);
+$('nudgeBack').onclick = () => nudge(-0.01);
+$('nudgeFwd').onclick = () => nudge(0.01);
 
 function setCountMode(v) {
   state.settings.countMode = v;
   save();
-  if (v === 'voice') loadCountSounds().catch(() => toast('Stimme nicht verfügbar – nutze Klick'));
+  if (v === 'voice') loadCountSounds().catch((e) => toast(e.message || 'Stimme nicht verfügbar', 3000));
   if (v !== 'off') ensureGraph();
   resetCountSchedule();
   renderTempo();
 }
+$('voiceSel').onchange = (e) => { setVoice(e.target.value); if (state.settings.countMode !== 'voice') setCountMode('voice'); };
+$('setVoice').onchange = (e) => setVoice(e.target.value);
+$('countVol').oninput = (e) => { state.settings.countVolume = +e.target.value; save(); };
+$('testVoiceBtn').onclick = testVoice;
+$('recordVoiceBtn').onclick = () => { $('recordStatus').textContent = 'Bereit'; $('recordDlg').showModal(); };
+$('recordStart').onclick = recordVoice;
+$('addLabelBtn').onclick = () => {
+  state.colorLabels.push({ id: 'l-' + uid(), name: '', color: PALETTE[(state.colorLabels.length * 3) % PALETTE.length] });
+  save();
+  renderLabelList();
+  $('labelList').querySelector('li:last-child input')?.focus();
+};
 $('countModeSeg').onclick = (e) => { if (e.target.dataset.v) setCountMode(e.target.dataset.v); };
 $('snapSeg').onclick = (e) => {
   if (!e.target.dataset.v) return;
@@ -1839,14 +2251,41 @@ function migrate() {
     for (const d of DEFAULT_GROUPS) if (!state.groups.some((g) => g.id === d.id)) state.groups.push({ ...d });
     state.groupsVersion = 2;
   }
-  // Titel ohne Lied-Abschnitte: bisheriges Tempo als ein Lied übernehmen
+  // Gruppen v3: Beispielgruppen (auch belegte) raus, Show / Garde / Elfer
+  if ((state.groupsVersion || 1) < 3) {
+    for (const t of state.tracks) if (OLD_EXAMPLE_GROUPS.includes(t.groupId) && t.groupId !== 'g-garde') t.groupId = '';
+    state.groups = state.groups.filter((g) => !OLD_EXAMPLE_GROUPS.includes(g.id) || g.id === 'g-garde');
+    const garde = state.groups.find((g) => g.id === 'g-garde');
+    if (garde && /tanz/i.test(garde.name)) garde.name = 'Garde';
+    for (const d of DEFAULT_GROUPS) if (!state.groups.some((g) => g.id === d.id)) state.groups.push({ ...d });
+    state.groupsVersion = 3;
+  }
+  // Titel aus älteren Versionen: Tempo-Raster in einzelne Schläge umwandeln
   for (const t of state.tracks) {
-    if (t.segments || t.bpm === undefined) continue;
-    t.segments = [{ id: uid(), start: 0, bpm: t.bpm, beatOffset: t.beatOffset || 0, name: '', color: null }];
+    if (!t.segments && t.bpm !== undefined) {
+      t.segments = [{ id: uid(), start: 0, bpm: t.bpm, beatOffset: t.beatOffset || 0, name: '', color: null }];
+    }
+    if (t.segments && !t.beats) migrateTrack(t);
     delete t.bpm;
     delete t.beatOffset;
   }
   save();
+}
+
+function migrateTrack(t, src = t) {
+  const segs = src.segments || t.segments;
+  if (!segs?.some((x) => x.bpm)) return;
+  t.beats = [];
+  t.ones = [];
+  segs.forEach((sg, i) => {
+    const end = i + 1 < segs.length ? segs[i + 1].start : t.duration;
+    if (!sg.bpm) return;
+    const g = gridBeats(sg.start, end, sg.bpm, sg.beatOffset ?? sg.start);
+    const off = t.beats.length;
+    t.beats.push(...g.beats.map((x) => Math.round(x * 1000) / 1000));
+    t.ones.push(...g.ones.map((k) => off + k));
+  });
+  t.segments.forEach((sg) => { delete sg.bpm; delete sg.beatOffset; });
 }
 
 (function init() {
@@ -1862,6 +2301,9 @@ function migrate() {
   $('volume').value = state.volume;
   $('autoNext').checked = state.autoNext;
   audio.volume = state.volume;
+  state.colorLabels ??= [];
+  if (!VOICES.some((v) => v.id === state.settings.voice)) state.settings.voice = 'de-frau';
+  renderVoiceSelects();
   if (state.settings.countMode === 'voice') loadCountSounds().catch(() => {});
   renderAll();
   if (state.tracks.length) load(state.tracks[0].id, false);

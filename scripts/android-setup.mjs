@@ -1,6 +1,7 @@
 // Passt das von Capacitor erzeugte Android-Projekt an:
 // - Narrhalla-Icon statt Capacitor-Standard
 // - Versionsnummer aus BUILD_NUMBER, damit Updates installierbar sind
+// - Mikrofon-Berechtigung (eigene Zählstimme)
 // - Release-Build mit festem Schlüssel aus dem Repo (release.keystore), damit
 //   neue Versionen sich über die alte installieren lassen, ohne Daten zu verlieren
 import { copyFileSync, readdirSync, rmSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
@@ -41,4 +42,12 @@ if (!gradle.includes('signingConfigs')) {
             signingConfig signingConfigs.release`);
 }
 writeFileSync(gradleFile, gradle);
+
+// Mikrofon für „eigene Zählstimme aufnehmen“
+const manifestFile = 'android/app/src/main/AndroidManifest.xml';
+let manifest = readFileSync(manifestFile, 'utf8');
+for (const perm of ['android.permission.RECORD_AUDIO', 'android.permission.MODIFY_AUDIO_SETTINGS']) {
+  if (!manifest.includes(perm)) manifest = manifest.replace('</manifest>', `    <uses-permission android:name="${perm}" />\n</manifest>`);
+}
+writeFileSync(manifestFile, manifest);
 console.log('Android-Projekt angepasst (Icons, Version, Signatur)');

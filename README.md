@@ -44,5 +44,5 @@ Bei jedem Push baut GitHub Actions eine APK und stellt sie unter dem Release `ap
 https://github.com/DerSchranner1/Test-Projekt-/releases/download/apk-latest/narrhalla-player.apk
 
 Die Android-Hülle ist Capacitor (`npm run android:prepare`). Export nutzt dort die Plugins Filesystem und Share.
-Die Analyse (Lieder, Tempo, „1“) steckt in `analysis.js` und läuft auch in Node.
-Die gesprochenen Zählzeiten in `counts.js` sind mit espeak-ng (MBROLA-Stimme de6) erzeugt.
+Die Analyse (Lieder, Schläge, „1“) steckt in `analysis.js`: spektraler Fluss, Tempo per Autokorrelation, Schlagverfolgung per dynamischer Programmierung, „1“ an Liedanfängen und Schnitten. Sie läuft im Browser in einem Web Worker und auch in Node.
+Die Zählstimmen in `voices/` sind mit espeak-ng und MBROLA (de5, de7, de2, us1, us2) erzeugt; eine eigene Stimme kann in der App aufgenommen werden.

@@ -4,7 +4,7 @@
   "private": true,
   "description": "Narrhalla Player – Android-Hülle (Capacitor) um die Web-App",
   "scripts": {
-    "build:www": "rm -rf www && mkdir www && cp index.html style.css app.js analysis.js counts.js manifest.webmanifest sw.js www/ && cp -r icons www/",
+    "build:www": "rm -rf www && mkdir www && cp index.html style.css app.js analysis.js manifest.webmanifest sw.js www/ && cp -r icons voices www/",
     "android:prepare": "npm run build:www && (test -d android || npx cap add android) && npx cap sync android && node scripts/android-setup.mjs"
   },
   "devDependencies": {
