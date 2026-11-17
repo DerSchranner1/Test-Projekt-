@@ -15,7 +15,7 @@
   --bg:#e9ece8; --surface:#ffffff; --surface2:#f3f5f2; --line:#d3d8d2; --fg:#1b2220; --muted:#5a6560;
   --accent:#1d5d8a; --accent-soft:#e2edf5; --accent-fg:#ffffff; --signal:#d99a00; --signal-soft:#fbf1d6;
   --ok:#2c7a4b; --ok-soft:#e1f1e7; --warn:#b86e00; --warn-soft:#fbecd5; --bad:#b8352a; --bad-soft:#f8e1de;
-  --c-carport:#7d6a55; --c-pv:#1d5d8a; --c-strom:#d99a00;
+  --c-carport:#7d6a55; --c-pv:#1d5d8a; --c-strom:#d99a00; --c-pflaster:#8a8f96;
   --font-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
   --font-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
   --font-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
@@ -25,13 +25,13 @@
   --bg:#121715; --surface:#1a201e; --surface2:#212926; --line:#323c38; --fg:#e6ebe8; --muted:#9aa6a0;
   --accent:#62a9dc; --accent-soft:#1c2f3d; --accent-fg:#0b1822; --signal:#f0b52e; --signal-soft:#3a3018;
   --ok:#5cc187; --ok-soft:#173022; --warn:#eda447; --warn-soft:#3a2a14; --bad:#f07264; --bad-soft:#3d1c19;
-  --c-carport:#b39b80; --c-pv:#62a9dc; --c-strom:#f0b52e; color-scheme:dark;
+  --c-carport:#b39b80; --c-pv:#62a9dc; --c-strom:#f0b52e; --c-pflaster:#a9aeb5; color-scheme:dark;
 }}
 :root[data-theme="dark"]{
   --bg:#121715; --surface:#1a201e; --surface2:#212926; --line:#323c38; --fg:#e6ebe8; --muted:#9aa6a0;
   --accent:#62a9dc; --accent-soft:#1c2f3d; --accent-fg:#0b1822; --signal:#f0b52e; --signal-soft:#3a3018;
   --ok:#5cc187; --ok-soft:#173022; --warn:#eda447; --warn-soft:#3a2a14; --bad:#f07264; --bad-soft:#3d1c19;
-  --c-carport:#b39b80; --c-pv:#62a9dc; --c-strom:#f0b52e; color-scheme:dark;
+  --c-carport:#b39b80; --c-pv:#62a9dc; --c-strom:#f0b52e; --c-pflaster:#a9aeb5; color-scheme:dark;
 }
 html,body{height:100%}
 body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.45}
@@ -47,14 +47,13 @@ button,input,select{font:inherit;color:inherit}
 #three{position:absolute;inset:0;display:block;width:100%;height:100%}
 .panel{min-width:0;overflow-y:auto;background:var(--surface);border-left:1px solid var(--line);display:flex;flex-direction:column}
 
-/* Overlays auf der Szene */
 .ov{position:absolute;display:flex;gap:6px;flex-wrap:wrap;z-index:2}
 .ov-top{top:12px;left:12px;right:12px;justify-content:space-between;pointer-events:none}
 .ov-top>*{pointer-events:auto}
 .ov-bottom{left:12px;right:12px;bottom:12px;align-items:flex-end;justify-content:space-between;pointer-events:none}
 .ov-bottom>*{pointer-events:auto}
 .glass{background:rgba(20,26,24,.72);color:#eef2ef;border-radius:8px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
-.seg-cam{display:flex;padding:3px;gap:2px}
+.seg-cam{display:flex;padding:3px;gap:2px;flex-wrap:wrap}
 .seg-cam button{background:none;border:0;color:#d9e0dc;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500}
 .seg-cam button[aria-pressed="true"]{background:#eef2ef;color:#18201d}
 .seg-cam button:hover{background:rgba(255,255,255,.12)}
@@ -71,11 +70,9 @@ button,input,select{font:inherit;color:inherit}
 .dot{width:9px;height:9px;border-radius:50%;flex:none}
 .labels{position:absolute;inset:0;pointer-events:none;z-index:1;overflow:hidden}
 .lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(255,255,255,.92);color:#18201d;font-size:11.5px;font-weight:600;padding:2px 7px;border-radius:4px;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.25)}
-.lbl::after{content:"";position:absolute;left:50%;bottom:-4px;width:1px;height:4px;background:rgba(255,255,255,.92)}
 .lbl.dim{background:#18201d;color:#f0b52e;font-family:var(--font-mono);font-weight:500}
-.lbl.dim::after{display:none}
+.lbl.water{background:#2d5b78;color:#e8f3fb}
 
-/* Panel */
 .ph{position:sticky;top:0;background:var(--surface);z-index:3;border-bottom:1px solid var(--line);padding:14px 18px 0}
 .ph-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
 .ph h1{font-size:25px;line-height:1.1}
@@ -123,13 +120,14 @@ p{margin:0}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;padding:2px;gap:2px;background:var(--surface2);flex-wrap:wrap}
 .seg button{border:0;background:none;padding:6px 11px;border-radius:6px;cursor:pointer;font-size:13.5px;font-weight:500;color:var(--muted)}
 .seg button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.seg button:disabled{opacity:.4;cursor:not-allowed}
 .field{display:flex;flex-direction:column;gap:5px}
 .field>label{font-weight:500;font-size:14px}
 select.inp,input.inp{border:1px solid var(--line);background:var(--surface);border-radius:7px;padding:7px 9px;max-width:100%}
 .check{display:flex;gap:9px;align-items:flex-start;font-size:14px;cursor:pointer}
 .check input{margin-top:3px;accent-color:var(--accent);width:16px;height:16px;flex:none}
 .check small{display:block;color:var(--muted);font-size:12.5px}
-.kv{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;font-size:14px}
+.kv{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;font-size:14px;margin:0}
 .kv dt{color:var(--muted)}
 .kv dd{margin:0;text-align:right;font-family:var(--font-mono);font-size:13px}
 .list{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:5px;font-size:14px}
@@ -186,7 +184,6 @@ a{color:var(--accent)}
   .sun input[type=range]{width:80px}
   .hide-m{display:none}
 }
-@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
 </style>
 
 <div class="app">
@@ -197,8 +194,9 @@ a{color:var(--accent)}
       <div class="glass seg-cam" role="group" aria-label="Blickwinkel">
         <button data-cam="foto" aria-pressed="true">Wie Foto</button>
         <button data-cam="tor" aria-pressed="false">Vom Tor</button>
-        <button data-cam="vogel" aria-pressed="false">Von oben</button>
-        <button data-cam="seite" aria-pressed="false">Seite</button>
+        <button data-cam="vogel" aria-pressed="false">Schräg oben</button>
+        <button data-cam="plan" aria-pressed="false">Plan</button>
+        <button data-cam="seite" aria-pressed="false">Bachseite</button>
       </div>
       <div class="glass play">
         <button class="btn-play" id="btnPlay">▶ Einparken zeigen</button>
@@ -211,8 +209,8 @@ a{color:var(--accent)}
       <div class="glass sun">
         <span>Sonne</span>
         <select id="season" aria-label="Jahreszeit"><option value="-23.4">Dezember</option><option value="0">März / Sept.</option><option value="23.4" selected>Juni</option></select>
-        <input type="range" id="sunTime" min="6" max="20" step="0.25" value="14" aria-label="Uhrzeit">
-        <span class="mono" id="sunTimeOut">14:00</span>
+        <input type="range" id="sunTime" min="6" max="20" step="0.25" value="16" aria-label="Uhrzeit">
+        <span class="mono" id="sunTimeOut">16:00</span>
       </div>
     </div>
   </div>
@@ -221,15 +219,15 @@ a{color:var(--accent)}
     <header class="ph">
       <div class="ph-top">
         <div>
-          <div class="eyebrow">Stellplatz an der Zaunecke</div>
+          <div class="eyebrow">Stellplatz am Bachzaun</div>
           <h1>Carport-Planer</h1>
         </div>
         <div class="total"><b class="num" id="hdrTotal">–</b><small id="hdrTotalSub">Projekt gesamt, brutto</small></div>
       </div>
       <div class="kpis" id="hdrKpis"></div>
       <div class="pk" role="group" aria-label="Pakete">
-        <button data-pkg="spar"><b>Spar</b><span>Holz · PV · Eigenleistung</span></button>
-        <button data-pkg="empf"><b>Empfehlung</b><span>Freitragend · PV · Wallbox</span></button>
+        <button data-pkg="spar"><b>Spar</b><span>Holz · PV · viel selbst</span></button>
+        <button data-pkg="empf"><b>Empfehlung</b><span>Mittelstützen · PV · Umbau</span></button>
         <button data-pkg="komfort"><b>Komfort</b><span>Solar-Carport · Speicher</span></button>
       </div>
       <nav class="tabs" role="tablist" aria-label="Planungsschritte">
@@ -246,26 +244,41 @@ a{color:var(--accent)}
       <section class="step" data-step="1">
         <div class="sec">
           <h2>Was die Fotos hergeben</h2>
-          <p class="lead">Als Maßstab dient der Meterstab (2 m) auf dem Pflaster. Daraus geschätzt, Genauigkeit etwa ± 0,5 m:</p>
+          <p class="lead">Maßstab ist der Meterstab (2 m). Geschätzt, Genauigkeit etwa ± 0,5 m:</p>
           <dl class="kv">
-            <dt>Graues Pflaster entlang hinterem Zaun</dt><dd>ca. 6,2 m</dd>
-            <dt>Tiefe bis zum Granitbogen (Mitte)</dt><dd>ca. 5,5 m</dd>
-            <dt>Rechter Zaun bis Torpfeiler</dt><dd>ca. 3,4 m, schräg</dd>
-            <dt>Toröffnung neben dem Pfeiler</dt><dd>ca. 3,8 m</dd>
-            <dt>Leerrohr-Ende</dt><dd>hinten, ca. 2,3 m vom linken Rand</dd>
+            <dt>Zaun bis zum Knick (am Bach)</dt><dd>ca. 6,2 m</dd>
+            <dt>Moos-/Laubstreifen zwischen Zaun und Pflaster</dt><dd>ca. 0,5 m</dd>
+            <dt>Graues Pflaster bis Granitbogen (Mitte)</dt><dd>ca. 5,0 m</dd>
+            <dt>Zaun ab Knick bis Torpfeiler</dt><dd>ca. 3,4 m, schräg</dd>
+            <dt>Tor bis Gartentürl</dt><dd>ca. 3,8 m</dd>
+            <dt>Leerrohr-Ende</dt><dd>im Streifen, ca. 2,3 m vom linken Rand</dd>
           </dl>
-          <p class="note">Links schließt die rote Pflasterfläche an. Der Carport darf also auch etwas nach links rutschen, wenn es rechts am Tor eng wird.</p>
+          <p class="note">Hinter dem Zaun liegt der Bach in einem Betonbett, drüben ein Stahlgeländer. Die Zufahrt durchs Tor geht über eine kleine Brücke. Links an der grauen Fläche schließt ein rotes Pflasterfeld bis zum Rasen an. Granitbänder teilen den Hof. Die habe ich so gut es geht eingezeichnet, schau dir die Ansicht „Plan“ an.</p>
+        </div>
+        <div class="sec">
+          <h3>Der Zaun bleibt</h3>
+          <p class="lead">Der Zaun bleibt stehen, wie er ist. Gebaut wird nur vom Hof aus: kein Gerüst und keine Grabung auf der Bachseite. Das Dach endet vor dem Zaun, und die Fundamente halten Abstand zur Ufermauer.</p>
+          <div class="row"><label for="postFence">Mindestabstand Stützen zum Zaun</label><output id="postFenceOut" class="num"></output>
+            <input type="range" id="postFence" min="0.3" max="2.5" step="0.1" value="1.2"></div>
+          <div class="row"><label for="gap">Abstand Dachkante zum Zaun</label><output id="gapOut" class="num"></output>
+            <input type="range" id="gap" min="0.15" max="1.0" step="0.05" value="0.3"></div>
+          <p class="note">Eine Faustregel für den Abstand: mindestens so weit wie die Ufermauer tief ist, dann drückt das Fundament nicht auf die Mauer. 1,2 m sind ein vorsichtiger Startwert.</p>
+        </div>
+        <div class="sec">
+          <h3>Pflaster</h3>
+          <div class="seg" role="group" id="paveSeg"><button data-pave="bestand">Bestand lassen</button><button data-pave="umbau">Umbauen</button></div>
+          <p class="note" id="paveNote"></p>
         </div>
         <div class="sec">
           <h3>Himmelsrichtung</h3>
           <div class="field">
-            <label for="compass">Der hintere Zaun (zur Straße) liegt in Richtung</label>
+            <label for="compass">Wenn du auf den Zaun schaust, blickst du nach</label>
             <select class="inp" id="compass">
               <option value="N">Norden</option><option value="NO">Nordosten</option><option value="O">Osten</option><option value="SO">Südosten</option>
-              <option value="S" selected>Süden</option><option value="SW">Südwesten</option><option value="W">Westen</option><option value="NW">Nordwesten</option>
+              <option value="S">Süden</option><option value="SW">Südwesten</option><option value="W" selected>Westen</option><option value="NW">Nordwesten</option>
             </select>
           </div>
-          <p class="note"><span class="chip warn">Annahme</span> Auf den Fotos ist es bewölkt, die Richtung kann ich nicht ablesen. Sie bestimmt den Solarertrag und den Schatten des großen Baums.</p>
+          <p class="note" id="compassNote"></p>
         </div>
         <div class="sec">
           <h3>Leerrohr zum Haus</h3>
@@ -277,18 +290,17 @@ a{color:var(--accent)}
               <option value="40">DN 40</option><option value="50" selected>DN 50 (Annahme)</option><option value="63">DN 63</option><option value="75">DN 75</option><option value="90">DN 90</option><option value="110">DN 110</option>
             </select>
           </div>
-          <div class="row"><label for="gap">Abstand Carport zum hinteren Zaun</label><output id="gapOut" class="num">0,30 m</output>
-            <input type="range" id="gap" min="0.15" max="1.0" step="0.05" value="0.3"></div>
+          <p class="note"><span class="chip ok">Zugdraht vorhanden</span> Damit lassen sich Kabel und Netzwerkkabel in einem Zug selbst einziehen.</p>
         </div>
         <div class="sec box signal">
-          <h3>Das bräuchte ich noch von dir</h3>
+          <h3>Das bräuchte ich noch</h3>
           <ul class="list">
-            <li>Genaue Maße: Länge hinterer Zaun, Tiefe bis zum Granitbogen, Abstand Ecke bis Torpfeiler</li>
-            <li>Himmelsrichtung (Kompass-App am Handy, Richtung hinterer Zaun)</li>
-            <li>Leerrohr: Durchmesser, Zugdraht drin? Wo endet es im Haus?</li>
-            <li>Zählerschrank: Baujahr, freie Plätze, Hauptsicherung (z. B. 3 × 35 A oder 63 A)</li>
-            <li>Gibt es schon PV am Haus? Welches Auto (Länge, Breite, Ladeleistung)?</li>
-            <li>Bebauungsplan der Gemeinde (Grenzbebauung, Dachform)</li>
+            <li>Genaue Maße: Zaun bis zum Knick, Tiefe bis zum Granitbogen, Abstand Knick bis Torpfeiler</li>
+            <li>Ein Screenshot aus dem BayernAtlas (Luftbild mit Flurkarte) zeigt Grundstücksgrenze, Bach und Hof von oben</li>
+            <li>Wie tief ist die Ufermauer, und gehört der Streifen am Zaun noch zum Grundstück?</li>
+            <li>Leerrohr: Durchmesser</li>
+            <li>Bestehende PV: Leistung, Wechselrichter-Modell, ist ein MPP-Eingang frei, gibt es einen Speicher?</li>
+            <li>Zählerschrank: Baujahr, freie Plätze, Hauptsicherung</li>
           </ul>
         </div>
         <button class="next" data-goto="2">Weiter zum Carport →</button>
@@ -298,7 +310,7 @@ a{color:var(--accent)}
       <section class="step" data-step="2" hidden>
         <div class="sec">
           <h2>Bauart</h2>
-          <p class="lead">Rechts neben der Fläche ist das Tor. Wer von dort einbiegt oder rückwärts einparkt, schwenkt genau über die vordere rechte Ecke. Stützen an dieser Stelle sind die typische Rempelfalle.</p>
+          <p class="lead">Zwei Dinge bestimmen die Wahl. Wer vom Tor kommt, schwenkt über die vordere rechte Ecke, dort darf keine Stütze stehen. Und hinten am Bach sollen keine schweren Fundamente hin.</p>
           <div class="cards" id="typeCards" role="radiogroup" aria-label="Bauart"></div>
         </div>
         <div class="sec">
@@ -306,14 +318,15 @@ a{color:var(--accent)}
           <div class="seg" role="group" aria-label="Größenvorlage" id="sizePresets">
             <button data-size="3.6,5.5">Einzel 3,6 × 5,5</button>
             <button data-size="6.0,5.5">Doppel 6,0 × 5,5</button>
-            <button data-size="6.6,6.0">Doppel XL 6,6 × 6,0</button>
+            <button data-size="6.0,6.0">Doppel 6,0 × 6,0</button>
           </div>
           <div class="row"><label for="w">Breite (entlang Zaun)</label><output id="wOut" class="num"></output><input type="range" id="w" min="3" max="7.5" step="0.1" value="6"></div>
           <div class="row"><label for="d">Tiefe</label><output id="dOut" class="num"></output><input type="range" id="d" min="4.5" max="6.5" step="0.1" value="5.5"></div>
-          <div class="row"><label for="h">Lichte Höhe an der niedrigsten Stelle</label><output id="hOut" class="num"></output><input type="range" id="h" min="2.1" max="2.7" step="0.05" value="2.3"></div>
+          <div class="row"><label for="h">Lichte Höhe an der niedrigsten Stelle</label><output id="hOut" class="num"></output><input type="range" id="h" min="2.0" max="2.7" step="0.05" value="2.2"></div>
           <div class="row"><label for="tilt">Dachneigung</label><output id="tiltOut" class="num"></output><input type="range" id="tilt" min="2" max="15" step="1" value="6"></div>
           <div class="field"><label>Dach fällt ab</label>
-            <div class="seg" role="group" id="slopeSeg"><button data-slope="back">nach hinten (zum Zaun)</button><button data-slope="front">nach vorne (zur Einfahrt)</button></div>
+            <div class="seg" role="group" id="slopeSeg"><button data-slope="left"></button><button data-slope="right"></button><button data-slope="back"></button><button data-slope="front"></button></div>
+            <p class="note" id="slopeNote"></p>
           </div>
           <div class="row"><label for="offX">Seitlich verschieben</label><output id="offXOut" class="num"></output><input type="range" id="offX" min="-3" max="1" step="0.1" value="0"></div>
         </div>
@@ -321,7 +334,7 @@ a{color:var(--accent)}
           <h3>Einparken prüfen</h3>
           <div class="seg" role="group" id="pathSeg"><button data-path="rueck">Rückwärts, vom Tor kommend</button><button data-path="vor">Vorwärts aus dem Hof</button></div>
           <div class="box" id="simBox"></div>
-          <p class="note">Gerechnet mit einem Auto von 4,80 × 1,95 m (inkl. Spiegel) und 5 m Wendekreisradius. Mit „Einparken zeigen“ oben fährt es die Spur ab.</p>
+          <p class="note">Gerechnet mit dem Polestar 2: 4,61 m lang, 1,86 m breit, mit Spiegeln 1,99 m, Wendekreis ca. 11,5 m. Mit „Einparken zeigen“ oben fährt er die Spur ab.</p>
         </div>
         <div class="sec">
           <h3>Gegen Rempler</h3>
@@ -337,13 +350,14 @@ a{color:var(--accent)}
       <section class="step" data-step="3" hidden>
         <div class="sec">
           <h2>Photovoltaik auf dem Dach</h2>
-          <label class="check"><input type="checkbox" id="pv" checked><span>Solarmodule einplanen<small id="pvForced"></small></span></label>
+          <label class="check"><input type="checkbox" id="pv" checked><span>Solarmodule auf den Carport<small id="pvForced"></small></span></label>
+          <label class="check"><input type="checkbox" id="pvExisting" checked><span>Am Haus gibt es schon eine PV-Anlage<small>Dann deckt die Haus-Anlage tagsüber schon viel vom Hausstrom. Der Carport-Strom geht vor allem ins Auto und ins Netz.</small></span></label>
         </div>
         <div class="sec" id="pvSec">
           <h3>Module</h3>
           <div class="cards" id="modCards" role="radiogroup" aria-label="Modultyp"></div>
           <div class="row"><label for="shade">Verschattung durch Bäume</label><output id="shadeOut" class="num"></output><input type="range" id="shade" min="0" max="50" step="5" value="25"></div>
-          <p class="note">Direkt hinter dem Zaun steht ein großer Laubbaum, rechts die Thuja. Stell unten in der Szene die Sonne auf Dezember oder Juni und schau, wann der Baumschatten aufs Dach fällt. 25 % Verlust ist eine vorsichtige Annahme.</p>
+          <p class="note">Der große Baum steht jenseits des Bachs im Westen. Er nimmt vor allem die Nachmittags- und Abendsonne. Stell unten die Sonne auf 16 bis 19 Uhr, dann siehst du seinen Schatten auf dem Dach.</p>
           <div class="box acc" id="pvBox"></div>
         </div>
         <button class="next" data-goto="4">Weiter zu Strom →</button>
@@ -353,6 +367,7 @@ a{color:var(--accent)}
       <section class="step" data-step="4" hidden>
         <div class="sec">
           <h2>Wallbox</h2>
+          <p class="note">Der Polestar 2 lädt an der Wallbox mit höchstens 11 kW (dreiphasig, 16 A). Eine 22-kW-Box bringt ihm nichts.</p>
           <div class="cards" id="wbCards" role="radiogroup" aria-label="Wallbox"></div>
           <div class="field"><label>Anzahl Ladepunkte</label>
             <div class="seg" role="group" id="wbCountSeg"><button data-n="1">1 Wallbox</button><button data-n="2">2 Wallboxen</button></div>
@@ -385,18 +400,18 @@ a{color:var(--accent)}
           <p class="lead">Richtpreise brutto, Stand Ende 2026. Ein Haken bei „selbst“ zieht den Montageanteil ab.</p>
           <div class="big" id="bigNums"></div>
           <div class="bar" id="costBar" aria-hidden="true"></div>
-          <div class="legend"><span><i style="background:var(--c-carport)"></i>Carport</span><span><i style="background:var(--c-pv)"></i>Photovoltaik</span><span><i style="background:var(--c-strom)"></i>Wallbox &amp; Leitung</span></div>
+          <div class="legend"><span><i style="background:var(--c-carport)"></i>Carport</span><span><i style="background:var(--c-pflaster)"></i>Pflaster</span><span><i style="background:var(--c-pv)"></i>Photovoltaik</span><span><i style="background:var(--c-strom)"></i>Wallbox &amp; Leitung</span></div>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
             <button class="btn" id="diyAll">Alles selbst, was geht</button>
             <button class="btn" id="diyNone">Alles vom Fachbetrieb</button>
           </div>
           <div class="tablewrap"><table class="offer" id="offer"></table></div>
-          <p class="foot">PV-Module, Wechselrichter, Speicher und deren Montage: 0 % MwSt. (§ 12 Abs. 3 UStG). Carport, Wallbox und Leitung: 19 %. Echte Angebote können ± 15 % abweichen, Material schwankt stärker als Arbeitslohn.</p>
+          <p class="foot">PV-Module, Wechselrichter, Speicher und deren Montage: 0 % MwSt. (§ 12 Abs. 3 UStG). Carport, Pflaster, Wallbox und Leitung: 19 %. Echte Angebote können ± 15 % abweichen.</p>
         </div>
         <div class="sec">
           <h2>Lohnt sich die PV?</h2>
           <div class="row"><label for="price">Strompreis</label><output id="priceOut" class="num"></output><input type="range" id="price" min="0.22" max="0.45" step="0.01" value="0.32"></div>
-          <div class="row"><label for="km">Fahrleistung E-Auto pro Jahr</label><output id="kmOut" class="num"></output><input type="range" id="km" min="0" max="30000" step="1000" value="12000"></div>
+          <div class="row"><label for="km">Fahrleistung Polestar pro Jahr</label><output id="kmOut" class="num"></output><input type="range" id="km" min="0" max="30000" step="1000" value="12000"></div>
           <div class="box acc" id="econBox"></div>
         </div>
         <div class="sec">
@@ -404,20 +419,12 @@ a{color:var(--accent)}
           <div class="diytab" id="diyTab"></div>
         </div>
         <div class="sec box">
-          <h3>Genehmigung und Anmeldung</h3>
+          <h3>Genehmigung, Bach und Anmeldung</h3>
           <ul class="list" id="permitList"></ul>
         </div>
         <div class="sec">
           <h3>Reihenfolge auf der Baustelle</h3>
-          <ol class="list">
-            <li>Maße, Himmelsrichtung und Bebauungsplan klären, Elektriker den Zählerschrank ansehen lassen.</li>
-            <li>Leerrohr prüfen (Zugdraht durchziehen), Kabel und Netzwerkkabel einziehen.</li>
-            <li>Pflaster an den Stützen aufnehmen, Fundamente setzen, 28 Tage aushärten lassen.</li>
-            <li>Carport aufstellen, Dach und Rinne montieren.</li>
-            <li>PV-Unterkonstruktion und Module montieren.</li>
-            <li>Elektriker: Unterverteilung, Wechselrichter, Wallbox anschließen, Netzbetreiber anmelden.</li>
-            <li>Marktstammdatenregister-Eintrag (selbst, online, innerhalb eines Monats).</li>
-          </ol>
+          <ol class="list" id="orderList"></ol>
         </div>
         <p class="foot">Alle Preise sind Schätzungen aus typischen Marktpreisen, kein verbindliches Angebot. Produktnamen sind Beispiele für die jeweilige Klasse; vergleichbare Geräte anderer Hersteller passen genauso.</p>
       </section>
@@ -431,33 +438,39 @@ a{color:var(--accent)}
 (function(){
 "use strict";
 // ======================================================================
-// Daten & Annahmen
+// Daten & Annahmen (Lageplan in Metern: x nach rechts entlang Zaun, z vom Zaun in den Hof)
 // ======================================================================
 const COMPASS={N:0,NO:45,O:90,SO:135,S:180,SW:225,W:270,NW:315};
-const COMPASS_NAME={N:'Norden',NO:'Nordosten',O:'Osten',SO:'Südosten',S:'Süden',SW:'Südwesten',W:'Westen',NW:'Nordwesten'};
 const LAT=48.5;
-const LEER={x:2.3,z:-0.05};
+const LEER={x:2.3,z:0.15};
+const STRIP=0.55;                       // Moos-/Laubstreifen am Zaun
 const FENCE_A=[[-3.5,0],[6.2,0]];
 const FENCE_B=[[6.2,0],[7.3,3.2]];
+const KB=(7.3-6.2)/3.2;                 // Steigung Zaun B (x pro z)
+const xFenceB=z=>6.2+z*KB;
 const P1={x:7.3,z:3.2};
 const PED=[{x:11.1,z:3.2},{x:11.9,z:3.2}];
 const GATE_X=9.2;
-const CAR={L:4.8,B:1.95};
-const PARK_Z=0.65; // Abstand Fahrzeugheck/-front zur Carport-Rückseite (lokal)
+const BACH={near:-0.75,far:-3.25,water:-0.55};
+const CAR={L:4.61,B:1.99,body:1.86};    // Polestar 2
+const PARK_Z=0.65;                       // Abstand Fahrzeugende zur Carport-Rückkante (lokal)
 
 const TYPES={
-  frei:{name:'Freitragend, Stützen nur hinten',d:'Stahlrahmen, das Dach kragt nach vorne aus. Die komplette Einfahrt bleibt frei, nichts zum Anfahren.',
-    base:3000,perM2:260,mont:0.25,crane:600,fundMat:450,fundLab:1100,statik:650,pf:0.30,post:0.20,diy:'teil',
-    tags:[['ok','Einfahrt komplett frei'],['warn','Teuer, große Fundamente'],['','Statik nötig']]},
-  portal:{name:'Alu/Stahl, Stützen zurückgesetzt',d:'Vier Stützen, die vorderen 1,6 m eingerückt. Das Dach steht vorne über, die Ecke an der Einfahrt ist frei.',
+  tform:{name:'Mittelstützen (T-Form)',d:'Zwei Stützen in der Mitte zwischen den Autos, das Dach kragt nach beiden Seiten aus. Alle vier Ecken frei, am Bach steht nichts.',
+    base:2200,perM2:200,mont:0.25,crane:0,fundMat:260,fundLab:650,statik:450,pf:0.25,post:0.16,diy:'teil',
+    tags:[['ok','Ecken und Zaunseite frei'],['ok','Nur 2 Fundamente'],['warn','Stütze neben der Fahrertür']]},
+  portal:{name:'Alu/Stahl, Stützen eingerückt',d:'Vier Stützen an den Seiten, vorne 1,6 m und hinten mit Abstand zum Bach eingerückt. Das Dach steht vorne und hinten über.',
     base:1500,perM2:170,mont:0.25,crane:0,fundMat:70,fundLab:240,statik:0,pf:0.16,post:0.12,diy:'teil',
-    tags:[['ok','Ecke frei'],['','Typenstatik'],['warn','Stützen seitlich neben dem Auto']]},
+    tags:[['ok','Ecken frei'],['','Typenstatik'],['warn','Stützen seitlich neben dem Auto']]},
   holz:{name:'Holz-Carport, Flachdach',d:'Leimholz mit EPDM-Folie. Am günstigsten und gut selbst aufzubauen, aber mit Stützen an beiden vorderen Ecken.',
     base:400,perM2:80,mont:0.30,crane:0,fundMat:60,fundLab:220,statik:0,pf:0.20,post:0.12,diy:'ja',
     tags:[['ok','Günstig'],['ok','Gut selbst baubar'],['bad','Stützen an der Einfahrt']]},
   solar:{name:'Solar-Carport, Module als Dach',d:'Alu-System, Glas-Glas-Module bilden die Dachhaut. Hell darunter, kein zweites Dach nötig.',
     base:1500,perM2:150,mont:0.30,crane:0,fundMat:70,fundLab:240,statik:0,pf:0.12,post:0.12,diy:'teil',forcePV:true,
-    tags:[['ok','PV ist das Dach'],['warn','Nicht ganz regendicht'],['','Stützen 1,3 m eingerückt']]}
+    tags:[['ok','PV ist das Dach'],['warn','Nicht ganz regendicht'],['','Stützen vorne 1,3 m eingerückt']]},
+  frei:{name:'Freitragend, Stützen nur hinten',d:'Stahlrahmen mit Stützen in einer Reihe hinten. Die Einfahrt ist komplett frei, aber die großen Kragarm-Fundamente kommen nah an den Bach.',
+    base:3000,perM2:260,mont:0.25,crane:600,fundMat:450,fundLab:1100,statik:650,pf:0.30,post:0.20,diy:'teil',
+    tags:[['ok','Einfahrt frei'],['bad','Große Fundamente am Bach'],['warn','Teuer, Kran nötig']]}
 };
 const MODULES={
   std:{name:'Glas-Folie, 450 Wp, schwarz',d:'Standardmodul, günstigster Preis pro Watt. Unterseite matt weiß.',wp:450,price:85,L:1.722,B:1.134,semi:false,bif:0},
@@ -465,34 +478,35 @@ const MODULES={
   semi:{name:'Glas-Glas semitransparent, 400 Wp',d:'Lichtspalte zwischen den Zellen, sieht von unten edel aus. Für Solar-Carports gedacht.',wp:400,price:175,L:1.80,B:1.134,semi:true,bif:0.03}
 };
 const INVERTERS={
+  string:{name:'String-Wechselrichter',ex:'z. B. SMA Sunny Tripower X, Huawei SUN2000',d:'Solide und günstig. Reicht neben der bestehenden Haus-PV völlig.'},
+  existing:{name:'Bestehenden Wechselrichter mitnutzen',ex:'nur wenn ein MPP-Eingang frei ist und Leistung übrig',d:'Spart das Gerät. Die Solarleitungen laufen durchs Leerrohr ins Haus.',needsExisting:true},
+  opt:{name:'String-WR mit Leistungsoptimierern',ex:'z. B. Huawei SUN2000 + Optimierer',d:'Jedes Modul arbeitet für sich. Hilft, wenn der Baum abends nur einen Teil verschattet.',hybrid:true},
   hybrid:{name:'Hybrid-Wechselrichter, batteriefähig',ex:'z. B. Fronius Symo GEN24 Plus, Kostal Plenticore',d:'Speicher jederzeit nachrüstbar, Notstrom möglich.',hybrid:true},
-  string:{name:'String-Wechselrichter',ex:'z. B. SMA Sunny Tripower X, Huawei SUN2000',d:'Solide und günstig, ohne Speicheranschluss.'},
-  opt:{name:'String-WR mit Leistungsoptimierern',ex:'z. B. Huawei SUN2000 + Optimierer',d:'Jedes Modul arbeitet für sich. Hilft, wenn der Baum nur einen Teil verschattet.',hybrid:true},
-  micro:{name:'Mikro-Wechselrichter',ex:'z. B. Hoymiles HMS-2000-4T, 1 Gerät je 4 Module',d:'Sitzen direkt unter den Modulen, sehr schattentolerant. Nur am Carport möglich.'}
+  micro:{name:'Mikro-Wechselrichter',ex:'z. B. Hoymiles HMS-2000-4T, 1 Gerät je 4 Module',d:'Sitzen direkt unter den Modulen, sehr schattentolerant. Auf drei Phasen verteilen.'}
 };
 const WALLBOXES={
-  smart:{name:'Smart 11 kW mit PV-Überschussladen',ex:'z. B. go-e Charger Gemini 11',price:690,kw:11,surplus:true,d:'App, Phasenumschaltung 1/3-phasig, lädt mit Sonnenstrom ab ca. 1,4 kW.'},
-  fronius:{name:'11 kW, passend zum Fronius-WR',ex:'z. B. Fronius Wattpilot Home 11 J',price:880,kw:11,surplus:true,d:'Spricht direkt mit dem Wechselrichter, kein extra Zähler nötig.'},
+  smart:{name:'Smart 11 kW mit PV-Überschussladen',ex:'z. B. go-e Charger Gemini 11',price:690,kw:11,surplus:true,d:'App, Umschaltung 1/3-phasig, lädt mit Sonnenstrom ab ca. 1,4 kW.'},
+  fronius:{name:'11 kW, passend zum Fronius-WR',ex:'z. B. Fronius Wattpilot Home 11 J',price:880,kw:11,surplus:true,d:'Spricht direkt mit Fronius-Wechselrichtern. Gut, wenn die Haus-PV schon Fronius ist.'},
   basic:{name:'Basis 11 kW',ex:'z. B. Heidelberg Energy Control',price:520,kw:11,surplus:false,d:'Robust, einfach, ohne eigene PV-Steuerung.'},
   premium:{name:'Premium 11 kW, eichrechtskonform',ex:'z. B. KEBA KeContact P30 x-series',price:1450,kw:11,surplus:true,d:'Abrechnung mit Dienstwagen möglich, RFID, Lastmanagement.'},
-  kw22:{name:'22 kW',ex:'z. B. go-e Charger Gemini 22',price:900,kw:22,surplus:true,d:'Braucht eine Genehmigung vom Netzbetreiber. Die meisten Autos laden eh nur mit 11 kW.'},
   none:{name:'Keine Wallbox',ex:'Leitung trotzdem vorbereiten',price:0,kw:0,surplus:false,d:'Kabel einziehen und Anschlussdose setzen, Wallbox später.'}
 };
 const CABLE={6:{p:7.5,od:17.5,iz:38},10:{p:11.5,od:20.5,iz:50},16:{p:17,od:23.5,iz:64},25:{p:26,od:28,iz:83}};
 
-const DEF={compass:'S',cableLen:50,pipeD:50,gap:0.3,
-  type:'frei',w:6.0,d:5.5,h:2.3,tilt:6,slope:'back',offX:0,path:'rueck',
+const DEF={compass:'W',cableLen:50,pipeD:50,gap:0.3,postFence:1.2,pave:'umbau',
+  type:'tform',w:6.0,d:5.5,h:2.2,tilt:6,slope:'left',offX:0,path:'rueck',
   bump:false,stop:true,light:true,
-  pv:true,module:'gg',shade:25,
-  wb:'smart',wbCount:1,inverter:'hybrid',invLoc:'carport',bat:0,cat:true,meter:false,
+  pv:true,pvExisting:true,module:'gg',shade:25,
+  wb:'smart',wbCount:1,inverter:'string',invLoc:'carport',bat:0,cat:true,meter:false,
   price:0.32,km:12000,diy:{}};
 const PKG={
-  spar:{type:'holz',w:6.0,d:5.5,h:2.3,tilt:6,slope:'back',offX:0,bump:true,stop:true,light:false,pv:true,module:'std',wb:'smart',wbCount:1,inverter:'string',invLoc:'carport',bat:0,cat:true,diyAll:true},
-  empf:{type:'frei',w:6.0,d:5.5,h:2.3,tilt:6,slope:'back',offX:0,bump:false,stop:true,light:true,pv:true,module:'gg',wb:'smart',wbCount:1,inverter:'hybrid',invLoc:'carport',bat:0,cat:true,diyAll:false,diyPick:['cp_drain','pv_mount','cab','cat','stops']},
-  komfort:{type:'solar',w:6.6,d:6.0,h:2.35,tilt:7,slope:'back',offX:-0.5,bump:true,stop:true,light:true,pv:true,module:'semi',wb:'fronius',wbCount:2,inverter:'hybrid',invLoc:'carport',bat:10,cat:true,diyAll:false}
+  spar:{type:'holz',w:6.0,d:5.5,h:2.2,tilt:5,slope:'left',offX:0,pave:'bestand',bump:true,stop:true,light:false,pv:true,module:'std',wb:'smart',wbCount:1,inverter:'string',invLoc:'carport',bat:0,cat:true,diyAll:true},
+  empf:{type:'tform',w:6.0,d:5.5,h:2.2,tilt:6,slope:'left',offX:0,pave:'umbau',bump:false,stop:true,light:true,pv:true,module:'gg',wb:'smart',wbCount:1,inverter:'string',invLoc:'carport',bat:0,cat:true,diyAll:false,diyPick:['cp_drain','pv_mount','cab','cat','stops','pf_out','pf_gravel']},
+  komfort:{type:'solar',w:6.0,d:6.0,h:2.25,tilt:6,slope:'left',offX:-0.4,pave:'umbau',bump:true,stop:true,light:true,pv:true,module:'semi',wb:'fronius',wbCount:2,inverter:'hybrid',invLoc:'carport',bat:5,cat:true,diyAll:false}
 };
 const S=JSON.parse(JSON.stringify(DEF));
 PKG.empf.diyPick.forEach(id=>S.diy[id]=true);
+const STORE='carport-plan-v2';
 
 // ======================================================================
 // Hilfen
@@ -503,251 +517,236 @@ const eur=v=>nf(Math.round(v/10)*10)+' €';
 const m=(v,d=2)=>nf(v,d)+' m';
 const rad=x=>x*Math.PI/180;
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+function dirName(deg){const n=['Norden','Nordosten','Osten','Südosten','Süden','Südwesten','Westen','Nordwesten'];return n[Math.round((((deg%360)+360)%360)/45)%8];}
+function slopeFace(){const cb=COMPASS[S.compass];return {back:cb,front:cb+180,left:cb-90,right:cb+90}[S.slope];}
+function inPoly(x,z,P){let c=false;for(let i=0,j=P.length-1;i<P.length;j=i++){const [xi,zi]=P[i],[xj,zj]=P[j];if(((zi>z)!==(zj>z))&&(x<(xj-xi)*(z-zi)/(zj-zi)+xi))c=!c;}return c;}
+function polyArea(P){let a=0;for(let i=0,j=P.length-1;i<P.length;j=i++)a+=(P[j][0]+P[i][0])*(P[j][1]-P[i][1]);return Math.abs(a/2);}
 
 // ======================================================================
-// Geometrie & Berechnungen
+// Geometrie
 // ======================================================================
+const toW=(x,z)=>({x:S.offX+x,z:S.gap+z});
+const backRow=()=>Math.max(0.15,S.postFence-S.gap);
+function spots(){return S.w>=5.2?[S.w*0.25,S.w*0.75]:[S.w/2];}
 function postsLocal(){
-  const {w,d,type}=S, P=[];
+  const {w,d,type}=S, P=[], bz=backRow();
   if(type==='holz'){
-    const zs=d>5.2?[0.15,d/2,d-0.3]:[0.15,d-0.3];
+    const f=d-0.3, zs=(f-bz)>3.6?[bz,(bz+f)/2,f]:[bz,f];
     for(const x of [0.08,w-0.08]) for(const z of zs) P.push({x,z});
   }else if(type==='portal'){
-    for(const x of [0.08,w-0.08]) for(const z of [0.15,d-1.6]) P.push({x,z});
+    for(const x of [0.08,w-0.08]) for(const z of [bz,Math.max(bz+2,d-1.6)]) P.push({x,z});
   }else if(type==='solar'){
     const xs=w>6.4?[0.08,w/2,w-0.08]:[0.08,w-0.08];
-    for(const x of xs) P.push({x,z:0.15});
-    for(const x of [0.08,w-0.08]) P.push({x,z:d-1.3});
+    for(const x of xs) P.push({x,z:bz});
+    for(const x of [0.08,w-0.08]) P.push({x,z:Math.max(bz+2,d-1.3)});
+  }else if(type==='tform'){
+    const x=spots().length>1?w/2:0.1;
+    for(const z of [Math.max(bz,1.0),Math.max(bz+2,d-1.2)]) P.push({x,z});
   }else{ // frei
     const xs=w<=4.2?[0.3,w-0.3]:[0.3,w/2,w-0.3];
-    for(const x of xs) P.push({x,z:0.15});
+    for(const x of xs) P.push({x,z:bz});
   }
   return P;
 }
-const roofZA=()=>-0.12, roofZB=()=>S.d;
-function yU(z){ // Unterkante Tragwerk
-  const t=Math.tan(rad(S.tilt)), za=roofZA(), zb=roofZB();
-  return S.h+(S.slope==='back'?(z-za):(zb-z))*t;
+function roofExt(){return {xa:-0.12,xb:S.w+0.12,za:-0.12,zb:S.d};}
+const alongX=()=>S.slope==='left'||S.slope==='right';
+function yU(x,z){ // Unterkante Tragwerk
+  const t=Math.tan(rad(S.tilt)),e=roofExt();
+  return S.h+t*{back:z-e.za,front:e.zb-z,left:x-e.xa,right:e.xb-x}[S.slope];
 }
-function topLayer(){ // Aufbau über Tragwerks-Unterkante bis Dachhaut-Oberkante (lokal im Dach)
-  return {holz:{raf:0.12,cov:0.03},portal:{raf:0.07,cov:0.04},frei:{raf:0.08,cov:0.04},solar:{raf:0.05,cov:0}}[S.type];
-}
-const toW=(x,z)=>({x:S.offX+x,z:S.gap+z});
-function spots(){
-  const {w}=S;
-  return w>=5.2?[w*0.25,w*0.75]:[w/2];
+function roofDims(){const e=roofExt(),c=Math.cos(rad(S.tilt)),sx=e.xb-e.xa,sz=e.zb-e.za;return {RX:alongX()?sx/c:sx,RZ:alongX()?sz:sz/c,cx:(e.xa+e.xb)/2,cz:(e.za+e.zb)/2,c};}
+function toRoof(x,z){const r=roofDims();return {lx:(x-r.cx)/(alongX()?r.c:1),lz:(z-r.cz)/(alongX()?1:r.c)};}
+function topLayer(){return {holz:{raf:0.12,cov:0.03},portal:{raf:0.07,cov:0.04},frei:{raf:0.08,cov:0.04},solar:{raf:0.05,cov:0},tform:{raf:0.07,cov:0.04}}[S.type];}
+function roofHeights(){
+  const e=roofExt(),T=TYPES[S.type],L=topLayer(),add=T.pf+L.raf+L.cov+(S.pv&&S.type!=='solar'?0.1:0);
+  const ys=[[e.xa,e.za],[e.xb,e.za],[e.xa,e.zb],[e.xb,e.zb]].map(([x,z])=>yU(x,z));
+  const lo=Math.min(...ys)+T.pf+L.raf+L.cov, hi=Math.max(...ys)+add;
+  return {lo,hi,mean:(lo+hi)/2};
 }
 function moduleLayout(){
   if(!S.pv) return {n:0,cols:0,rows:0,portrait:true,mw:0,ml:0};
-  const M=MODULES[S.module], g=0.02;
-  const slopeLen=(roofZB()-roofZA())/Math.cos(rad(S.tilt));
-  const Uw=S.w+0.24-0.08, Ul=slopeLen-0.08;
+  const M=MODULES[S.module], g=0.02, r=roofDims();
+  const Uw=r.RX-0.08, Ul=r.RZ-0.08;
   const pc=Math.floor((Uw+g)/(M.B+g)), pr=Math.floor((Ul+g)/(M.L+g));
   const lc=Math.floor((Uw+g)/(M.L+g)), lr=Math.floor((Ul+g)/(M.B+g));
   if(pc*pr>=lc*lr) return {n:pc*pr,cols:pc,rows:pr,portrait:true,mw:M.B,ml:M.L};
   return {n:lc*lr,cols:lc,rows:lr,portrait:false,mw:M.L,ml:M.B};
 }
-function invPowerKW(kwp){ return clamp(Math.round(kwp*0.9),3,10); }
+function invPowerKW(kwp){return clamp(Math.round(kwp*0.9),3,10);}
 function pvYield(kwp){
-  const back=COMPASS[S.compass];
-  const face=S.slope==='back'?back:(back+180)%360;
-  let gamma=Math.abs(((face-180)%360+360)%360); if(gamma>180) gamma=360-gamma;
+  const face=slopeFace();
+  let gamma=Math.abs((((face-180)%360)+360)%360); if(gamma>180) gamma=360-gamma;
   const b=S.tilt/30, cg=Math.cos(rad(gamma));
   const f=0.87+b*0.13*cg-0.04*b*b*(1-cg);
-  const M=MODULES[S.module];
-  return {kwh:kwp*1050*f*(1-S.shade/100)*(1+M.bif),face,f};
+  return {kwh:kwp*1050*f*(1-S.shade/100)*(1+MODULES[S.module].bif),face,f};
 }
-function dirName(deg){
-  const names=['Norden','Nordosten','Osten','Südosten','Süden','Südwesten','Westen','Nordwesten'];
-  return names[Math.round(((deg%360)+360)%360/45)%8];
-}
+function invAtCarport(){return S.pv&&S.inverter!=='existing'&&(S.invLoc==='carport'||S.inverter==='micro');}
 function cableCalc(){
-  const W=WALLBOXES[S.wb];
-  const lay=moduleLayout(), kwp=lay.n*MODULES[S.module].wp/1000;
-  const iWb=W.kw?(W.kw===22?32:16)*(S.wbCount===2?(W.kw===22?1:2):1):0;
-  const invAtCarport=S.pv&&(S.invLoc==='carport'||S.inverter==='micro');
-  const iPv=invAtCarport?invPowerKW(kwp)*1000/(1.732*400*0.95):0;
+  const W=WALLBOXES[S.wb], lay=moduleLayout(), kwp=lay.n*MODULES[S.module].wp/1000, atC=invAtCarport();
+  const iWb=W.kw?16*S.wbCount:0;
+  const iPv=atC?invPowerKW(kwp)*1000/(1.732*400*0.95):0;
   const iD=Math.max(iWb,iPv,10);
-  const fuses=[16,20,25,32,40,50,63];
-  const fuse=fuses.find(f=>f>=iD*1.1)||63;
-  const L=S.cableLen;
-  const dU=a=>1.732*iD*L*0.95/(56*a*400)*100;
-  let mm=[6,10,16,25].find(a=>CABLE[a].iz>=fuse&&dU(a)<=2)||25;
-  const dcLines=S.pv&&!invAtCarport?(kwp>6.5?4:2):0;
-  // Rohrfüllung
+  const fuse=[16,20,25,32,40,50,63].find(f=>f>=iD*1.1)||63;
+  const L=S.cableLen, dU=a=>1.732*iD*L*0.95/(56*a*400)*100;
+  const mm=[6,10,16,25].find(a=>CABLE[a].iz>=fuse&&dU(a)<=2)||25;
+  const dcLines=S.pv&&!atC?(kwp>6.5?4:2):0;
   const pipeInner=S.pipeD*0.86;
-  let area=CABLE[mm].od**2+(S.cat?7.5**2:0)+dcLines*6.5**2;
-  const fill=area/(pipeInner**2);
-  return {iWb,iPv,iD,fuse,mm,dU:dU(mm),dcLines,fill,pipeInner,invAtCarport,kwp,L};
+  const fill=(CABLE[mm].od**2+(S.cat?7.5**2:0)+dcLines*6.5**2)/(pipeInner**2);
+  return {iWb,iPv,iD,fuse,mm,dU:dU(mm),dcLines,fill,pipeInner,invAtCarport:atC,kwp,L};
+}
+function postFenceDist(){
+  let min=99;
+  postsLocal().forEach(p=>{const q=toW(p.x,p.z);min=Math.min(min,q.z);
+    // Abstand zu Zaun B (Linie)
+    const ax=6.2,az=0,bx=7.3,bz=3.2,dx=bx-ax,dz=bz-az,t=clamp(((q.x-ax)*dx+(q.z-az)*dz)/(dx*dx+dz*dz),0,1);
+    min=Math.min(min,Math.hypot(q.x-(ax+dx*t),q.z-(az+dz*t)));});
+  return min;
 }
 
 // ---- Fahrsimulation ----
 function buildPath(){
   const sp=spots(), xc=S.offX+sp[sp.length-1];
-  const front=S.gap+S.d;
-  const zPark=S.gap+PARK_Z+CAR.L/2;
-  const zB=front+CAR.L/2-0.6;
+  const front=S.gap+S.d, zPark=S.gap+PARK_Z+CAR.L/2, zB=front+CAR.L/2-0.6;
   const pts=[];
   const turtle=(p,cmds)=>{
-    let {x,z,th}=p; const step=0.05;
-    pts.push({x,z,th,rev:false});
-    for(const c of cmds){
-      const n=Math.max(1,Math.round(Math.abs(c.len)/step)); const ds=c.len/n;
-      for(let i=0;i<n;i++){
-        const dth=c.R?(c.turn*ds/c.R):0;
-        const thm=th+dth/2, sgn=c.rev?-1:1;
-        x+=sgn*Math.sin(thm)*ds; z+=sgn*Math.cos(thm)*ds; th+=dth;
-        pts.push({x,z,th,rev:!!c.rev});
-      }
-    }
+    let {x,z,th}=p; const step=0.05; pts.push({x,z,th,rev:false});
+    for(const c of cmds){const n=Math.max(1,Math.round(Math.abs(c.len)/step)),ds=c.len/n;
+      for(let i=0;i<n;i++){const dth=c.R?(c.turn*ds/c.R):0,thm=th+dth/2,sgn=c.rev?-1:1;x+=sgn*Math.sin(thm)*ds;z+=sgn*Math.cos(thm)*ds;th+=dth;pts.push({x,z,th,rev:!!c.rev});}}
   };
   if(S.path==='rueck'){
-    const R=5.0; let R2=5.5;
-    const ze=zB+R, ax=xc-R;
+    const R=5.3; let R2=5.5; const ze=zB+R, ax=xc-R;
+    let L2=GATE_X-R2-ax; if(L2<0){R2=Math.max(3.5,GATE_X-ax-0.2);L2=GATE_X-R2-ax;}
     const z1=ze-R2;
-    let L2=GATE_X-R2-ax;
-    if(L2<0){R2=Math.max(3.5,GATE_X-ax-0.2);L2=GATE_X-R2-ax;}
-    const z1b=ze-R2;
-    turtle({x:GATE_X,z:-5,th:0},[
-      {len:z1b+5},
-      {len:R2*Math.PI/2,R:R2,turn:-1},
-      {len:Math.max(0,L2)},
-      {len:R*Math.PI/2,R:R,turn:1,rev:true},
-      {len:zB-zPark,rev:true}
-    ]);
+    turtle({x:GATE_X,z:-7,th:0},[{len:z1+7},{len:R2*Math.PI/2,R:R2,turn:-1},{len:Math.max(0,L2)},{len:R*Math.PI/2,R,turn:1,rev:true},{len:zB-zPark,rev:true}]);
   }else{
     const R=5.5, sx=xc+R;
-    turtle({x:sx+6,z:zB+R,th:-Math.PI/2},[
-      {len:6},
-      {len:R*Math.PI/2,R:R,turn:-1},
-      {len:zB-zPark}
-    ]);
+    turtle({x:sx+6,z:zB+R,th:-Math.PI/2},[{len:6},{len:R*Math.PI/2,R,turn:-1},{len:zB-zPark}]);
   }
   return pts;
 }
-function obstacles(){
-  const O=[];
-  const T=TYPES[S.type];
-  postsLocal().forEach(p=>{const q=toW(p.x,p.z);O.push({x:q.x,z:q.z,r:T.post*0.62,cat:'Stütze'});});
-  O.push({x:P1.x,z:P1.z,r:0.33,cat:'Torpfeiler'});
-  PED.forEach(p=>O.push({x:p.x,z:p.z,r:0.33,cat:'Torpfeiler'}));
-  const seg=(a,b,cat)=>{const L=Math.hypot(b[0]-a[0],b[1]-a[1]),n=Math.ceil(L/0.1);for(let i=0;i<=n;i++){const t=i/n;O.push({x:a[0]+(b[0]-a[0])*t,z:a[1]+(b[1]-a[1])*t,r:0.04,cat});}};
-  seg(FENCE_A[0],FENCE_A[1],'Zaun'); seg(FENCE_B[0],FENCE_B[1],'Zaun');
-  const sp=spots();
-  if(sp.length>1){ // zweites, geparktes Auto
-    const c=toW(sp[0],PARK_Z+CAR.L/2), hl=CAR.L/2, hb=1.88/2;
-    for(let u=-hl;u<=hl+1e-6;u+=0.1){O.push({x:c.x-hb,z:c.z+u,r:0,cat:'Zweites Auto'});O.push({x:c.x+hb,z:c.z+u,r:0,cat:'Zweites Auto'});}
-  }
-  techPositions().forEach(t=>O.push({x:t.x,z:t.z,r:t.r,cat:'Technik'}));
-  return O;
-}
-function clearance(pose,o){
-  const fx=Math.sin(pose.th),fz=Math.cos(pose.th);
-  const dx=o.x-pose.x,dz=o.z-pose.z;
-  const u=dx*fx+dz*fz, v=dx*fz-dz*fx;
-  const eu=Math.abs(u)-CAR.L/2, ev=Math.abs(v)-CAR.B/2;
-  let d; if(eu<=0&&ev<=0) d=Math.max(eu,ev); else d=Math.hypot(Math.max(eu,0),Math.max(ev,0));
-  return d-o.r;
-}
-function simulate(){
-  const path=buildPath(), O=obstacles();
-  const best={};
-  path.forEach((p,i)=>{for(const o of O){const c=clearance(p,o); if(!best[o.cat]||c<best[o.cat].c) best[o.cat]={c,i,o};}});
-  let worst=null; for(const k in best){ if(!worst||best[k].c<worst.c) worst={cat:k,...best[k]}; }
-  return {path,best,worst};
-}
-function techPositions(){ // Stellen am Boden, die das Auto nicht treffen soll
-  const R=[]; const wb=wallboxSpots();
-  wb.forEach(p=>{ if(!p.onPost){const q=toW(p.x,p.z);R.push({x:q.x,z:q.z,r:0.12});}});
-  if(needBoard()) R.push({x:LEER.x,z:S.gap+0.06,r:0.45});
-  return R;
-}
 function wallboxSpots(){
   if(S.wb==='none') return [];
-  const {w}=S, P=postsLocal().filter(p=>p.z<0.5);
-  const xs=S.wbCount===2?(spots().length>1?[w/2-0.35,w/2+0.35]:[w/2-0.3,w/2+0.3]):[spots().length>1?w/2:w-0.3];
+  const {w}=S, P=postsLocal(), bz=Math.min(...P.map(p=>p.z)), back=P.filter(p=>Math.abs(p.z-bz)<0.01);
+  const two=S.wbCount===2, many=spots().length>1;
+  const xs=two?(many?[w/2-0.35,w/2+0.35]:[w/2-0.3,w/2+0.3]):[many?w/2:w-0.3];
   return xs.map(x=>{
-    const post=P.find(p=>Math.abs(p.x-x)<0.45);
-    if(post) return {x:post.x+(S.wbCount===2?(x<post.x?-0.0:0):0),z:post.z+TYPES[S.type].post/2+0.09,onPost:true,side:x<w/2?-1:1};
+    const post=back.find(p=>Math.abs(p.x-x)<0.45);
+    if(post) return {x:post.x,z:post.z+TYPES[S.type].post/2+0.07,onPost:true};
     return {x,z:0.3,onPost:false};
   });
 }
-function needBoard(){ return (S.pv&&(S.invLoc==='carport'||S.inverter==='micro'))||S.wb!=='none'; }
+function needBoard(){return invAtCarport()||S.wb!=='none';}
+function techPositions(){
+  const R=[]; wallboxSpots().forEach(p=>{if(!p.onPost){const q=toW(p.x,p.z);R.push({x:q.x,z:q.z,r:0.12});}});
+  if(needBoard()) R.push({x:LEER.x,z:S.gap+0.06,r:0.45});
+  return R;
+}
+function obstacles(){
+  const O=[], T=TYPES[S.type];
+  postsLocal().forEach(p=>{const q=toW(p.x,p.z);O.push({x:q.x,z:q.z,r:T.post*0.62,cat:'Stütze'});});
+  O.push({x:P1.x,z:P1.z,r:0.33,cat:'Torpfeiler'}); PED.forEach(p=>O.push({x:p.x,z:p.z,r:0.33,cat:'Torpfeiler'}));
+  const seg=(a,b,cat)=>{const L=Math.hypot(b[0]-a[0],b[1]-a[1]),n=Math.ceil(L/0.1);for(let i=0;i<=n;i++){const t=i/n;O.push({x:a[0]+(b[0]-a[0])*t,z:a[1]+(b[1]-a[1])*t,r:0.04,cat});}};
+  seg(FENCE_A[0],FENCE_A[1],'Zaun'); seg(FENCE_B[0],FENCE_B[1],'Zaun');
+  const sp=spots();
+  if(sp.length>1){const c=toW(sp[0],PARK_Z+CAR.L/2),hl=CAR.L/2,hb=CAR.body/2;for(let u=-hl;u<=hl+1e-6;u+=0.1){O.push({x:c.x-hb,z:c.z+u,r:0,cat:'Zweites Auto'});O.push({x:c.x+hb,z:c.z+u,r:0,cat:'Zweites Auto'});}}
+  techPositions().forEach(t=>O.push({x:t.x,z:t.z,r:t.r,cat:'Technik'}));
+  return O;
+}
+function clearance(p,o){
+  const fx=Math.sin(p.th),fz=Math.cos(p.th),dx=o.x-p.x,dz=o.z-p.z,u=dx*fx+dz*fz,v=dx*fz-dz*fx;
+  const eu=Math.abs(u)-CAR.L/2,ev=Math.abs(v)-CAR.B/2;
+  const d=(eu<=0&&ev<=0)?Math.max(eu,ev):Math.hypot(Math.max(eu,0),Math.max(ev,0));
+  return d-o.r;
+}
+function simulate(){
+  const path=buildPath(),O=obstacles(),best={};
+  path.forEach((p,i)=>{for(const o of O){const c=clearance(p,o);if(!best[o.cat]||c<best[o.cat].c)best[o.cat]={c,i,o};}});
+  let worst=null; for(const k in best) if(!worst||best[k].c<worst.c) worst={cat:k,...best[k]};
+  return {path,best,worst};
+}
+
+// ---- Pflaster ----
+function arcPts(){const a=[7.0,3.2],c=[4.4,6.9],b=[0,4.4],P=[];for(let i=0;i<=40;i++){const t=i/40,u=1-t;P.push([u*u*a[0]+2*u*t*c[0]+t*t*b[0],u*u*a[1]+2*u*t*c[1]+t*t*b[1]]);}return P;}
+function umbauPoly(){
+  const x0=Math.max(-3.5,S.offX-0.4), x1=S.offX+S.w+0.5, zf=Math.max(S.gap+S.d+0.5,4.6), z0=STRIP;
+  const xBi=z=>xFenceB(z)-0.45;
+  const P=[[x0,z0]];
+  if(x1<=xBi(z0)) P.push([x1,z0]);
+  else{P.push([xBi(z0),z0]);const zc=(x1-(6.2-0.45))/KB;if(zc<zf)P.push([x1,zc]);else{P.push([xBi(zf),zf]);P.push([x0,zf]);return P;}}
+  P.push([x1,zf]);P.push([x0,zf]);return P;
+}
 
 // ======================================================================
 // Angebot
 // ======================================================================
 function offer(){
   const T=TYPES[S.type], A=(S.w+0.24)*(S.d+0.12), posts=postsLocal(), lay=moduleLayout(), M=MODULES[S.module];
-  const kwp=lay.n*M.wp/1000, cab=cableCalc(), W=WALLBOXES[S.wb], I=INVERTERS[S.inverter];
-  const G={carport:[],pv:[],strom:[]};
+  const kwp=lay.n*M.wp/1000, cab=cableCalc(), W=WALLBOXES[S.wb], I=INVERTERS[S.inverter], umbau=S.pave==='umbau';
+  const G={carport:[],pflaster:[],pv:[],strom:[]};
   const add=(g,o)=>G[g].push(Object.assign({mat:0,lab:0,diy:'nein',vat:19},o));
-  // Carport
   const kit=T.base+T.perM2*A;
-  add('carport',{id:'cp_kit',label:`${T.name}`,note:`Bausatz ${nf(S.w,1)} × ${nf(S.d,1)} m inkl. Dachhaut${S.type==='solar'?' (ohne Module)':''}, Montage durch Fachbetrieb`,mat:kit,lab:kit*T.mont,diy:S.type==='holz'?'ja':'teil'});
-  add('carport',{id:'cp_found',label:`Fundamente für ${posts.length} Stützen`,note:S.type==='frei'?'Große Blockfundamente ca. 1,0 × 1,0 × 1,2 m wegen des Kragarms, Pflaster öffnen und schließen':'Punktfundamente 50 × 50 × 80 cm mit H-Ankern, Pflaster öffnen und schließen',mat:posts.length*T.fundMat+40,lab:posts.length*T.fundLab+150,diy:S.type==='frei'?'teil':'ja'});
+  add('carport',{id:'cp_kit',label:T.name,note:`Bausatz ${nf(S.w,1)} × ${nf(S.d,1)} m inkl. Dachhaut${S.type==='solar'?' (ohne Module)':''}, Montage durch Fachbetrieb vom Hof aus`,mat:kit,lab:kit*T.mont,diy:S.type==='holz'?'ja':'teil'});
+  add('carport',{id:'cp_found',label:`Fundamente für ${posts.length} Stützen`,note:`${S.type==='frei'?'Große Blockfundamente ca. 1,0 × 1,0 × 1,2 m wegen des Kragarms':S.type==='tform'?'Blockfundamente ca. 0,8 × 0,8 × 1,0 m mit Ankerkorb':'Punktfundamente 50 × 50 × 80 cm mit H-Ankern'}, mind. ${m(postFenceDist(),1)} vom Zaun${umbau?'':', Pflaster öffnen und schließen'}`,mat:posts.length*T.fundMat+40,lab:posts.length*T.fundLab+(umbau?0:150),diy:(S.type==='frei'||S.type==='tform')?'teil':'ja'});
   if(T.statik||S.pv) add('carport',{id:'cp_statik',label:T.statik?'Statik (Einzelnachweis)':'Statik-Check mit PV-Last',note:'Schneelastzone, Wind, Modulgewicht ca. 15 kg/m²',lab:T.statik||250});
   if(T.crane) add('carport',{id:'cp_crane',label:'Autokran / Teleskoplader',note:'Stahlträger sind zu schwer zum Tragen',lab:T.crane});
-  add('carport',{id:'cp_drain',label:'Dachrinne, Fallrohr, Anschluss',note:'Ableitung in Versickerung oder Beet hinter dem Zaun',mat:220,lab:250,diy:'ja'});
-  const entryPosts=posts.filter(p=>p.z>1).length;
-  if(S.bump&&entryPosts) add('carport',{id:'bump',label:`Anfahrschutz, ${entryPosts} Stützen`,note:'Rammschutz-Manschetten gelb-schwarz',mat:entryPosts*85,lab:0,diy:'ja'});
+  add('carport',{id:'cp_drain',label:'Dachrinne, Fallrohr, Versickerung',note:'Fallrohr in eine Sickermulde im Rasen, nicht in den Bach',mat:320,lab:300,diy:'ja'});
+  const entryPosts=posts.filter(p=>p.z>S.d*0.5&&(p.x<0.5||p.x>S.w-0.5)).length;
+  if(S.bump&&entryPosts) add('carport',{id:'bump',label:`Anfahrschutz, ${entryPosts} Stützen`,note:'Rammschutz-Manschetten gelb-schwarz',mat:entryPosts*85,diy:'ja'});
   if(S.stop) add('carport',{id:'stops',label:`Radstopper, ${spots().length} Stellplatz${spots().length>1?'e':''}`,note:'Gummi, verschraubt',mat:spots().length*70,lab:spots().length*40,diy:'ja'});
   if(S.light) add('carport',{id:'light',label:'LED-Licht mit Bewegungsmelder',note:'Anschluss an die Unterverteilung',mat:180,lab:150,diy:'teil'});
-  // PV
+  if(umbau){
+    const P=umbauPoly(), Ap=polyArea(P);
+    let edge=0; for(let i=1;i<P.length;i++) edge+=Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1]);
+    const gravel=Math.max(0,Math.min(6.2,S.offX+S.w+0.5)-Math.max(-3.5,S.offX-0.4))+(S.offX+S.w>5.5?3.4:0);
+    add('pflaster',{id:'pf_out',label:'Altes Pflaster und Granitbogen aufnehmen',note:`${nf(Ap,1)} m², Steine sauber stapeln zum Wiederverwenden`,lab:18*Ap,diy:'ja'});
+    add('pflaster',{id:'pf_base',label:'Unterbau prüfen, Splittbett, verdichten',note:'inkl. Rüttelplatte (Miete) und Ausgleich auf Gefälle zum Hof',mat:9*Ap+60,lab:14*Ap,diy:'ja'});
+    add('pflaster',{id:'pf_lay',label:'Pflaster neu verlegen',note:'vorhandene Steine wiederverwenden, ca. 15 % neue',mat:5*Ap,lab:30*Ap,diy:'ja'});
+    add('pflaster',{id:'pf_edge',label:`Granit-Einfassung gerade, ${nf(edge,1)} m`,note:'Steine aus dem alten Bogen, in Beton gesetzt',mat:9*edge,lab:32*edge,diy:'ja'});
+    add('pflaster',{id:'pf_gravel',label:`Kiesstreifen am Zaun, ${nf(gravel,1)} m`,note:'Statt Moos und Laub: Abstand zur Ufermauer, Spritzschutz, Leerrohr bleibt zugänglich',mat:14*gravel,lab:12*gravel,diy:'ja'});
+  }
   if(S.pv&&lay.n){
-    add('pv',{id:'pv_mod',label:`${lay.n} Module ${M.name}`,note:`${nf(kwp,2)} kWp, ${lay.portrait?'hochkant':'quer'} in ${lay.rows} Reihen`,mat:lay.n*M.price,vat:0});
+    add('pv',{id:'pv_mod',label:`${lay.n} Module ${M.name}`,note:`${nf(kwp,2)} kWp, Ausrichtung ${dirName(slopeFace())}`,mat:lay.n*M.price,vat:0});
     if(S.type==='solar') add('pv',{id:'pv_mount',label:'Module als Dachhaut einsetzen',note:'Klemmen und Dichtprofile sind im Carport-System enthalten',mat:lay.n*12,lab:lay.n*35,diy:'teil',vat:0});
     else add('pv',{id:'pv_mount',label:'PV-Unterkonstruktion auf dem Carportdach',note:'Schienen, Klemmen, flach mit Dachneigung',mat:lay.n*55,lab:lay.n*40,diy:'ja',vat:0});
-    const kw=invPowerKW(kwp);
-    let invPrice, invLabel;
-    if(S.inverter==='micro'){const k=Math.ceil(lay.n/4);invPrice=k*330+160;invLabel=`${k} Mikro-Wechselrichter + Kommunikationseinheit`;}
-    else if(S.inverter==='hybrid'){invPrice=1100+130*kw;invLabel=`Hybrid-Wechselrichter ${kw} kW`;}
-    else {invPrice=650+80*kw;invLabel=`String-Wechselrichter ${kw} kW`;}
-    if(S.inverter==='opt'){invPrice=750+90*kw;invLabel=`Wechselrichter ${kw} kW`;}
-    add('pv',{id:'pv_inv',label:invLabel,note:`${I.ex}${cab.invAtCarport?', montiert am Carport':', montiert im Haus'}`,mat:invPrice,vat:0});
+    const kw=invPowerKW(kwp); let price=0,label='';
+    if(S.inverter==='micro'){const k=Math.ceil(lay.n/4);price=k*330+160;label=`${k} Mikro-Wechselrichter + Kommunikationseinheit`;}
+    else if(S.inverter==='hybrid'){price=1100+130*kw;label=`Hybrid-Wechselrichter ${kw} kW`;}
+    else if(S.inverter==='opt'){price=750+90*kw;label=`Wechselrichter ${kw} kW`;}
+    else if(S.inverter==='string'){price=650+80*kw;label=`String-Wechselrichter ${kw} kW`;}
+    if(S.inverter==='existing') add('pv',{id:'pv_inv',label:'Anschluss an bestehenden Wechselrichter',note:'Prüfen: freier MPP-Eingang, Spannung und Leistung passen',lab:300,vat:0});
+    else add('pv',{id:'pv_inv',label,note:`${I.ex}${cab.invAtCarport?', montiert am Carport':', montiert im Haus'}`,mat:price,vat:0});
     if(S.inverter==='opt') add('pv',{id:'pv_opt',label:`${lay.n} Leistungsoptimierer`,note:'Einer pro Modul',mat:lay.n*45,lab:lay.n*8,diy:'ja',vat:0});
     if(S.bat&&I.hybrid) add('pv',{id:'pv_bat',label:`Batteriespeicher ${S.bat} kWh`,note:'z. B. BYD Battery-Box, Huawei LUNA2000',mat:S.bat===5?2400:4400,lab:300,vat:0});
     add('pv',{id:'pv_dc',label:'DC-Material und Überspannungsschutz',note:cab.dcLines?`inkl. ${cab.dcLines} Solarleitungen 6 mm² × ${S.cableLen+5} m durchs Leerrohr`:'Solarleitungen, Stecker, Überspannungsschutz',mat:350+cab.dcLines*(S.cableLen+5)*1.6,vat:0});
-    add('pv',{id:'pv_elec',label:'Elektriker: PV-Anschluss und Inbetriebnahme',note:'inkl. Anmeldung beim Netzbetreiber',lab:900,vat:0});
+    add('pv',{id:'pv_elec',label:'Elektriker: PV-Anschluss und Inbetriebnahme',note:S.pvExisting?'Erweiterung der bestehenden Anlage beim Netzbetreiber anmelden':'inkl. Anmeldung beim Netzbetreiber',lab:900,vat:0});
   }
-  // Strom
   if(S.wb!=='none'){
     add('strom',{id:'wb',label:`${S.wbCount} × Wallbox ${W.name}`,note:W.ex,mat:W.price*S.wbCount});
     const stands=wallboxSpots().filter(p=>!p.onPost).length;
     if(stands) add('strom',{id:'wb_stand',label:`${stands} × Standsäule für Wallbox`,note:'Keine Stütze an passender Stelle',mat:stands*280,lab:stands*60,diy:'ja'});
-    add('strom',{id:'wb_inst',label:'Elektriker: Wallbox anschließen',note:`Anmeldung beim Netzbetreiber, § 14a-Steuerbox${W.kw===22?', Genehmigung 22 kW':''}${S.wbCount===2?', Lastmanagement':''}`,lab:450+(S.wbCount-1)*200});
+    add('strom',{id:'wb_inst',label:'Elektriker: Wallbox anschließen',note:`Anmeldung beim Netzbetreiber, § 14a-Steuerbox${S.wbCount===2?', Lastmanagement':''}`,lab:450+(S.wbCount-1)*200});
+    if(W.surplus&&S.pvExisting) add('strom',{id:'em',label:'Energiezähler am Hausanschluss',note:'Damit die Wallbox den Überschuss der Haus-PV sieht. Entfällt, wenn die Anlage schon einen Smart Meter hat.',mat:220,lab:150});
   }
-  const needAC=S.wb!=='none'||cab.invAtCarport||S.light;
-  if(needAC){
-    add('strom',{id:'cab',label:`Erdkabel NYY-J 5 × ${cab.mm} mm²`,note:`${S.cableLen+5} m inkl. Reserve, durchs vorhandene Leerrohr ziehen`,mat:(S.cableLen+5)*CABLE[cab.mm].p,lab:250,diy:'ja'});
+  if(S.wb!=='none'||cab.invAtCarport||S.light){
+    add('strom',{id:'cab',label:`Erdkabel NYY-J 5 × ${cab.mm} mm²`,note:`${S.cableLen+5} m inkl. Reserve, mit dem vorhandenen Zugdraht einziehen`,mat:(S.cableLen+5)*CABLE[cab.mm].p,lab:250,diy:'ja'});
     add('strom',{id:'uv',label:'Unterverteilung am Carport',note:'Außenkasten IP65, FI Typ A, Leitungsschutz, Überspannungsschutz',mat:380,lab:350});
     add('strom',{id:'house',label:'Absicherung im Haus-Verteiler',note:`Abgang ${cab.fuse} A für die Carport-Zuleitung`,mat:150,lab:300});
   }
   if(S.cat) add('strom',{id:'cat',label:'Netzwerkkabel Cat 7',note:`${S.cableLen+5} m, im selben Zug eingezogen`,mat:(S.cableLen+5)*1.2,diy:'ja'});
-  if(S.meter) add('strom',{id:'meter',label:'Zählerschrank ertüchtigen',note:'Platz für Zweirichtungszähler und Steuerbox',mat:900,lab:900});
-  // Summen
-  let tot={mat:0,lab:0,save:0}, gs={};
-  for(const g in G){
-    gs[g]={mat:0,lab:0,save:0};
-    for(const it of G[g]){
-      it.save=S.diy[it.id]&&it.diy!=='nein'?(it.diy==='ja'?it.lab:it.lab*0.5):0;
-      it.total=it.mat+it.lab-it.save;
-      gs[g].mat+=it.mat; gs[g].lab+=it.lab; gs[g].save+=it.save;
-    }
-    gs[g].total=gs[g].mat+gs[g].lab-gs[g].save;
-    tot.mat+=gs[g].mat; tot.lab+=gs[g].lab; tot.save+=gs[g].save;
-  }
+  if(S.meter) add('strom',{id:'meter',label:'Zählerschrank ertüchtigen',note:'Platz für Zähler und Steuerbox',mat:900,lab:900});
+  const tot={mat:0,lab:0,save:0}, gs={};
+  for(const g in G){gs[g]={mat:0,lab:0,save:0};
+    for(const it of G[g]){it.save=S.diy[it.id]&&it.diy!=='nein'?(it.diy==='ja'?it.lab:it.lab*0.5):0;it.total=it.mat+it.lab-it.save;gs[g].mat+=it.mat;gs[g].lab+=it.lab;gs[g].save+=it.save;}
+    gs[g].total=gs[g].mat+gs[g].lab-gs[g].save; tot.mat+=gs[g].mat; tot.lab+=gs[g].lab; tot.save+=gs[g].save;}
   tot.total=tot.mat+tot.lab-tot.save;
   return {G,gs,tot,kwp,lay,cab};
 }
 function econ(o){
   const y=pvYield(o.kwp), W=WALLBOXES[S.wb];
-  let self=0.30+(W.kw?(W.surplus?0.15:0.05):0)+(S.bat===5?0.18:S.bat===10?0.28:0);
-  self=Math.min(self,0.85);
-  const selfKWh=y.kwh*self, feed=y.kwh-selfKWh;
-  const save=selfKWh*S.price+feed*0.078;
-  const ev=S.km*0.18;
-  const evSun=Math.min(ev*(W.surplus?0.5:0.3),selfKWh);
+  let self=(S.pvExisting?0.12:0.30)+(W.kw?(W.surplus?0.15:0.05):0)+(S.bat===5?0.15:S.bat===10?0.22:0);
+  self=Math.min(self,0.8);
+  const selfKWh=y.kwh*self, feed=y.kwh-selfKWh, save=selfKWh*S.price+feed*0.078;
+  const ev=S.km*0.18, evSun=Math.min(ev*(W.surplus?0.5:0.3),selfKWh);
   const cost=o.gs.pv.total;
   return {y,self,selfKWh,feed,save,ev,evSun,cost,payback:save>0?cost/save:0};
 }
@@ -756,88 +755,72 @@ function econ(o){
 // 3D-Szene
 // ======================================================================
 const canvas=$('#three'), stage=$('#stage');
-let renderer;
-try{ renderer=new THREE.WebGLRenderer({canvas,antialias:true}); }
-catch(e){ $('#ovStatus').innerHTML='<span>3D wird von diesem Gerät nicht unterstützt. Das Angebot rechts funktioniert trotzdem.</span>'; }
+let renderer=null;
+try{renderer=new THREE.WebGLRenderer({canvas,antialias:true});}catch(e){$('#ovStatus').innerHTML='<span>3D wird von diesem Gerät nicht unterstützt. Das Angebot rechts funktioniert trotzdem.</span>';}
 const scene=new THREE.Scene();
-scene.background=new THREE.Color(0xc9d2d6);
-scene.fog=new THREE.Fog(0xc9d2d6,45,110);
+scene.background=new THREE.Color(0xc9d2d6); scene.fog=new THREE.Fog(0xc9d2d6,50,120);
 const camera=new THREE.PerspectiveCamera(55,1,0.1,300);
-let controls;
+let controls=null;
 if(renderer){
   renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
-  renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-  renderer.outputEncoding=THREE.sRGBEncoding;
-  controls=new THREE.OrbitControls(camera,canvas);
-  controls.enableDamping=true; controls.maxPolarAngle=Math.PI*0.495; controls.minDistance=2; controls.maxDistance=60;
+  renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap; renderer.outputEncoding=THREE.sRGBEncoding;
+  controls=new THREE.OrbitControls(camera,canvas); controls.enableDamping=true; controls.maxPolarAngle=Math.PI*0.495; controls.minDistance=2; controls.maxDistance=70;
 }
 const hemi=new THREE.HemisphereLight(0xe8eef2,0x5c5a48,0.55); scene.add(hemi);
 const sun=new THREE.DirectionalLight(0xfff3df,0.95);
 sun.castShadow=true; sun.shadow.mapSize.set(2048,2048);
 Object.assign(sun.shadow.camera,{left:-18,right:18,top:18,bottom:-18,near:1,far:90});
 sun.shadow.bias=-0.0006; sun.shadow.normalBias=0.02;
-scene.add(sun); scene.add(sun.target); sun.target.position.set(3,0,3);
+scene.add(sun); scene.add(sun.target); sun.target.position.set(3,0,2);
 
 const matCache={};
 function mat(color,o={}){const k=color+JSON.stringify(o);if(!matCache[k])matCache[k]=new THREE.MeshStandardMaterial(Object.assign({color,roughness:0.85,metalness:0},o));return matCache[k];}
 function box(w,h,d,material,x=0,y=0,z=0,parent){const me=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);me.position.set(x,y,z);me.castShadow=true;me.receiveShadow=true;(parent||scene).add(me);return me;}
-function canvasTex(w,h,draw,rep){const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d');draw(g,w,h);const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;if(rep){t.wrapS=t.wrapT=THREE.RepeatWrapping;}if(renderer)t.anisotropy=renderer.capabilities.getMaxAnisotropy();return t;}
+function canvasTex(w,h,draw,rep){const c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'),w,h);const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;if(rep)t.wrapS=t.wrapT=THREE.RepeatWrapping;if(renderer)t.anisotropy=renderer.capabilities.getMaxAnisotropy();return t;}
 function rnd(seed){let s=seed;return()=>{s=(s*16807)%2147483647;return (s-1)/2147483646;};}
-
-function paverTex(base,vari,seed){ // 2 m × 2 m Kachel, Steine 20 × 16 cm im Halbverband
-  return canvasTex(512,512,(g,W,H)=>{
-    const r=rnd(seed); g.fillStyle='#3d3a36'; g.fillRect(0,0,W,H);
-    const sw=W/10, sh=H/12.5;
-    for(let row=0;row<13;row++){const off=row%2?sw/2:0;for(let c=-1;c<11;c++){
-      const v=(r()-0.5)*vari; const [R,G,B]=base.map(x=>clamp(Math.round(x+v+(r()-0.5)*8),0,255));
-      g.fillStyle=`rgb(${R},${G},${B})`; g.fillRect(c*sw+off+2,row*sh+2,sw-4,sh-4);
-      if(r()<0.25){g.fillStyle='rgba(80,110,50,0.35)';g.fillRect(c*sw+off,row*sh,sw,3);}
-    }}
-  },true);
+function paverTex(base,vari,seed,joint='#3d3a36',moss=0.25){
+  return canvasTex(512,512,(g,W,H)=>{const r=rnd(seed);g.fillStyle=joint;g.fillRect(0,0,W,H);const sw=W/10,sh=H/12.5;
+    for(let row=0;row<13;row++){const off=row%2?sw/2:0;for(let c=-1;c<11;c++){const v=(r()-0.5)*vari;const [R,G,B]=base.map(x=>clamp(Math.round(x+v+(r()-0.5)*8),0,255));g.fillStyle=`rgb(${R},${G},${B})`;g.fillRect(c*sw+off+2,row*sh+2,sw-4,sh-4);if(r()<moss){g.fillStyle='rgba(80,110,50,0.35)';g.fillRect(c*sw+off,row*sh,sw,3);}}}},true);
 }
-function brickTex(){return canvasTex(256,256,(g,W,H)=>{g.fillStyle='#e9e2d6';g.fillRect(0,0,W,H);const bh=H/8,bw=W/3;const r=rnd(7);for(let row=0;row<8;row++){const off=row%2?bw/2:0;for(let c=-1;c<4;c++){const v=Math.round((r()-0.5)*30);g.fillStyle=`rgb(${178+v},${62+v/2},${40+v/3})`;g.fillRect(c*bw+off+3,row*bh+3,bw-6,bh-6);}}},true);}
-function cellTex(semi){return canvasTex(256,384,(g,W,H)=>{
-  g.fillStyle=semi?'rgba(0,0,0,0)':'#0d1117'; g.clearRect(0,0,W,H); if(!semi){g.fillRect(0,0,W,H);}
+function brickTex(){return canvasTex(256,256,(g,W,H)=>{g.fillStyle='#e9e2d6';g.fillRect(0,0,W,H);const bh=H/8,bw=W/3,r=rnd(7);for(let row=0;row<8;row++){const off=row%2?bw/2:0;for(let c=-1;c<4;c++){const v=Math.round((r()-0.5)*30);g.fillStyle=`rgb(${178+v},${62+v/2},${40+v/3})`;g.fillRect(c*bw+off+3,row*bh+3,bw-6,bh-6);}}},true);}
+function cellTex(semi){return canvasTex(256,384,(g,W,H)=>{g.clearRect(0,0,W,H);if(!semi){g.fillStyle='#0d1117';g.fillRect(0,0,W,H);}
   const cols=6,rows=10,cw=W/cols,ch=H/rows,gap=semi?7:2;
   for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){g.fillStyle=semi?'#121a26':'#151d2b';g.fillRect(c*cw+gap/2,r*ch+gap/2,cw-gap,ch-gap);g.fillStyle='rgba(120,150,200,0.12)';g.fillRect(c*cw+gap/2,r*ch+gap/2,cw-gap,2);}
-  g.strokeStyle='#2a2f36';g.lineWidth=5;g.strokeRect(0,0,W,H);
-});}
+  g.strokeStyle='#2a2f36';g.lineWidth=5;g.strokeRect(0,0,W,H);});}
+function noiseTex(base,vari,seed){return canvasTex(256,256,(g,W,H)=>{const r=rnd(seed);g.fillStyle=`rgb(${base})`;g.fillRect(0,0,W,H);for(let i=0;i<2500;i++){const v=(r()-0.5)*vari;const [R,G,B]=base.split(',').map(x=>clamp(Math.round(+x+v),0,255));g.fillStyle=`rgb(${R},${G},${B})`;g.fillRect(r()*W,r()*H,3,3);}},true);}
 
-// Boden ---------------------------------------------------------------
 const ENV=new THREE.Group(); scene.add(ENV);
-function shapeMesh(points,material,y){
+const PAVE=new THREE.Group(); scene.add(PAVE);
+function shapeMesh(points,material,y,parent){
   const sh=new THREE.Shape(points.map(p=>new THREE.Vector2(p[0],-p[1])));
-  const g=new THREE.ShapeGeometry(sh,32);
-  const me=new THREE.Mesh(g,material); me.rotation.x=-Math.PI/2; me.position.y=y; me.receiveShadow=true; ENV.add(me); return me;
+  const me=new THREE.Mesh(new THREE.ShapeGeometry(sh,32),material); me.rotation.x=-Math.PI/2; me.position.y=y; me.receiveShadow=true; (parent||ENV).add(me); return me;
 }
-function arcPts(){ // Granitbogen: vom Torpfeiler bis zum linken Rand
-  const a=[P1.x,P1.z-0.1],c=[4.6,7.2],b=[0,4.4],P=[];
-  for(let i=0;i<=40;i++){const t=i/40,u=1-t;P.push([u*u*a[0]+2*u*t*c[0]+t*t*b[0],u*u*a[1]+2*u*t*c[1]+t*t*b[1]]);}
-  return P;
-}
+function plane(w,d,material,x,y,z,parent){const p=new THREE.Mesh(new THREE.PlaneGeometry(w,d),material);p.rotation.x=-Math.PI/2;p.position.set(x,y,z);p.receiveShadow=true;(parent||ENV).add(p);return p;}
+
 function buildEnv(){
-  const red=paverTex([132,86,76],28,3); red.repeat.set(0.5,0.5);
-  const grey=paverTex([118,116,110],18,11); grey.repeat.set(0.5,0.5);
   const lawn=mat(0x6f8f45,{roughness:1});
-  const gnd=new THREE.Mesh(new THREE.PlaneGeometry(200,200),lawn); gnd.rotation.x=-Math.PI/2; gnd.receiveShadow=true; ENV.add(gnd);
-  // rotes Pflaster (Hof)
-  shapeMesh([[-3.5,0],[6.2,0],[7.3,3.2],[11.9,3.2],[16,3.2],[18,9],[16,18],[2,18],[-3.5,12]],new THREE.MeshStandardMaterial({map:red,roughness:0.9}),0.005);
-  // Torzufahrt nach draußen
-  shapeMesh([[7.55,3.25],[10.9,3.25],[10.9,-9],[7.55,-9]],new THREE.MeshStandardMaterial({map:red,roughness:0.9}),0.004);
-  // graue Fläche
-  const arc=arcPts();
-  shapeMesh([[0,0],[6.2,0],[P1.x,P1.z-0.1],...arc.slice(1)],new THREE.MeshStandardMaterial({map:grey,roughness:0.95}),0.012);
-  // Granitsteine Bogen + Linien
-  const stones=[];
-  const line=(P,step)=>{for(let i=0;i<P.length-1;i++){const [x0,z0]=P[i],[x1,z1]=P[i+1];const L=Math.hypot(x1-x0,z1-z0),n=Math.max(1,Math.round(L/step));for(let k=0;k<n;k++){const t=(k+0.5)/n;stones.push([x0+(x1-x0)*t,z0+(z1-z0)*t,Math.atan2(x1-x0,z1-z0)]);}}};
-  line(arc,0.17); line([[0,4.4],[0,0.1]],0.17); line([[-3.5,4.4],[0,4.4]],0.17); line([[P1.x+0.2,P1.z+0.2],[15,15]],0.17);
-  const sg=new THREE.BoxGeometry(0.15,0.04,0.15), sm=new THREE.MeshStandardMaterial({color:0xb8bab7,roughness:0.95});
-  const im=new THREE.InstancedMesh(sg,sm,stones.length); const d=new THREE.Object3D(); const r=rnd(5);
-  stones.forEach((s,i)=>{d.position.set(s[0],0.02,s[1]);d.rotation.set(0,s[2]+(r()-0.5)*0.15,0);d.updateMatrix();im.setMatrixAt(i,d.matrix);im.setColorAt(i,new THREE.Color().setHSL(0.1,0.04,0.62+(r()-0.5)*0.12));});
-  im.receiveShadow=true; ENV.add(im);
-  // Straße hinten
-  const road=new THREE.Mesh(new THREE.PlaneGeometry(120,6),mat(0x6b6d6e,{roughness:0.95})); road.rotation.x=-Math.PI/2; road.position.set(0,0.01,-12); road.receiveShadow=true; ENV.add(road);
-  // Zaun
+  // Boden diesseits und jenseits des Bachs
+  plane(220,100+Math.abs(BACH.near),lawn,0,0,(100+BACH.near)/2);
+  plane(220,100,lawn,0,0,BACH.far-50);
+  // Bach im Betonbett
+  const concrete=new THREE.MeshStandardMaterial({map:noiseTex('150,150,144',30,4),roughness:1});
+  const water=new THREE.MeshStandardMaterial({color:0x4d6b6e,roughness:0.15,metalness:0.3});
+  const wD=BACH.near-BACH.far;
+  plane(220,wD,water,0,BACH.water,(BACH.near+BACH.far)/2);
+  for(const [z,face] of [[BACH.near,Math.PI],[BACH.far,0]]){const wall=new THREE.Mesh(new THREE.PlaneGeometry(220,0.7),concrete);wall.position.set(0,-0.3,z);wall.rotation.y=face;ENV.add(wall);}
+  box(220,0.08,0.25,concrete,0,0.04,BACH.near-0.1,ENV); box(220,0.08,0.25,concrete,0,0.04,BACH.far+0.1,ENV);
+  // Geländer am anderen Ufer
+  const steel=mat(0x2a2d30,{metalness:0.5,roughness:0.5});
+  for(let x=-24;x<=24;x+=2) box(0.05,1.0,0.05,steel,x,0.5,BACH.far+0.1,ENV);
+  box(48,0.05,0.05,steel,0,1.0,BACH.far+0.1,ENV); box(48,0.04,0.04,steel,0,0.55,BACH.far+0.1,ENV);
+  // Brücke der Zufahrt
+  const red=paverTex([132,86,76],28,3); red.repeat.set(0.5,0.5);
+  box(3.6,0.18,wD+0.6,mat(0x8f8f8a),9.22,-0.08,(BACH.near+BACH.far)/2,ENV);
+  for(const x of [7.45,11.0]){box(0.05,0.05,wD+0.8,steel,x,0.95,(BACH.near+BACH.far)/2,ENV);for(let z=BACH.near;z>=BACH.far-0.01;z-=0.62)box(0.04,0.95,0.04,steel,x,0.48,z,ENV);}
+  shapeMesh([[7.55,3.25],[10.9,3.25],[10.9,BACH.near+0.05],[7.55,BACH.near+0.05]],new THREE.MeshStandardMaterial({map:red,roughness:0.9}),0.004);
+  shapeMesh([[7.55,BACH.far-0.05],[10.9,BACH.far-0.05],[10.9,-9.5],[7.55,-9.5]],mat(0x6b6d6e,{roughness:0.95}),0.004);
+  // Straße jenseits des Bachs
+  plane(140,6,mat(0x6b6d6e,{roughness:0.95}),0,0.01,-12.5);
   buildFence();
   // Pfeiler
   const bt=brickTex(); bt.repeat.set(1,2);
@@ -846,46 +829,73 @@ function buildEnv(){
   pillar(P1.x,P1.z); PED.forEach(p=>pillar(p.x,p.z));
   box(0.7,1.1,0.05,mat(0x7a5a3c),11.5,0.6,3.2,ENV);
   // Leerrohr
-  const pipe=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.035,0.35,12),mat(0x111111,{roughness:0.5}));pipe.position.set(LEER.x,0.17,LEER.z+0.12);pipe.rotation.x=0.5;ENV.add(pipe);
-  // Bäume
+  const pipe=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.035,0.35,12),mat(0x111111,{roughness:0.5}));pipe.position.set(LEER.x,0.15,LEER.z);pipe.rotation.x=0.5;ENV.add(pipe);
+  box(0.06,0.05,0.06,mat(0xeeeeee),LEER.x,0.31,LEER.z+0.08,ENV);
+  // Bäume jenseits des Bachs, Haselbüsche am Ufer
   const trunk=mat(0x3b3029), leaf=mat(0x7d8a3a,{roughness:1}), leaf2=mat(0x9a8f3c,{roughness:1});
-  const tree=(x,z,h,rc,mats)=>{const t=new THREE.Mesh(new THREE.CylinderGeometry(rc*0.7,rc,h,10),trunk);t.position.set(x,h/2,z);t.castShadow=true;ENV.add(t);const r=rnd(Math.round(x*100+z));for(let i=0;i<7;i++){const s=new THREE.Mesh(new THREE.IcosahedronGeometry(1.7+r()*1.3,1),mats[i%mats.length]);s.position.set(x+(r()-0.5)*4.2,h+(r()-0.3)*2.4,z+(r()-0.5)*3.6);s.castShadow=true;ENV.add(s);}};
-  tree(2.4,-2.6,7.5,0.38,[leaf,leaf2]); tree(3.5,-3.3,8.5,0.18,[leaf2]);
-  tree(-6,-4,6,0.3,[leaf,leaf2]); tree(-12,6,7,0.4,[leaf]);
-  const thuja=new THREE.Mesh(new THREE.ConeGeometry(1.0,6.5,10),mat(0x2f4a3a,{roughness:1})); thuja.position.set(7.35,3.25,1.4); thuja.castShadow=true; ENV.add(thuja);
-  // Büsche hinter dem Zaun
-  const bush=mat(0x5d7d3a,{roughness:1}); const r2=rnd(3);
-  for(let i=0;i<9;i++){const s=new THREE.Mesh(new THREE.IcosahedronGeometry(0.6+r2()*0.6,1),bush);s.position.set(-3+i*1.2,0.6,-0.9-r2()*1.2);s.castShadow=true;ENV.add(s);}
+  const tree=(x,z,h,rc,mats)=>{const t=new THREE.Mesh(new THREE.CylinderGeometry(rc*0.7,rc,h,10),trunk);t.position.set(x,h/2,z);t.castShadow=true;ENV.add(t);const r=rnd(Math.round(Math.abs(x*100+z*7))+3);for(let i=0;i<7;i++){const s=new THREE.Mesh(new THREE.IcosahedronGeometry(1.7+r()*1.3,1),mats[i%mats.length]);s.position.set(x+(r()-0.5)*4.2,h+(r()-0.3)*2.4,z+(r()-0.5)*3.6);s.castShadow=true;ENV.add(s);}};
+  tree(2.4,-4.6,7.5,0.4,[leaf,leaf2]); tree(3.6,-5.2,8.5,0.2,[leaf2]); tree(-6,-5,6,0.3,[leaf,leaf2]); tree(-12,6,7,0.4,[leaf]); tree(-8,-1.5,9,0.45,[leaf2,leaf]);
+  const thuja=new THREE.Mesh(new THREE.ConeGeometry(0.8,6.5,10),mat(0x2f4a3a,{roughness:1})); thuja.position.set(7.0,3.25,1.2); thuja.castShadow=true; ENV.add(thuja);
+  const hazel=mat(0x587a36,{roughness:1}), r2=rnd(3);
+  for(let i=0;i<8;i++){const s=new THREE.Mesh(new THREE.IcosahedronGeometry(0.3+r2()*0.25,1),hazel);s.position.set(-3+i*1.2,1.1+r2()*0.5,-0.35);s.scale.y=1.5;s.castShadow=true;ENV.add(s);}
   // Häuser
   const house=(x,z,w,d,h,col)=>{box(w,h,d,mat(col),x,h/2,z,ENV);const roof=new THREE.Mesh(new THREE.CylinderGeometry(0.01,1,1,4,1,false,Math.PI/4),mat(0x8d4a36));roof.scale.set(w*0.75,h*0.55,d*0.75);roof.position.set(x,h+h*0.27,z);roof.castShadow=true;ENV.add(roof);};
-  house(14,-22,9,8,6,0xc9d6d9); house(-6,-24,8,7,5.5,0xe7e2d7); house(-14,10,9,9,6,0xeeeae3);
+  house(14,-24,9,8,6,0xc9d6d9); house(-6,-26,8,7,5.5,0xe7e2d7); house(-14,12,9,9,6,0xf1eee8);
+  // Holzstapel links am Rasen
+  box(1.6,1.0,0.8,mat(0x8a6a48),-9,0.5,1.5,ENV);
 }
 function buildFence(){
   const wood=new THREE.MeshStandardMaterial({color:0x7a6248,roughness:1});
-  const segs=[FENCE_A,FENCE_B,[[11.9,3.2],[16,3.2]],[[-3.5,0],[-3.5,-2.5]]];
-  const pick=[];
+  const segs=[FENCE_A,FENCE_B,[[11.9,3.2],[16,3.2]]], pick=[];
   segs.forEach(([a,b])=>{
-    const L=Math.hypot(b[0]-a[0],b[1]-a[1]), ang=Math.atan2(b[0]-a[0],b[1]-a[1]), n=Math.floor(L/0.12);
+    const L=Math.hypot(b[0]-a[0],b[1]-a[1]),ang=Math.atan2(b[0]-a[0],b[1]-a[1]),n=Math.floor(L/0.12);
     for(let i=0;i<n;i++){const t=(i+0.5)/n;pick.push([a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,ang]);}
     const np=Math.ceil(L/2.2);
     for(let i=0;i<=np;i++){const t=i/np;box(0.1,1.15,0.1,wood,a[0]+(b[0]-a[0])*t,0.58,a[1]+(b[1]-a[1])*t,ENV);}
     for(const y of [0.3,0.8]){const r=box(0.04,0.08,L,wood,(a[0]+b[0])/2,y,(a[1]+b[1])/2,ENV);r.rotation.y=ang;r.position.x-=Math.cos(ang)*0.04;r.position.z+=Math.sin(ang)*0.04;}
-    const curb=box(0.12,0.08,L,mat(0xa9a8a2),(a[0]+b[0])/2,0.04,(a[1]+b[1])/2,ENV);curb.rotation.y=ang;
+    const curb=box(0.14,0.1,L,mat(0xa9a8a2),(a[0]+b[0])/2,0.05,(a[1]+b[1])/2,ENV);curb.rotation.y=ang;
   });
-  const g=new THREE.BoxGeometry(0.075,1.0,0.022);
-  const im=new THREE.InstancedMesh(g,wood,pick.length); const d=new THREE.Object3D(); const r=rnd(9);
+  const im=new THREE.InstancedMesh(new THREE.BoxGeometry(0.075,1.0,0.022),wood,pick.length),d=new THREE.Object3D(),r=rnd(9);
   pick.forEach((p,i)=>{d.position.set(p[0],0.55,p[1]);d.rotation.set(0,p[2]+Math.PI/2,0);d.updateMatrix();im.setMatrixAt(i,d.matrix);const c=new THREE.Color(0x7a6248).lerp(new THREE.Color(0x6f7a4a),r()*0.5);c.multiplyScalar(0.85+r()*0.3);im.setColorAt(i,c);});
   im.castShadow=true; im.receiveShadow=true; ENV.add(im);
 }
+const TEX={};
+function buildPaving(){
+  disposeGroup(PAVE);
+  if(!TEX.red){TEX.red=paverTex([132,86,76],28,3);TEX.red.repeat.set(0.5,0.5);TEX.grey=paverTex([118,116,110],18,11,'#3d3a36',0.35);TEX.grey.repeat.set(0.5,0.5);
+    TEX.neu=paverTex([88,88,90],10,21,'#4a4a48',0);TEX.neu.repeat.set(0.5,0.5);TEX.moss=noiseTex('92,98,62',40,8);TEX.moss.repeat.set(2,2);TEX.kies=noiseTex('170,168,160',50,12);TEX.kies.repeat.set(3,3);}
+  const umbau=S.pave==='umbau';
+  // Hof rot
+  shapeMesh([[-3.5,STRIP],[5.9,STRIP],[7.0,3.2],[11.9,3.2],[16,3.2],[18,9],[16,18],[2,18],[-1.2,12],[-2.6,7.5],[-3.5,5.2]],new THREE.MeshStandardMaterial({map:TEX.red,roughness:0.9}),0.005,PAVE);
+  // Streifen am Zaun (Moos/Laub oder Kies)
+  shapeMesh([[-3.5,0.02],[6.2,0.02],[7.25,3.15],[7.0,3.2],[5.9,STRIP],[-3.5,STRIP]],new THREE.MeshStandardMaterial({map:umbau?TEX.kies:TEX.moss,roughness:1}),0.014,PAVE);
+  // graue Fläche im Bestand
+  const arc=arcPts();
+  shapeMesh([[0,STRIP],[5.9,STRIP],[7.0,3.2],...arc.slice(1)],new THREE.MeshStandardMaterial({map:TEX.grey,roughness:0.95}),0.012,PAVE);
+  let UP=null;
+  if(umbau){UP=umbauPoly();shapeMesh(UP,new THREE.MeshStandardMaterial({map:TEX.neu,roughness:0.85}),0.018,PAVE);}
+  // Granitbänder
+  const stones=[];
+  const line=(P,step,skip)=>{for(let i=0;i<P.length-1;i++){const [x0,z0]=P[i],[x1,z1]=P[i+1],L=Math.hypot(x1-x0,z1-z0),n=Math.max(1,Math.round(L/step));for(let k=0;k<n;k++){const t=(k+0.5)/n,x=x0+(x1-x0)*t,z=z0+(z1-z0)*t;if(skip&&UP&&inPoly(x,z,UP))continue;stones.push([x,z,Math.atan2(x1-x0,z1-z0)]);}}};
+  line(arc,0.17,true); line([[0,4.4],[0,STRIP+0.05]],0.17,true); line([[-3.5,4.4],[0,4.4]],0.17,true);
+  line([[-3.5,STRIP],[-3.5,5.2],[-2.6,7.5],[-1.2,12]],0.17); line([[7.2,3.4],[15,13.5]],0.17); line([[-2.6,7.5],[16,9.6]],0.17,true);
+  if(UP){const P=UP.slice(1);line(P,0.17);}
+  const im=new THREE.InstancedMesh(new THREE.BoxGeometry(0.15,0.045,0.15),new THREE.MeshStandardMaterial({color:0xb8bab7,roughness:0.95}),Math.max(1,stones.length)),d=new THREE.Object3D(),r=rnd(5);
+  stones.forEach((s,i)=>{d.position.set(s[0],0.022,s[1]);d.rotation.set(0,s[2]+(r()-0.5)*0.15,0);d.updateMatrix();im.setMatrixAt(i,d.matrix);im.setColorAt(i,new THREE.Color().setHSL(0.1,0.04,0.62+(r()-0.5)*0.12));});
+  im.count=stones.length; im.receiveShadow=true; PAVE.add(im);
+  // Sickermulde für das Fallrohr
+  const dp=downpipeWorld(); if(dp){const ring=new THREE.Mesh(new THREE.CircleGeometry(0.35,24),mat(0x5b5e57,{roughness:1}));ring.rotation.x=-Math.PI/2;ring.position.set(dp.x,0.02,dp.z);PAVE.add(ring);}
+}
+function downpipeWorld(){
+  const e=roofExt(); const c={back:[e.xa,e.za],front:[e.xa,e.zb],left:[e.xa,e.zb],right:[e.xb,e.zb]}[S.slope];
+  return toW(c[0],c[1]+(S.slope==='back'?0:0.15));
+}
 
 // Kompass
-let compassGroup=new THREE.Group(); scene.add(compassGroup);
+const compassGroup=new THREE.Group(); scene.add(compassGroup);
 function buildCompass(){
-  compassGroup.clear();
-  const rel=-COMPASS[S.compass]; // Nord relativ zu "hinten"
-  const ang=rad(rel);
-  const dir=new THREE.Vector3(Math.sin(ang),0,-Math.cos(ang));
-  const base=new THREE.Vector3(13.5,0.03,13);
+  disposeGroup(compassGroup);
+  const ang=rad(-COMPASS[S.compass]), dir=new THREE.Vector3(Math.sin(ang),0,-Math.cos(ang)), base=new THREE.Vector3(13.5,0.03,13);
   const sh=new THREE.Shape([new THREE.Vector2(0,0.9),new THREE.Vector2(0.35,-0.5),new THREE.Vector2(0,-0.25),new THREE.Vector2(-0.35,-0.5)]);
   const me=new THREE.Mesh(new THREE.ShapeGeometry(sh),new THREE.MeshBasicMaterial({color:0xf0b52e}));
   me.rotation.x=-Math.PI/2; me.rotation.z=-Math.atan2(dir.x,-dir.z); me.position.copy(base); compassGroup.add(me);
@@ -897,202 +907,166 @@ function buildCompass(){
 const CP=new THREE.Group(); scene.add(CP);
 const CARS=new THREE.Group(); scene.add(CARS);
 const TRAIL=new THREE.Group(); scene.add(TRAIL);
-let modTex={};
+const modTex={};
 function disposeGroup(g){g.traverse(o=>{if(o.geometry)o.geometry.dispose();});g.clear();}
+let _stripe; function stripeTex(){if(_stripe)return _stripe;_stripe=canvasTex(128,128,(g,W,H)=>{g.fillStyle='#f0b52e';g.fillRect(0,0,W,H);g.fillStyle='#161616';for(let i=-2;i<6;i++){g.beginPath();g.moveTo(i*32,0);g.lineTo(i*32+16,0);g.lineTo(i*32+16+H,H);g.lineTo(i*32+H,H);g.fill();}},true);_stripe.repeat.set(2,1);return _stripe;}
+let _trapez; function trapezTex(){if(_trapez)return _trapez;_trapez=canvasTex(64,8,(g,W,H)=>{const gr=g.createLinearGradient(0,0,W,0);gr.addColorStop(0,'#4a4f55');gr.addColorStop(0.2,'#5d636a');gr.addColorStop(0.5,'#3c4146');gr.addColorStop(0.8,'#5d636a');gr.addColorStop(1,'#4a4f55');g.fillStyle=gr;g.fillRect(0,0,W,H);},true);return _trapez;}
+function strut(p0,p1,material,s=0.09){
+  const dir=new THREE.Vector3().subVectors(p1,p0),len=dir.length();
+  const me=new THREE.Mesh(new THREE.BoxGeometry(s,len,s),material);
+  me.position.copy(p0).add(p1).multiplyScalar(0.5);
+  me.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir.normalize()); me.castShadow=true; CP.add(me); return me;
+}
 function buildCarport(){
   disposeGroup(CP);
-  const T=TYPES[S.type], {w,d}=S, tl=rad(S.tilt), tan=Math.tan(tl), cos=Math.cos(tl);
+  const T=TYPES[S.type],{w,d}=S,tl=rad(S.tilt),L=topLayer(),r=roofDims(),{RX,RZ}=r;
   CP.position.set(S.offX,0,S.gap);
   const steel=S.type==='holz'?new THREE.MeshStandardMaterial({color:0xa98657,roughness:0.8}):S.type==='solar'?mat(0xb9bec2,{metalness:0.4,roughness:0.45}):mat(0x3a3f44,{metalness:0.35,roughness:0.55});
   const beamM=S.type==='holz'?new THREE.MeshStandardMaterial({color:0x9c7a4d,roughness:0.8}):steel;
-  const posts=postsLocal(), za=roofZA(), zb=roofZB(), zm=(za+zb)/2, slopeLen=(zb-za)/cos;
-  const L=topLayer();
-  // Stützen + Fußplatten
+  const posts=postsLocal();
   posts.forEach(p=>{
-    const hh=yU(p.z);
+    const hh=yU(p.x,p.z);
     box(T.post,hh,T.post,steel,p.x,hh/2,p.z,CP);
     box(T.post+0.12,0.02,T.post+0.12,mat(0x8e9192,{metalness:0.5}),p.x,0.02,p.z,CP);
-    if(S.bump&&p.z>1){const c=new THREE.Mesh(new THREE.CylinderGeometry(T.post*0.9,T.post*0.9,0.8,16,1,true),new THREE.MeshStandardMaterial({map:stripeTex(),side:THREE.DoubleSide}));c.position.set(p.x,0.42,p.z);c.castShadow=true;CP.add(c);}
+    if(S.bump&&p.z>S.d*0.5&&(p.x<0.5||p.x>S.w-0.5)){const c=new THREE.Mesh(new THREE.CylinderGeometry(T.post*0.9,T.post*0.9,0.8,16,1,true),new THREE.MeshStandardMaterial({map:stripeTex(),side:THREE.DoubleSide}));c.position.set(p.x,0.42,p.z);c.castShadow=true;CP.add(c);}
   });
-  // Pfetten quer (nicht beim Freitragenden)
-  if(S.type!=='frei'){
-    const rows=[...new Set(posts.map(p=>p.z.toFixed(3)))].map(Number);
-    rows.forEach(z=>box(w+0.24,T.pf,0.14,beamM,w/2,yU(z)+T.pf/2,z,CP));
-  }
-  // Dachgruppe
-  const R=new THREE.Group(); R.position.set(w/2,yU(zm)+T.pf,zm); R.rotation.x=S.slope==='back'?-tl:tl; CP.add(R);
+  // Dachgruppe (alles darin liegt in der Dachebene)
+  const R=new THREE.Group(); R.position.set(r.cx,yU(r.cx,r.cz)+T.pf,r.cz);
+  if(S.slope==='back')R.rotation.x=-tl; else if(S.slope==='front')R.rotation.x=tl; else if(S.slope==='left')R.rotation.z=tl; else R.rotation.z=-tl;
+  CP.add(R);
+  // Haupttragwerk
   if(S.type==='frei'){
-    const xs=posts.map(p=>p.x);
-    xs.forEach(x=>{
-      // Kragträger, hinten höher
-      const geo=new THREE.BoxGeometry(0.16,1,slopeLen);
-      const pos=geo.attributes.position;
-      for(let i=0;i<pos.count;i++){const z=pos.getZ(i),y=pos.getY(i);const t=(z+slopeLen/2)/slopeLen;const depth=0.30*(1-t)+0.14*t;pos.setY(i,y>0?0:-depth);}
+    const lzp=toRoof(0,posts[0].z).lz;
+    posts.forEach(p=>{
+      const geo=new THREE.BoxGeometry(0.16,1,RZ,1,1,12),pos=geo.attributes.position;
+      for(let i=0;i<pos.count;i++){const z=pos.getZ(i),y=pos.getY(i);let dep;if(z>=lzp){const t=(z-lzp)/(RZ/2-lzp);dep=0.30*(1-t)+0.14*t;}else{const t=(lzp-z)/(lzp+RZ/2);dep=0.30*(1-t)+0.2*t;}pos.setY(i,y>0?0:-dep);}
       geo.computeVertexNormals();
-      const me=new THREE.Mesh(geo,steel);me.position.set(x-w/2,0,0);me.castShadow=true;R.add(me);
-      // Kopfband
-      const p0=new THREE.Vector3(x,yU(0.15)-1.0,0.15+T.post/2), z1=1.5, p1=new THREE.Vector3(x,yU(z1)+0.02,z1);
-      const len=p0.distanceTo(p1); const st=box(0.1,len,0.1,steel,x,(p0.y+p1.y)/2,(p0.z+p1.z)/2,CP); st.rotation.x=Math.atan2(p1.z-p0.z,p1.y-p0.y);
+      const me=new THREE.Mesh(geo,steel);me.position.set(toRoof(p.x,0).lx,0,0);me.castShadow=true;R.add(me);
+      strut(new THREE.Vector3(p.x,yU(p.x,p.z)-1.0,p.z+T.post/2),new THREE.Vector3(p.x,yU(p.x,p.z+1.5)+0.02,p.z+1.5),steel);
     });
-    box(w+0.24,0.3,0.16,steel,0,-0.15,-slopeLen/2+0.27,R).position.x=0;
-    // Posts reach to beam underside: extend tops
-    posts.forEach(p=>{const top=yU(p.z)+(0.42-0.0)*0+0.0;});
+    box(RX,0.3,0.16,steel,0,-0.15,lzp,R);
+  }else if(S.type==='tform'){
+    const px=posts[0].x, lx=toRoof(px,0).lx;
+    box(0.18,T.pf,RZ,steel,lx,-T.pf/2,0,R);
+    posts.forEach(p=>{const lz=toRoof(0,p.z).lz;box(RX,T.pf*0.6,0.12,steel,0,-T.pf*0.3,lz,R);
+      for(const s of [-1,1]){const x2=p.x+s*1.1;if(x2<-0.1||x2>w+0.1)continue;strut(new THREE.Vector3(p.x+s*T.post/2,yU(p.x,p.z)-0.7,p.z),new THREE.Vector3(x2,yU(x2,p.z)+T.pf*0.4,p.z),steel,0.08);}});
+  }else{
+    const rows=[...new Set(posts.map(p=>p.z.toFixed(3)))].map(Number);
+    rows.forEach(z=>box(RX,T.pf,0.14,beamM,0,-T.pf/2,toRoof(0,z).lz,R));
   }
-  // Sparren/Pfetten längs
-  const rafW=S.type==='holz'?0.06:0.05;
-  const nR=Math.max(2,Math.round((w+0.2)/(S.type==='holz'?0.7:1.1)));
-  if(S.type!=='solar'||true){
-    for(let i=0;i<=nR;i++){const x=-(w+0.2)/2+(w+0.2)*i/nR;box(rafW,L.raf,slopeLen,beamM,x,L.raf/2,0,R);}
-  }
-  // Dachhaut
-  let topY=L.raf+L.cov;
+  // Sparren / Pfetten längs
+  const nR=Math.max(2,Math.round(RX/(S.type==='holz'?0.7:1.1)));
+  for(let i=0;i<=nR;i++){const x=-RX/2+RX*i/nR;box(S.type==='holz'?0.06:0.05,L.raf,RZ,beamM,x,L.raf/2,0,R);}
+  const topY=L.raf+L.cov;
   if(S.type!=='solar'){
     const cov=S.type==='holz'?mat(0x34373a,{roughness:0.9}):new THREE.MeshStandardMaterial({map:trapezTex(),roughness:0.6,metalness:0.3});
-    if(cov.map){cov.map.repeat.set((w+0.24)/0.25,1);}
-    box(w+0.24,L.cov,slopeLen,cov,0,L.raf+L.cov/2,0,R);
-    // Blende
-    box(w+0.26,0.12,0.02,mat(0x2e3236),0,L.raf+0.02,slopeLen/2,R); box(w+0.26,0.12,0.02,mat(0x2e3236),0,L.raf+0.02,-slopeLen/2,R);
+    if(cov.map) cov.map.repeat.set(RX/0.25,1);
+    box(RX,L.cov,RZ,cov,0,L.raf+L.cov/2,0,R);
+    box(RX+0.02,0.12,0.02,mat(0x2e3236),0,L.raf+0.02,RZ/2,R); box(RX+0.02,0.12,0.02,mat(0x2e3236),0,L.raf+0.02,-RZ/2,R);
   }
-  // Rinne an der Tiefseite
-  const lowZ=S.slope==='back'?-slopeLen/2:slopeLen/2;
-  const gut=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.07,w+0.24,12,1,true,0,Math.PI),mat(0x8b8f93,{metalness:0.5,roughness:0.4,side:THREE.DoubleSide}));
-  gut.rotation.z=Math.PI/2; gut.rotation.y=0; gut.position.set(0,L.raf-0.02,lowZ+(S.slope==='back'?-0.06:0.06)); gut.rotation.x=Math.PI; R.add(gut);
+  // Rinne
+  const gm=mat(0x8b8f93,{metalness:0.5,roughness:0.4,side:THREE.DoubleSide});
+  if(alongX()){const g=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.07,RZ,12,1,true,0,Math.PI),gm);g.rotation.x=Math.PI/2;g.rotation.y=Math.PI/2;g.position.set((S.slope==='left'?-1:1)*(RX/2+0.06),L.raf-0.02,0);R.add(g);}
+  else{const g=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.07,RX,12,1,true,0,Math.PI),gm);g.rotation.z=Math.PI/2;g.rotation.x=Math.PI;g.position.set(0,L.raf-0.02,(S.slope==='back'?-1:1)*(RZ/2+0.06));R.add(g);}
   // PV
   const lay=moduleLayout();
   if(S.pv&&lay.n){
-    const M=MODULES[S.module], semi=M.semi;
-    const key=semi?'semi':'std'; if(!modTex[key]) modTex[key]=cellTex(semi);
+    const M=MODULES[S.module],semi=M.semi,key=semi?'semi':'std'; if(!modTex[key]) modTex[key]=cellTex(semi);
     const mm=new THREE.MeshStandardMaterial({map:modTex[key],roughness:0.25,metalness:0.2,transparent:semi,alphaTest:semi?0.05:0,side:THREE.DoubleSide});
-    const fm=mat(S.module==='std'?0x15181c:0x22262b,{metalness:0.5,roughness:0.4});
-    const g=0.02, tw=lay.cols*lay.mw+(lay.cols-1)*g, tl2=lay.rows*lay.ml+(lay.rows-1)*g;
+    const fm=semi?new THREE.MeshStandardMaterial({color:0x22262b,transparent:true,opacity:0.35}):mat(S.module==='std'?0x15181c:0x22262b,{metalness:0.5,roughness:0.4});
+    const g=0.02,tw=lay.cols*lay.mw+(lay.cols-1)*g,tl2=lay.rows*lay.ml+(lay.rows-1)*g;
     const baseY=S.type==='solar'?L.raf+0.02:topY+0.07;
-    if(S.type!=='solar'){ // Schienen
-      for(let c=0;c<lay.cols;c++){const x=-tw/2+c*(lay.mw+g)+lay.mw/2;for(const k of [-0.28,0.28]) box(0.04,0.05,tl2,mat(0xb0b4b8,{metalness:0.6,roughness:0.4}),x+k*lay.mw,topY+0.025,0,R);}
-    }
-    for(let r=0;r<lay.rows;r++)for(let c=0;c<lay.cols;c++){
-      const x=-tw/2+c*(lay.mw+g)+lay.mw/2, z=-tl2/2+r*(lay.ml+g)+lay.ml/2;
+    if(S.type!=='solar') for(let c=0;c<lay.cols;c++){const x=-tw/2+c*(lay.mw+g)+lay.mw/2;for(const k of [-0.28,0.28]) box(0.04,0.05,tl2,mat(0xb0b4b8,{metalness:0.6,roughness:0.4}),x+k*lay.mw,topY+0.025,0,R);}
+    for(let rr=0;rr<lay.rows;rr++)for(let c=0;c<lay.cols;c++){
+      const x=-tw/2+c*(lay.mw+g)+lay.mw/2,z=-tl2/2+rr*(lay.ml+g)+lay.ml/2;
       const pg=new THREE.PlaneGeometry(lay.mw-0.03,lay.ml-0.03);
       if(!lay.portrait){const uv=pg.attributes.uv;for(let i=0;i<uv.count;i++){const u=uv.getX(i),v=uv.getY(i);uv.setXY(i,v,u);}}
-      const p=new THREE.Mesh(pg,mm); p.rotation.x=-Math.PI/2; p.position.set(x,baseY+0.036,z); p.castShadow=!semi; p.receiveShadow=true; R.add(p);
-      // Rahmen
-      const fr=new THREE.Mesh(new THREE.BoxGeometry(lay.mw,0.035,lay.ml),fm);
-      fr.position.set(x,baseY+0.017,z); fr.castShadow=!semi; R.add(fr);
-      if(semi){fr.material=new THREE.MeshStandardMaterial({color:0x22262b,transparent:true,opacity:0.35});}
-    }
-    if(S.type==='solar'){ // Dachfläche für Schatten etwas lichtdurchlässig: ohne zusätzliche Haut
+      const p=new THREE.Mesh(pg,mm);p.rotation.x=-Math.PI/2;p.position.set(x,baseY+0.036,z);p.castShadow=!semi;p.receiveShadow=true;R.add(p);
+      const fr=new THREE.Mesh(new THREE.BoxGeometry(lay.mw,0.035,lay.ml),fm);fr.position.set(x,baseY+0.017,z);fr.castShadow=!semi;R.add(fr);
     }
   }
-  // LED
-  if(S.light){
-    const hiZ=S.slope==='back'?slopeLen/2-0.08:-slopeLen/2+0.08;
-    const led=new THREE.Mesh(new THREE.BoxGeometry(Math.min(w-0.6,3),0.02,0.05),new THREE.MeshBasicMaterial({color:0xfff6d8}));
-    led.position.set(0,-0.012-(S.type==='frei'?0.18:0),S.slope==='back'?slopeLen/2-0.3:-slopeLen/2+0.3); R.add(led);
-  }
-  // Technik
+  if(S.light){const p=toRoof(w/2,d-0.35);const led=new THREE.Mesh(new THREE.BoxGeometry(Math.min(w-0.6,3),0.02,0.05),new THREE.MeshBasicMaterial({color:0xfff6d8}));led.position.set(p.lx,-0.012,p.lz);R.add(led);}
   buildTech();
-  // Radstopper
-  if(S.stop){
-    spots().forEach(x=>{for(const k of [-0.6,0.6]) box(0.5,0.1,0.15,mat(0x222222),x+k,0.05,PARK_Z+0.53,CP).material=mat(0x2b2b2b);});
-  }
+  if(S.stop) spots().forEach(x=>{for(const k of [-0.6,0.6]) box(0.5,0.1,0.15,mat(0x2b2b2b),x+k,0.05,PARK_Z+0.53,CP);});
   // Fallrohr
-  const dpX=S.slope==='back'?posts[0]:posts[0];
-  if(dpX){const lowY=yU(S.slope==='back'?za:zb);const pz=S.slope==='back'?za-0.05:zb+0.05;const dp=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,lowY+0.2,10),mat(0x8b8f93,{metalness:0.5}));dp.position.set(-0.08,(lowY+0.2)/2,pz);CP.add(dp);}
+  const e=roofExt(); const c={back:[e.xa,e.za],front:[e.xa,e.zb],left:[e.xa,e.zb-0.15],right:[e.xb,e.zb-0.15]}[S.slope];
+  const lowY=yU(c[0],c[1])+T.pf; const dp=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,lowY,10),mat(0x8b8f93,{metalness:0.5}));
+  dp.position.set(c[0]+(S.slope==='right'?0.06:-0.06),lowY/2,c[1]+(S.slope==='back'?-0.06:0.1));CP.add(dp);
 }
-let _stripe; function stripeTex(){if(_stripe)return _stripe;_stripe=canvasTex(128,128,(g,W,H)=>{g.fillStyle='#f0b52e';g.fillRect(0,0,W,H);g.fillStyle='#161616';for(let i=-2;i<6;i++){g.beginPath();g.moveTo(i*32,0);g.lineTo(i*32+16,0);g.lineTo(i*32+16+H,H);g.lineTo(i*32+H,H);g.fill();}},true);_stripe.repeat.set(2,1);return _stripe;}
-let _trapez; function trapezTex(){if(_trapez)return _trapez;_trapez=canvasTex(64,8,(g,W,H)=>{const gr=g.createLinearGradient(0,0,W,0);gr.addColorStop(0,'#4a4f55');gr.addColorStop(0.2,'#5d636a');gr.addColorStop(0.5,'#3c4146');gr.addColorStop(0.8,'#5d636a');gr.addColorStop(1,'#4a4f55');g.fillStyle=gr;g.fillRect(0,0,W,H);},true);return _trapez;}
-
 const TECH={};
 function buildTech(){
-  const lx=LEER.x-S.offX; // lokale Position
-  const showInv=S.pv&&(S.invLoc==='carport'&&S.inverter!=='micro');
-  TECH.board=null; TECH.wb=[]; TECH.inv=null; TECH.uv=null;
+  const lx=LEER.x-S.offX, showInv=invAtCarport()&&S.inverter!=='micro';
+  TECH.board=null; TECH.wb=[]; TECH.inv=null;
   if(needBoard()){
-    const z=0.06;
-    const pm=mat(0x3a3f44,{metalness:0.4});
+    const z=0.06, pm=mat(0x3a3f44,{metalness:0.4});
     box(0.06,1.9,0.06,pm,lx-0.42,0.95,z,CP); box(0.06,1.9,0.06,pm,lx+0.42,0.95,z,CP);
     box(0.9,1.3,0.03,mat(0x55595d),lx,1.15,z,CP);
-    const uv=box(0.32,0.4,0.14,mat(0xe8e8e4,{roughness:0.5}),lx+(showInv?0.22:0),1.5,z+0.09,CP); TECH.uv=uv;
-    if(showInv){TECH.inv=box(0.42,0.55,0.18,mat(S.inverter==='hybrid'?0xd8dde0:0xc4c9cc,{roughness:0.5}),lx-0.2,1.05,z+0.11,CP);box(0.3,0.03,0.005,mat(0xd1301f),lx-0.2,1.25,z+0.2,CP);}
+    box(0.32,0.4,0.14,mat(0xe8e8e4,{roughness:0.5}),lx+(showInv?0.22:0),1.5,z+0.09,CP);
+    if(showInv){TECH.inv=box(0.42,0.55,0.18,mat(0xd0d5d8,{roughness:0.5}),lx-0.2,1.05,z+0.11,CP);box(0.3,0.03,0.005,mat(0xd1301f),lx-0.2,1.25,z+0.2,CP);}
     if(S.bat&&showInv) box(0.6,0.9,0.22,mat(0xefefef,{roughness:0.5}),lx+0.85,0.46,z+0.14,CP);
     TECH.board=new THREE.Vector3(S.offX+lx,2.05,S.gap+z);
   }
-  wallboxSpots().forEach((p,i)=>{
-    if(!p.onPost){box(0.18,1.45,0.12,mat(0x3a3f44,{metalness:0.4}),p.x,0.72,p.z-0.08,CP);}
-    const wb=box(0.24,0.36,0.12,mat(S.wb==='fronius'?0x2e3236:0xf3f3f1,{roughness:0.4}),p.x,1.2,p.z+(p.onPost?0:0),CP);
-    box(0.06,0.06,0.02,mat(0x30c06a,{emissive:0x30c06a,emissiveIntensity:0.8}),p.x,1.28,p.z+0.065,CP);
-    if(p.onPost&&S.wbCount===2){wb.position.x+=(i===0?-0.0:0);wb.position.z+= i*0; if(i===1){wb.position.y=1.2;wb.rotation.y=0;wb.position.x+=0.0;}}
-    TECH.wb.push(new THREE.Vector3(S.offX+p.x,1.5,S.gap+p.z));
+  const spotsWB=wallboxSpots();
+  spotsWB.forEach((p,i)=>{
+    if(!p.onPost) box(0.18,1.45,0.12,mat(0x3a3f44,{metalness:0.4}),p.x,0.72,p.z-0.08,CP);
+    const sameDup=spotsWB.length===2&&Math.abs(spotsWB[0].x-spotsWB[1].x)<0.05;
+    const y=sameDup?(i?1.45:1.0):1.2, xo=sameDup?(i?0.0:0.0):0;
+    box(0.24,0.36,0.12,mat(S.wb==='fronius'?0x2e3236:0xf3f3f1,{roughness:0.4}),p.x+xo,y,p.z,CP);
+    box(0.06,0.06,0.02,mat(0x30c06a,{emissive:0x30c06a,emissiveIntensity:0.8}),p.x+xo,y+0.08,p.z+0.065,CP);
+    TECH.wb.push(new THREE.Vector3(S.offX+p.x,y+0.3,S.gap+p.z));
   });
-  // dedupe wallboxes on same post (2 boxes, 1 post): offset sideways
-  const wbs=CP.children.filter(c=>c.geometry&&c.geometry.parameters&&c.geometry.parameters.width===0.24);
-  if(wbs.length===2&&Math.abs(wbs[0].position.x-wbs[1].position.x)<0.05){wbs[0].position.x-=0.15;wbs[1].position.x+=0.15;wbs[0].position.y=1.0;wbs[1].position.y=1.45;}
-  // Kabelweg
-  const pts=[new THREE.Vector3(LEER.x,0.05,LEER.z+0.15),new THREE.Vector3(LEER.x,0.05,S.gap+0.12)];
+  const pts=[new THREE.Vector3(LEER.x,0.05,LEER.z),new THREE.Vector3(LEER.x,0.05,S.gap+0.12)];
   if(TECH.board) pts.push(new THREE.Vector3(LEER.x,1.3,S.gap+0.12));
-  TECH.wb.forEach(v=>{pts.push(new THREE.Vector3(LEER.x,1.9,S.gap+0.12));pts.push(new THREE.Vector3(v.x,1.9,S.gap+0.12));pts.push(new THREE.Vector3(v.x,1.4,v.z));});
-  const lg=new THREE.BufferGeometry().setFromPoints(pts);
-  const ln=new THREE.Line(lg,new THREE.LineDashedMaterial({color:0xf0b52e,dashSize:0.12,gapSize:0.08}));ln.computeLineDistances();scene.add(ln);
-  if(TECH.cableLine){TECH.cableLine.geometry.dispose();scene.remove(TECH.cableLine);} TECH.cableLine=ln;
+  TECH.wb.forEach(v=>{pts.push(new THREE.Vector3(LEER.x,1.9,S.gap+0.12));pts.push(new THREE.Vector3(v.x,1.9,S.gap+0.12));pts.push(new THREE.Vector3(v.x,1.9,v.z));pts.push(new THREE.Vector3(v.x,v.y-0.1,v.z));});
+  const ln=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineDashedMaterial({color:0xf0b52e,dashSize:0.12,gapSize:0.08}));ln.computeLineDistances();
+  if(TECH.cableLine){TECH.cableLine.geometry.dispose();scene.remove(TECH.cableLine);} TECH.cableLine=ln; scene.add(ln);
 }
 
 // Autos ---------------------------------------------------------------
 function makeCar(color){
-  const g=new THREE.Group(), {L}=CAR, B=1.86;
+  const g=new THREE.Group(),L=CAR.L,B=CAR.body;
   const paint=new THREE.MeshStandardMaterial({color,roughness:0.35,metalness:0.4});
   const glass=new THREE.MeshStandardMaterial({color:0x1b232b,roughness:0.15,metalness:0.6});
-  box(B,0.6,L,paint,0,0.6,0,g);
-  const cab=new THREE.Mesh(new THREE.BoxGeometry(B*0.86,0.48,L*0.5),glass);cab.position.set(0,1.14,-0.2);cab.castShadow=true;g.add(cab);
-  box(B*0.84,0.05,L*0.46,paint,0,1.4,-0.22,g);
-  box(B*0.98,0.08,0.4,paint,0,0.93,L/2-0.25,g);
-  const wg=new THREE.CylinderGeometry(0.34,0.34,0.24,18), wm=mat(0x1a1a1a);
-  for(const sx of [-1,1])for(const sz of [-1,1]){const wh=new THREE.Mesh(wg,wm);wh.rotation.z=Math.PI/2;wh.position.set(sx*(B/2-0.1),0.34,sz*1.45);wh.castShadow=true;g.add(wh);}
-  for(const sx of [-1,1]){box(0.12,0.08,0.18,paint,sx*(B/2+0.05),1.02,0.55,g);box(0.3,0.08,0.03,new THREE.MeshBasicMaterial({color:0xfff7e0}),sx*0.6,0.72,L/2+0.005,g);box(0.32,0.08,0.03,new THREE.MeshBasicMaterial({color:0xb3261e}),sx*0.6,0.78,-L/2-0.005,g);}
+  box(B,0.58,L,paint,0,0.6,0,g);
+  const cab=new THREE.Mesh(new THREE.BoxGeometry(B*0.86,0.46,L*0.52),glass);cab.position.set(0,1.12,-0.25);cab.castShadow=true;g.add(cab);
+  box(B*0.84,0.05,L*0.44,paint,0,1.37,-0.3,g);
+  const wg=new THREE.CylinderGeometry(0.34,0.34,0.24,18),wm=mat(0x1a1a1a);
+  for(const sx of [-1,1])for(const sz of [-1,1]){const wh=new THREE.Mesh(wg,wm);wh.rotation.z=Math.PI/2;wh.position.set(sx*(B/2-0.1),0.34,sz*1.37);wh.castShadow=true;g.add(wh);}
+  for(const sx of [-1,1]){box(0.08,0.08,0.18,paint,sx*(B/2+0.04),1.02,0.5,g);box(0.34,0.06,0.03,new THREE.MeshBasicMaterial({color:0xfff7e0}),sx*0.6,0.75,L/2+0.005,g);}
+  box(B*0.9,0.06,0.03,new THREE.MeshBasicMaterial({color:0xb3261e}),0,0.86,-L/2-0.005,g);
   return g;
 }
-const carParked=makeCar(0x8b9196), carMove=makeCar(0x2f6fa8);
+const carParked=makeCar(0x8b9196), carMove=makeCar(0x6f7f8c);
 CARS.add(carParked); CARS.add(carMove);
 let SIM=null, anim=null;
 function placeCar(c,p){c.position.set(p.x,0,p.z);c.rotation.y=p.th;}
 function buildCars(){
-  const sp=spots();
-  carParked.visible=sp.length>1;
+  const sp=spots(); carParked.visible=sp.length>1;
   if(sp.length>1){const q=toW(sp[0],PARK_Z+CAR.L/2);placeCar(carParked,{x:q.x,z:q.z,th:S.path==='rueck'?0:Math.PI});}
   if(!anim) placeCar(carMove,SIM.path[SIM.path.length-1]);
   disposeGroup(TRAIL);
-  if($('#ovTrail').checked){
-    const pos=[]; const P=SIM.path; const step=8;
-    for(let i=0;i<P.length;i+=step){
-      const p=P[i], fx=Math.sin(p.th),fz=Math.cos(p.th), rx=fz, rz=-fx, hl=CAR.L/2, hb=CAR.B/2;
-      const c=[[hl,hb],[hl,-hb],[-hl,-hb],[-hl,hb]].map(([u,v])=>[p.x+fx*u+rx*v,p.z+fz*u+rz*v]);
-      for(let k=0;k<4;k++){const a=c[k],b=c[(k+1)%4];pos.push(a[0],0.03,a[1],b[0],0.03,b[1]);}
-    }
-    const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
-    TRAIL.add(new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:0x2f6fa8,transparent:true,opacity:0.35})));
-    const lp=P.map(p=>new THREE.Vector3(p.x,0.035,p.z));
-    TRAIL.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(lp),new THREE.LineBasicMaterial({color:0xf0b52e})));
-    // engste Stelle markieren
-    if(SIM.worst){const o=SIM.worst.o;const col=SIM.worst.c<0?0xd63a2c:SIM.worst.c<0.3?0xe39b2d:0x3fae6a;const ring=new THREE.Mesh(new THREE.RingGeometry(0.28,0.36,32),new THREE.MeshBasicMaterial({color:col,side:THREE.DoubleSide}));ring.rotation.x=-Math.PI/2;ring.position.set(o.x,0.05,o.z);TRAIL.add(ring);}
-  }
+  if(!$('#ovTrail').checked) return;
+  const pos=[],P=SIM.path;
+  for(let i=0;i<P.length;i+=8){const p=P[i],fx=Math.sin(p.th),fz=Math.cos(p.th),rx=fz,rz=-fx,hl=CAR.L/2,hb=CAR.B/2;
+    const c=[[hl,hb],[hl,-hb],[-hl,-hb],[-hl,hb]].map(([u,v])=>[p.x+fx*u+rx*v,p.z+fz*u+rz*v]);
+    for(let k=0;k<4;k++){const a=c[k],b=c[(k+1)%4];pos.push(a[0],0.03,a[1],b[0],0.03,b[1]);}}
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+  TRAIL.add(new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:0x2f6fa8,transparent:true,opacity:0.35})));
+  TRAIL.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(P.map(p=>new THREE.Vector3(p.x,0.04,p.z))),new THREE.LineBasicMaterial({color:0xf0b52e})));
+  if(SIM.worst){const o=SIM.worst.o,col=SIM.worst.c<0?0xd63a2c:SIM.worst.c<0.3?0xe39b2d:0x3fae6a;const ring=new THREE.Mesh(new THREE.RingGeometry(0.28,0.36,32),new THREE.MeshBasicMaterial({color:col,side:THREE.DoubleSide}));ring.rotation.x=-Math.PI/2;ring.position.set(o.x,0.05,o.z);TRAIL.add(ring);}
 }
 
 // Sonne -----------------------------------------------------------------
-function sunPos(){
-  const dec=+$('#season').value, t=+$('#sunTime').value, h=rad(15*(t-12)), phi=rad(LAT), de=rad(dec);
-  const sa=Math.sin(phi)*Math.sin(de)+Math.cos(phi)*Math.cos(de)*Math.cos(h);
-  const alt=Math.asin(sa);
-  let cA=(Math.sin(de)-sa*Math.sin(phi))/(Math.cos(alt)*Math.cos(phi)); cA=clamp(cA,-1,1);
-  let A=Math.acos(cA)*180/Math.PI; if(h>0) A=360-A;
-  return {alt,A};
-}
 function updateSun(){
-  const {alt,A}=sunPos(); const t=+$('#sunTime').value;
+  const dec=+$('#season').value,t=+$('#sunTime').value,h=rad(15*(t-12)),phi=rad(LAT),de=rad(dec);
+  const sa=Math.sin(phi)*Math.sin(de)+Math.cos(phi)*Math.cos(de)*Math.cos(h),alt=Math.asin(sa);
+  let A=Math.acos(clamp((Math.sin(de)-sa*Math.sin(phi))/(Math.cos(alt)*Math.cos(phi)),-1,1))*180/Math.PI; if(h>0) A=360-A;
   $('#sunTimeOut').textContent=`${String(Math.floor(t)).padStart(2,'0')}:${String(Math.round((t%1)*60)).padStart(2,'0')}`;
   const rel=rad(A-COMPASS[S.compass]);
   const dir=new THREE.Vector3(Math.sin(rel)*Math.cos(alt),Math.sin(alt),-Math.cos(rel)*Math.cos(alt));
   sun.position.copy(sun.target.position).add(dir.multiplyScalar(40));
   const up=Math.max(0,Math.sin(alt));
-  sun.intensity=alt>0.02?0.35+0.75*Math.min(1,up*2):0;
-  hemi.intensity=0.35+0.3*Math.min(1,up*2);
+  sun.intensity=alt>0.02?0.35+0.75*Math.min(1,up*2):0; hemi.intensity=0.35+0.3*Math.min(1,up*2);
 }
 
 // Labels ------------------------------------------------------------------
@@ -1100,14 +1074,15 @@ const labelsEl=$('#labels'); let LABELS=[];
 function setLabels(){
   labelsEl.innerHTML=''; LABELS=[];
   const add=(text,v,cls='')=>{const e=document.createElement('div');e.className='lbl '+cls;e.textContent=text;labelsEl.appendChild(e);LABELS.push({e,v});};
-  add('Leerrohr, ca. '+S.cableLen+' m zum Haus',new THREE.Vector3(LEER.x,0.45,LEER.z+0.1));
-  if(TECH.inv) add('Wechselrichter + Verteilung',TECH.board.clone().setY(2.1));
-  else if(TECH.board) add('Unterverteilung',TECH.board.clone().setY(2.1));
-  if(TECH.wb.length) add(S.wbCount===2?'2 Wallboxen':'Wallbox',TECH.wb[0].clone().setY(1.7));
+  add('Leerrohr, ca. '+S.cableLen+' m zum Haus',new THREE.Vector3(LEER.x,0.5,LEER.z));
+  if(TECH.inv) add('Wechselrichter + Verteilung',TECH.board.clone().setY(2.1)); else if(TECH.board) add('Unterverteilung',TECH.board.clone().setY(2.1));
+  if(TECH.wb.length) add(S.wbCount===2?'2 Wallboxen':'Wallbox',TECH.wb[0].clone());
+  add('Bach',new THREE.Vector3(-1.5,0.2,(BACH.near+BACH.far)/2),'water');
+  add('Brücke',new THREE.Vector3(GATE_X,1.3,(BACH.near+BACH.far)/2));
   add('Tor',new THREE.Vector3(GATE_X,1.4,3.2));
-  const fz=S.gap+S.d+0.05, fy=S.slope==='back'?yU(S.d)+0.55:yU(S.d)+0.4;
-  add(m(S.w,2),new THREE.Vector3(S.offX+S.w/2,0.08,fz+0.25),'dim');
-  add(m(S.d,2),new THREE.Vector3(S.offX+S.w+0.35,0.08,S.gap+S.d/2),'dim');
+  add(m(S.w,2),new THREE.Vector3(S.offX+S.w/2,0.08,S.gap+S.d+0.3),'dim');
+  add(m(S.d,2),new THREE.Vector3(S.offX-0.45,0.08,S.gap+S.d/2),'dim');
+  add('Stützen ≥ '+m(postFenceDist(),1)+' vom Zaun',new THREE.Vector3(S.offX+S.w/2,0.1,S.gap+backRow()*0.5),'dim');
   add('N',compassGroup.userData.n.clone().setY(0.1),'dim');
 }
 const _v=new THREE.Vector3();
@@ -1121,47 +1096,35 @@ function updateLabels(){
 const CAMS={
   foto:{p:[3.6,1.75,13.2],t:[3.3,1.3,1.8]},
   tor:{p:[10.6,1.8,8.2],t:[3.6,1.2,2.6]},
-  vogel:{p:[3.5,19,12],t:[3.6,0,3.6]},
-  seite:{p:[-6.5,3.2,8.5],t:[3.2,1.4,2.6]}
+  vogel:{p:[3.5,17,13],t:[3.6,0,2.6]},
+  plan:{p:[4.2,30,4.21],t:[4.2,0,4.2]},
+  seite:{p:[-4.5,4.5,-7.5],t:[3.2,1.2,2.0]}
 };
 let camTween=null;
 function setCam(k,instant){
   $$('[data-cam]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.cam===k));
-  const c=CAMS[k]; const to={p:new THREE.Vector3(...c.p),t:new THREE.Vector3(...c.t)};
+  const c=CAMS[k],to={p:new THREE.Vector3(...c.p),t:new THREE.Vector3(...c.t)};
   if(instant||!controls||matchMedia('(prefers-reduced-motion: reduce)').matches){camera.position.copy(to.p);if(controls){controls.target.copy(to.t);controls.update();}else camera.lookAt(to.t);return;}
   camTween={from:{p:camera.position.clone(),t:controls.target.clone()},to,t0:performance.now()};
 }
-
-function resize(){
-  if(!renderer) return;
-  const w=stage.clientWidth,h=stage.clientHeight; renderer.setSize(w,h,false); camera.aspect=w/h;
-  camera.fov=w/h<0.9?68:55; camera.updateProjectionMatrix();
-}
+function resize(){if(!renderer)return;const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.fov=w/h<0.9?68:55;camera.updateProjectionMatrix();}
 new ResizeObserver(resize).observe(stage);
-
 let last=performance.now();
 function loop(now){
-  requestAnimationFrame(loop);
-  if(!renderer) return;
+  requestAnimationFrame(loop); if(!renderer) return;
   const dt=Math.min(0.05,(now-last)/1000); last=now;
   if(camTween){const k=Math.min(1,(now-camTween.t0)/900),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;camera.position.lerpVectors(camTween.from.p,camTween.to.p,e);controls.target.lerpVectors(camTween.from.t,camTween.to.t,e);if(k>=1)camTween=null;}
-  if(anim){
-    anim.s+=dt*1.6/0.05; const i=Math.min(SIM.path.length-1,Math.floor(anim.s));
-    placeCar(carMove,SIM.path[i]);
-    if(i>=SIM.path.length-1){anim=null;$('#btnPlay').textContent='▶ Einparken zeigen';}
-  }
+  if(anim){anim.s+=dt*1.6/0.05;const i=Math.min(SIM.path.length-1,Math.floor(anim.s));placeCar(carMove,SIM.path[i]);if(i>=SIM.path.length-1){anim=null;$('#btnPlay').textContent='▶ Einparken zeigen';}}
   if(controls) controls.update();
-  renderer.render(scene,camera);
-  updateLabels();
+  renderer.render(scene,camera); updateLabels();
 }
 
 // ======================================================================
 // UI
 // ======================================================================
-function cardsHTML(list,sel,attr,extra){
+function cardsHTML(list,sel,attr,extra={}){
   return Object.entries(list).map(([k,v])=>{
-    const dis=extra&&extra.disabled&&extra.disabled(k);
-    const right=extra&&extra.right?extra.right(k,v):'';
+    const dis=extra.disabled&&extra.disabled(k), right=extra.right?extra.right(k,v):'';
     const tags=v.tags?`<div class="tags">${v.tags.map(([c,t])=>`<span class="chip ${c}">${t}</span>`).join('')}</div>`:'';
     return `<button class="card" role="radio" data-${attr}="${k}" aria-checked="${k===sel}" ${dis?'aria-disabled="true"':''}><div class="t"><b>${v.name}</b><span class="num">${right}</span></div><div class="d">${v.ex?v.ex+'. ':''}${v.d}</div>${tags}</button>`;
   }).join('');
@@ -1171,201 +1134,215 @@ function renderCards(){
   $('#typeCards').innerHTML=cardsHTML(TYPES,S.type,'type',{right:(k,v)=>'ab '+eur((v.base+v.perM2*A)*(1+v.mont))});
   $('#modCards').innerHTML=cardsHTML(MODULES,S.module,'module',{right:(k,v)=>v.wp+' Wp · '+v.price+' €'});
   $('#wbCards').innerHTML=cardsHTML(WALLBOXES,S.wb,'wb',{right:(k,v)=>v.price?eur(v.price):''});
-  $('#invCards').innerHTML=cardsHTML(INVERTERS,S.inverter,'inv',{disabled:k=>k==='micro'&&false});
+  $('#invCards').innerHTML=cardsHTML(INVERTERS,S.inverter,'inv',{disabled:k=>INVERTERS[k].needsExisting&&!S.pvExisting});
 }
 function setSeg(sel,attr,val){$$(sel+' button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset[attr])===String(val)));}
 
 function renderAll(rebuild=true){
   if(TYPES[S.type].forcePV) S.pv=true;
+  if(S.inverter==='existing'&&!S.pvExisting) S.inverter='string';
   if(S.bat&&!INVERTERS[S.inverter].hybrid) S.bat=0;
-  // Inputs spiegeln
   const setv=(id,v)=>{const e=$('#'+id); if(e.type==='checkbox') e.checked=!!v; else e.value=v;};
-  ['compass','cableLen','pipeD','gap','w','d','h','tilt','offX','shade','price','km'].forEach(k=>setv(k,S[k]));
-  setv('pv',S.pv); setv('cat',S.cat); setv('meter',S.meter); setv('sBump',S.bump); setv('sStop',S.stop); setv('sLight',S.light);
+  ['compass','cableLen','pipeD','gap','postFence','w','d','h','tilt','offX','shade','price','km'].forEach(k=>setv(k,S[k]));
+  setv('pv',S.pv); setv('pvExisting',S.pvExisting); setv('cat',S.cat); setv('meter',S.meter); setv('sBump',S.bump); setv('sStop',S.stop); setv('sLight',S.light);
   $('#pv').disabled=!!TYPES[S.type].forcePV;
   $('#pvForced').textContent=TYPES[S.type].forcePV?'Beim Solar-Carport sind die Module das Dach.':'Module liegen flach mit der Dachneigung auf dem Carport.';
-  $('#cableLenOut').textContent=S.cableLen+' m'; $('#gapOut').textContent=m(S.gap);
+  $('#cableLenOut').textContent=S.cableLen+' m'; $('#gapOut').textContent=m(S.gap); $('#postFenceOut').textContent=m(S.postFence,1);
   $('#wOut').textContent=m(S.w); $('#dOut').textContent=m(S.d); $('#hOut').textContent=m(S.h);
   $('#tiltOut').textContent=S.tilt+'°'; $('#offXOut').textContent=(S.offX>0?'+':'')+m(S.offX,1);
   $('#shadeOut').textContent=S.shade+' %'; $('#priceOut').textContent=nf(S.price*100)+' ct/kWh'; $('#kmOut').textContent=nf(S.km)+' km';
-  setSeg('#slopeSeg','slope',S.slope); setSeg('#pathSeg','path',S.path); setSeg('#wbCountSeg','n',S.wbCount);
-  setSeg('#invLocSeg','loc',S.inverter==='micro'?'carport':S.invLoc); setSeg('#batSeg','bat',S.bat);
+  const cb=COMPASS[S.compass];
+  const sl={left:`nach links (${dirName(cb-90)})`,right:`nach rechts (${dirName(cb+90)})`,back:`zum Zaun (${dirName(cb)})`,front:`zur Einfahrt (${dirName(cb+180)})`};
+  $$('#slopeSeg button').forEach(b=>b.textContent=sl[b.dataset.slope]);
+  $('#slopeNote').textContent={back:'Das Regenwasser läuft Richtung Bach. Die Rinne hängt dann direkt am Zaun und ist schlecht zu reinigen. Das Fallrohr muss in eine Versickerung im Hof, nicht in den Bach.',
+    front:'Die niedrige Kante ist vorne an der Einfahrt, die Rinne hängt über der Zufahrt.',
+    left:`Rinne an der linken Seite, Fallrohr vorne links in eine Sickermulde im Rasen. Die Module zeigen nach ${dirName(cb-90)}.`,
+    right:`Rinne an der rechten Seite Richtung Tor. Die Module zeigen nach ${dirName(cb+90)}.`}[S.slope];
+  $('#compassNote').textContent=`Links von dir ist dann ${dirName(cb-90)}. Ein Dach, das nach links abfällt, dreht die Module nach ${dirName(cb-90)} und leitet das Regenwasser vom Bach weg.`;
+  $('#paveNote').textContent=S.pave==='umbau'
+    ?'Granitbogen und graues Pflaster kommen raus. Unter dem Carport wird eine gerade, ebene Fläche neu verlegt (alte Steine wiederverwendet), mit gerader Granitkante. Statt Moos und Laub am Zaun kommt ein Kiesstreifen. Die Fundamente werden gleich mit eingebaut.'
+    :'Das Pflaster bleibt, wie es ist. Für die Fundamente wird nur punktuell aufgemacht. Der Carport steht dann über dem Granitbogen.';
+  setSeg('#slopeSeg','slope',S.slope); setSeg('#pathSeg','path',S.path); setSeg('#wbCountSeg','n',S.wbCount); setSeg('#paveSeg','pave',S.pave);
+  setSeg('#invLocSeg','loc',S.inverter==='micro'?'carport':S.inverter==='existing'?'haus':S.invLoc); setSeg('#batSeg','bat',S.bat);
+  $$('#invLocSeg button').forEach(b=>b.disabled=S.inverter==='micro'||S.inverter==='existing');
   $$('#sizePresets button').forEach(b=>{const [w,d]=b.dataset.size.split(',').map(Number);b.setAttribute('aria-pressed',Math.abs(w-S.w)<0.01&&Math.abs(d-S.d)<0.01);});
   $('#pvSec').hidden=!S.pv; $('#invSec').hidden=!S.pv;
   $$('#batSeg button').forEach(b=>b.disabled=b.dataset.bat!=='0'&&!INVERTERS[S.inverter].hybrid);
-  $('#batNote').textContent=INVERTERS[S.inverter].hybrid?(S.bat?(S.invLoc==='carport'?'Speicher am Carport muss für außen zugelassen sein (IP55 oder besser, frostfest). Im Haus ist er besser aufgehoben.':'Speicher steht im Haus neben dem Wechselrichter.'):'Speicher lohnt sich vor allem, wenn abends viel Strom gebraucht wird.'):'Für einen Speicher braucht es einen Hybrid-Wechselrichter.';
+  $('#batNote').textContent=INVERTERS[S.inverter].hybrid?(S.pvExisting?'Hat die Haus-PV schon einen Speicher, braucht es hier keinen zweiten.':'Speicher lohnt sich vor allem, wenn abends viel Strom gebraucht wird.')+(S.bat&&S.invLoc==='carport'?' Ein Speicher am Carport muss für außen zugelassen sein (IP55 oder besser, frostfest).':''):'Für einen Speicher braucht es einen Hybrid-Wechselrichter.';
   renderCards();
-
   SIM=simulate();
-  if(renderer&&rebuild){buildCarport();buildCompass();buildCars();setLabels();updateSun();}
-  const o=offer(), e=econ(o);
-  renderSim(); renderPermit(o); renderPV(o,e); renderCable(o); renderOffer(o); renderEcon(o,e); renderDIY(o); renderHeader(o,e);
-  try{localStorage.setItem('carport-plan',JSON.stringify(S));}catch(_){}
+  if(renderer&&rebuild){buildPaving();buildCarport();buildCompass();buildCars();setLabels();updateSun();}
+  const o=offer(),e=econ(o);
+  renderSim(); renderPermit(); renderPV(o,e); renderCable(o); renderOffer(o); renderEcon(o,e); renderDIY(); renderHeader(o,e);
+  try{localStorage.setItem(STORE,JSON.stringify(S));}catch(_){}
 }
-function clrClass(c){return c<0?'bad':c<0.3?'warn':'ok';}
-function clrText(c){return c<0?'Kollision':nf(c*100)+' cm';}
+const clrClass=c=>c<0?'bad':c<0.3?'warn':'ok';
+const clrText=c=>c<0?'Kollision':nf(c*100)+' cm';
 function renderSim(){
   const order=['Stütze','Torpfeiler','Zweites Auto','Technik','Zaun'];
-  const rows=order.filter(k=>SIM.best[k]).map(k=>{const c=SIM.best[k].c;const col={ok:'var(--ok)',warn:'var(--warn)',bad:'var(--bad)'}[clrClass(c)];return `<span class="dot" style="background:${col}"></span><span>${k}</span><span class="num">${clrText(c)}</span>`;}).join('');
-  const posts=postsLocal(), entry=posts.filter(p=>p.z>S.d*0.5).length;
-  const sp=spots(); const between=sp.length>1?(sp[1]-sp[0])-1.88:null;
-  const side=sp.length>1?Math.min(sp[0]-0.94,S.w-sp[1]-0.94):(S.w-1.88)/2;
+  const rows=order.filter(k=>SIM.best[k]).map(k=>{const c=SIM.best[k].c,col={ok:'var(--ok)',warn:'var(--warn)',bad:'var(--bad)'}[clrClass(c)];return `<span class="dot" style="background:${col}"></span><span>${k}</span><span class="num">${clrText(c)}</span>`;}).join('');
+  const posts=postsLocal(), entry=posts.filter(p=>p.z>S.d*0.5&&(p.x<0.5||p.x>S.w-0.5)).length;
+  const sp=spots(), between=sp.length>1?(sp[1]-sp[0])-CAR.body:null;
+  let side=sp.length>1?Math.min(sp[0]-CAR.body/2,S.w-sp[1]-CAR.body/2):(S.w-CAR.body)/2;
+  if(S.type==='tform'&&sp.length>1) side=Math.min(side,(sp[1]-sp[0])/2-CAR.body/2-TYPES.tform.post/2);
   const w=SIM.worst, cls=clrClass(w.c);
-  $('#simBox').innerHTML=`<div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>${cls==='ok'?'Passt, genug Luft':cls==='warn'?'Knapp, Vorsicht beim Rangieren':'Hier kracht es'}</b><span class="chip ${cls}">engste Stelle: ${w.cat}</span></div>
+  $('#simBox').innerHTML=`<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><b>${cls==='ok'?'Passt, genug Luft':cls==='warn'?'Knapp, Vorsicht beim Rangieren':'Hier kracht es'}</b><span class="chip ${cls}">engste Stelle: ${w.cat}</span></div>
   <div class="clr">${rows}</div>
-  <dl class="kv"><dt>Stützen im vorderen Bereich</dt><dd>${entry}</dd>${between!==null?`<dt>Platz zum Aussteigen zwischen den Autos</dt><dd>${m(between)}</dd>`:''}<dt>Platz zur Seite (Tür auf)</dt><dd>${m(side)}</dd></dl>
-  ${cls!=='ok'?`<p class="note">Tipp: ${w.cat==='Stütze'?'Bauart mit freier Einfahrt wählen oder den Carport nach links schieben.':w.cat==='Torpfeiler'?'Carport etwas nach links schieben, dann bleibt am Torpfeiler mehr Platz.':w.cat==='Zweites Auto'?'Breiter bauen (Doppel XL) oder das zweite Auto später einparken.':'Carport etwas nach vorne oder links schieben.'}</p>`:''}`;
-  const st=$('#ovStatus'); const col={ok:'#5cc187',warn:'#f0b52e',bad:'#f07264'}[cls];
-  st.innerHTML=`<span class="dot" style="background:${col}"></span><span>${S.path==='rueck'?'Rückwärts vom Tor':'Vorwärts aus dem Hof'}: ${w.c<0?'Kollision mit '+w.cat:'mind. '+nf(w.c*100)+' cm Abstand ('+w.cat+')'}</span>`;
+  <dl class="kv"><dt>Stützen an den vorderen Ecken</dt><dd>${entry}</dd>${between!==null?`<dt>${S.type==='tform'?'Zwischen den Autos (Stütze in der Mitte)':'Zwischen den Autos'}</dt><dd>${m(between)}</dd>`:''}<dt>Engster Platz neben der Tür</dt><dd>${m(side)}</dd></dl>
+  ${cls!=='ok'?`<p class="note">Tipp: ${w.cat==='Stütze'?'Bauart mit freien Ecken wählen (Mittelstützen oder eingerückt) oder den Carport nach links schieben.':w.cat==='Torpfeiler'?'Carport etwas nach links schieben, dann bleibt am Torpfeiler mehr Platz.':w.cat==='Zweites Auto'?'Breiter bauen oder das zweite Auto später einparken.':'Carport etwas nach vorne oder links schieben.'}</p>`:''}
+  ${S.type==='tform'&&side<0.55?'<p class="note">Die Mittelstützen stehen beim Kofferraum und bei der Motorhaube, nicht bei den Türen. Zum Aussteigen bleibt trotzdem genug Platz, wenn das Auto mittig steht.</p>':''}`;
+  const col={ok:'#5cc187',warn:'#f0b52e',bad:'#f07264'}[cls];
+  $('#ovStatus').innerHTML=`<span class="dot" style="background:${col}"></span><span>${S.path==='rueck'?'Rückwärts vom Tor':'Vorwärts aus dem Hof'}: ${w.c<0?'Kollision mit '+w.cat:'mind. '+nf(w.c*100)+' cm Abstand ('+w.cat+')'}</span>`;
 }
-function renderPermit(o){
-  const L=topLayer(), T=TYPES[S.type];
-  const lowTop=yU(S.slope==='back'?roofZA():roofZB())+T.pf+L.raf+L.cov;
-  const hiTop=yU(S.slope==='back'?roofZB():roofZA())+T.pf+L.raf+L.cov+(S.pv&&S.type!=='solar'?0.1:0);
-  const mean=(lowTop+hiTop)/2, area=(S.w+0.24)*(S.d+0.12);
-  const xr=S.offX+S.w+0.12, xB=6.2+(S.gap-0.12)*(1.1/3.2);
-  const over=xr>xB+0.02;
-  const postOut=postsLocal().some(p=>{const q=toW(p.x,p.z);return q.z<3.2&&q.x>6.2+q.z*(1.1/3.2)-0.1;});
-  const ok=(b)=>`<span class="chip ${b?'ok':'warn'}">${b?'passt':'prüfen'}</span>`;
-  $('#permitBox').innerHTML=`<h3>Schnell-Check Baurecht (Bayern)</h3>
+function renderPermit(){
+  const H=roofHeights(), area=(S.w+0.24)*(S.d+0.12);
+  const e=roofExt(), xr=S.offX+e.xb, over=xr>xFenceB(S.gap+e.za)+0.02||S.gap+e.za<0.05;
+  const pfd=postFenceDist();
+  const ok=b=>`<span class="chip ${b?'ok':'warn'}">${b?'passt':'prüfen'}</span>`;
+  $('#permitBox').innerHTML=`<h3>Schnell-Check</h3>
   <dl class="kv"><dt>Dachfläche ${ok(area<=50)}</dt><dd>${nf(area,1)} m² (bis 50 m² verfahrensfrei)</dd>
-  <dt>Mittlere Wandhöhe ${ok(mean<=3)}</dt><dd>${m(mean)} (bis 3,00 m)</dd>
-  <dt>Höchste Kante</dt><dd>${m(hiTop)}</dd>
-  <dt>Länge an der Grenze ${ok(S.w+0.24<=9)}</dt><dd>${m(S.w+0.24)} (bis 9 m)</dd>
-  <dt>Rechter Zaun ${ok(!over&&!postOut)}</dt><dd>${postOut?'Stütze außerhalb':over?'Dach ragt drüber':'frei'}</dd></dl>
-  <p class="note">Verfahrensfrei heißt nicht regelfrei: Bebauungsplan und Grenzabstand gelten trotzdem. Bei der Gemeinde kurz nachfragen kostet nichts.</p>`;
+  <dt>Mittlere Wandhöhe ${ok(H.mean<=3)}</dt><dd>${m(H.mean)} (bis 3,00 m)</dd>
+  <dt>Höchste Kante</dt><dd>${m(H.hi)}</dd>
+  <dt>Dach über dem Zaun ${ok(!over)}</dt><dd>${over?'ragt drüber':'nein, bleibt davor'}</dd>
+  <dt>Stützen zum Zaun ${ok(pfd>=1.0)}</dt><dd>${m(pfd,1)}</dd></dl>
+  <p class="note">Bayerische Bauordnung als Maßstab. Verfahrensfrei heißt nicht regelfrei: Bebauungsplan, Grenzabstand und das Wasserrecht am Bach gelten trotzdem.</p>`;
 }
 function renderPV(o,e){
   if(!S.pv){$('#pvBox').innerHTML='';return;}
-  const lay=o.lay;
-  $('#pvBox').innerHTML=`<dl class="kv"><dt>Module</dt><dd>${lay.n} Stück, ${lay.portrait?'hochkant':'quer'}</dd><dt>Leistung</dt><dd>${nf(o.kwp,2)} kWp</dd>
+  $('#pvBox').innerHTML=`<dl class="kv"><dt>Module</dt><dd>${o.lay.n} Stück</dd><dt>Leistung</dt><dd>${nf(o.kwp,2)} kWp</dd>
   <dt>Module zeigen nach</dt><dd>${dirName(e.y.face)}, ${S.tilt}°</dd><dt>Ausrichtungsfaktor</dt><dd>${nf(e.y.f*100)} %</dd>
-  <dt>Ertrag pro Jahr</dt><dd><b>${nf(Math.round(e.y.kwh/10)*10)} kWh</b></dd><dt>Reicht für</dt><dd>ca. ${nf(Math.round(e.y.kwh/0.18/1000)*1000)} km E-Auto</dd></dl>
-  ${e.y.f<0.85?`<p class="note"><span class="chip warn">Tipp</span> Die Module zeigen nach ${dirName(e.y.face)}. Lass das Dach zur anderen Seite abfallen, dann zeigen sie Richtung Sonne.</p>`:''}`;
+  <dt>Ertrag pro Jahr</dt><dd><b>${nf(Math.round(e.y.kwh/10)*10)} kWh</b></dd><dt>Reicht für</dt><dd>ca. ${nf(Math.round(e.y.kwh/0.18/1000)*1000)} km Polestar</dd></dl>
+  ${e.y.f<0.86?`<p class="note"><span class="chip warn">Tipp</span> Die Module zeigen nach ${dirName(e.y.face)}. Lass das Dach nach links abfallen, dann zeigen sie nach ${dirName(COMPASS[S.compass]-90)}.</p>`:''}`;
 }
 function renderCable(o){
-  const c=o.cab, W=WALLBOXES[S.wb];
-  const fillPct=Math.round(c.fill*100), fc=c.fill<=0.35?'var(--ok)':c.fill<=0.5?'var(--warn)':'var(--bad)';
+  const c=o.cab,fp=Math.round(c.fill*100),fc=c.fill<=0.35?'var(--ok)':c.fill<=0.5?'var(--warn)':'var(--bad)';
   $('#cableBox').innerHTML=`<dl class="kv"><dt>Erdkabel</dt><dd><b>NYY-J 5 × ${c.mm} mm²</b></dd>
-  <dt>Absicherung im Haus</dt><dd>${c.fuse} A</dd>
-  <dt>Strom Wallbox / PV</dt><dd>${nf(c.iWb)} A / ${nf(c.iPv,1)} A</dd>
+  <dt>Absicherung im Haus</dt><dd>${c.fuse} A</dd><dt>Strom Wallbox / PV</dt><dd>${nf(c.iWb)} A / ${nf(c.iPv,1)} A</dd>
   <dt>Spannungsfall auf ${S.cableLen} m</dt><dd>${nf(c.dU,2)} %</dd>
   ${c.dcLines?`<dt>Zusätzlich DC-Leitungen</dt><dd>${c.dcLines} × 6 mm²</dd>`:''}
-  <dt>Rohrfüllung (DN ${S.pipeD}, innen ca. ${Math.round(c.pipeInner)} mm)</dt><dd>${fillPct} %</dd></dl>
-  <div class="fill" aria-hidden="true"><i style="width:${Math.min(100,fillPct)}%;background:${fc}"></i></div>
-  <p class="note">${c.invAtCarport?'Wechselrichter am Carport: Ein Kabel versorgt die Wallbox und bringt den Solarstrom ins Haus. Das ist die einfachste Lösung.':S.pv?'Wechselrichter im Haus: Die Solarleitungen (Gleichstrom) laufen zusätzlich durchs Rohr.':'Ohne PV läuft nur die Wallbox-Zuleitung durchs Rohr.'} ${c.mm<10&&W.kw!==22?'Tipp: 5 × 10 mm² kostet ca. '+eur((S.cableLen+5)*(CABLE[10].p-CABLE[6].p))+' mehr und reicht später für 22 kW oder zwei Wallboxen.':''}</p>
-  ${c.fill>0.5?'<p class="note" style="color:var(--bad)">Das Rohr wird zu voll. Mit einem DN-50-Rohr und 50 m Länge wird das Einziehen schwer. Lieber Wechselrichter an den Carport setzen oder auf das Netzwerkkabel verzichten (WLAN-Bridge).</p>':''}
-  <p class="foot">Kabelquerschnitt und Absicherung legt der Elektriker final fest (Verlegeart, Hausanschluss, Selektivität).</p>`;
+  <dt>Rohrfüllung (DN ${S.pipeD}, innen ca. ${Math.round(c.pipeInner)} mm)</dt><dd>${fp} %</dd></dl>
+  <div class="fill" aria-hidden="true"><i style="width:${Math.min(100,fp)}%;background:${fc}"></i></div>
+  <p class="note">${c.invAtCarport?'Wechselrichter am Carport: Ein Kabel versorgt die Wallbox und bringt den Solarstrom ins Haus.':S.pv?'Die Solarleitungen (Gleichstrom) laufen zusätzlich durchs Rohr zum Wechselrichter im Haus.':'Ohne PV am Carport läuft nur die Wallbox-Zuleitung durchs Rohr.'} ${c.mm<10?'5 × 10 mm² kostet ca. '+eur((S.cableLen+5)*(CABLE[10].p-CABLE[6].p))+' mehr und reicht auch für zwei Wallboxen.':''}</p>
+  ${c.fill>0.5?'<p class="note" style="color:var(--bad)">Das Rohr wird zu voll. Lieber Wechselrichter an den Carport setzen oder das Netzwerkkabel weglassen (WLAN-Bridge).</p>':''}
+  <p class="foot">Kabelquerschnitt und Absicherung legt der Elektriker final fest.</p>`;
 }
+const GNAMES={carport:'Carport',pflaster:'Pflaster-Umbau',pv:'Photovoltaik',strom:'Wallbox & Leitung'};
 function renderOffer(o){
-  const names={carport:'Carport',pv:'Photovoltaik',strom:'Wallbox & Leitung'};
   let h='<thead><tr><th>Position</th><th class="r">Material</th><th class="r">Montage</th><th class="r">Summe</th></tr></thead><tbody>';
-  for(const g of ['carport','pv','strom']){
+  for(const g of ['carport','pflaster','pv','strom']){
     if(!o.G[g].length) continue;
-    h+=`<tr class="grp"><td colspan="3">${names[g]}</td><td class="r"><span class="num">${eur(o.gs[g].total)}</span></td></tr>`;
-    for(const it of o.G[g]){
-      const can=it.diy!=='nein'&&it.lab>0;
+    h+=`<tr class="grp"><td colspan="3">${GNAMES[g]}</td><td class="r"><span class="num">${eur(o.gs[g].total)}</span></td></tr>`;
+    for(const it of o.G[g]){const can=it.diy!=='nein'&&it.lab>0;
       h+=`<tr><td>${it.label}<small>${it.note}${it.vat===0?' · 0 % MwSt.':''}</small>${can?`<label class="diy"><input type="checkbox" data-diy="${it.id}" ${S.diy[it.id]?'checked':''}> selbst${it.diy==='teil'?' (teilweise)':''}</label>`:''}</td>
-      <td class="r">${it.mat?eur(it.mat):'–'}</td><td class="r">${it.lab?(it.save?`<s>${eur(it.lab)}</s><br>${eur(it.lab-it.save)}`:eur(it.lab)):'–'}</td><td class="r">${eur(it.total)}</td></tr>`;
-    }
+      <td class="r">${it.mat?eur(it.mat):'–'}</td><td class="r">${it.lab?(it.save?`<s>${eur(it.lab)}</s><br>${eur(it.lab-it.save)}`:eur(it.lab)):'–'}</td><td class="r">${eur(it.total)}</td></tr>`;}
   }
   h+=`<tr class="sum"><td>Gesamt brutto</td><td class="r">${eur(o.tot.mat)}</td><td class="r">${eur(o.tot.lab-o.tot.save)}</td><td class="r">${eur(o.tot.total)}</td></tr></tbody>`;
   $('#offer').innerHTML=h;
   $('#bigNums').innerHTML=`<div><span>Projekt gesamt</span><b>${eur(o.tot.total)}</b><span>Spanne ${eur(o.tot.total*0.85)} bis ${eur(o.tot.total*1.15)}</span></div>
   <div><span>Ersparnis durch Eigenleistung</span><b style="color:var(--ok)">${eur(o.tot.save)}</b><span>von ${eur(o.tot.lab)} Montagekosten</span></div>`;
   const T=o.tot.total||1;
-  $('#costBar').innerHTML=['carport','pv','strom'].map(g=>`<i style="width:${o.gs[g].total/T*100}%;background:var(--c-${g})" title="${names[g]}"></i>`).join('');
+  $('#costBar').innerHTML=['carport','pflaster','pv','strom'].map(g=>`<i style="width:${o.gs[g].total/T*100}%;background:var(--c-${g})" title="${GNAMES[g]}"></i>`).join('');
 }
 function renderEcon(o,e){
-  if(!S.pv){$('#econBox').innerHTML='<p>Ohne Solarmodule gibt es hier nichts zu rechnen. Der Carport allein spart kein Geld, schützt aber Auto und Wallbox.</p>';return;}
-  $('#econBox').innerHTML=`<dl class="kv"><dt>Solarstrom pro Jahr</dt><dd>${nf(Math.round(e.y.kwh/10)*10)} kWh</dd>
-  <dt>Selbst verbraucht (Haus + Auto)</dt><dd>${nf(e.self*100)} % = ${nf(Math.round(e.selfKWh/10)*10)} kWh</dd>
-  <dt>Davon ins Auto</dt><dd>ca. ${nf(Math.round(e.evSun/10)*10)} kWh ≈ ${nf(Math.round(e.evSun/0.18/100)*100)} km</dd>
+  if(!S.pv){$('#econBox').innerHTML='<p>Ohne Module auf dem Carport gibt es hier nichts zu rechnen. Mit einer Wallbox mit Überschussladen tankt der Polestar trotzdem Sonnenstrom von der Haus-PV.</p>';return;}
+  $('#econBox').innerHTML=`<dl class="kv"><dt>Solarstrom Carport pro Jahr</dt><dd>${nf(Math.round(e.y.kwh/10)*10)} kWh</dd>
+  <dt>Selbst verbraucht</dt><dd>${nf(e.self*100)} % = ${nf(Math.round(e.selfKWh/10)*10)} kWh</dd>
+  <dt>Davon in den Polestar</dt><dd>ca. ${nf(Math.round(e.evSun/10)*10)} kWh ≈ ${nf(Math.round(e.evSun/0.18/100)*100)} km</dd>
   <dt>Eingespeist (ca. 7,8 ct)</dt><dd>${nf(Math.round(e.feed/10)*10)} kWh</dd>
   <dt>Ersparnis + Vergütung pro Jahr</dt><dd><b>${eur(e.save)}</b></dd>
   <dt>PV-Kosten (Gruppe Photovoltaik)</dt><dd>${eur(e.cost)}</dd>
   <dt>Amortisation PV</dt><dd><b>${nf(e.payback,1)} Jahre</b></dd></dl>
-  <p class="note">Plus: Mit Wallbox als steuerbares Gerät nach § 14a EnWG gibt es reduzierte Netzentgelte, je nach Netzbetreiber ca. 100 bis 190 € im Jahr. Der Carport selbst ist dabei nicht eingerechnet.</p>`;
+  <p class="note">${S.pvExisting?'Weil die Haus-PV tagsüber schon viel abdeckt, wird mehr eingespeist als bei einer ersten Anlage. Das verlängert die Amortisation. ':''}Mit Wallbox als steuerbares Gerät nach § 14a EnWG gibt es reduzierte Netzentgelte, je nach Netzbetreiber ca. 100 bis 190 € im Jahr. Die sind hier nicht eingerechnet.</p>`;
 }
-function renderDIY(o){
+function renderDIY(){
+  const umbau=S.pave==='umbau';
   const rows=[
-    ['ja','Pflaster aufnehmen, Fundamente graben und betonieren','Löcher frostfrei (80 cm), H-Anker mit Schnur exakt ausrichten.'],
-    [S.type==='holz'?'ja':'teil','Carport aufstellen',S.type==='frei'?'Stahlbau mit Kran besser vom Fachbetrieb, Mithelfen spart Stunden.':'Zu zweit an 1 bis 2 Tagen machbar.'],
-    ['ja','Dachrinne, Radstopper, Anfahrschutz','Reine Schrauberarbeit.'],
-    ['ja','Kabel und Netzwerkkabel ins Leerrohr ziehen','Erst Zugdraht prüfen, Kabel mit Gleitmittel und Ziehstrumpf, zu zweit.'],
+    umbau?['ja','Pflaster aufnehmen und neu verlegen','Rüttelplatte mieten, Gefälle zum Hof (ca. 2 %), Steine wiederverwenden.']:null,
+    ['ja','Fundamente graben und betonieren',`Frostfrei 80 cm tief, mit Abstand zur Ufermauer. Ankerkorb oder H-Anker mit Schnur exakt ausrichten.`],
+    [S.type==='holz'?'ja':'teil','Carport aufstellen',S.type==='frei'?'Stahlbau mit Kran besser vom Fachbetrieb.':'Zu zweit an 1 bis 2 Tagen, alles vom Hof aus.'],
+    ['ja','Dachrinne, Sickermulde, Radstopper','Reine Schrauber- und Schaufelarbeit.'],
+    ['ja','Kabel und Netzwerkkabel ins Leerrohr ziehen','Zugdraht ist drin. Kabel mit Gleitmittel und Ziehstrumpf, zu zweit.'],
     ['ja','PV-Unterkonstruktion und Module montieren','Nur mechanisch. Steckverbinder vom selben Hersteller, nichts unter Last trennen.'],
-    ['nein','Anschluss Unterverteilung, Wechselrichter, Wallbox','Nur eingetragene Elektrofachkraft. Sonst keine Anmeldung beim Netzbetreiber.'],
-    ['nein','Anmeldung Netzbetreiber (PV und Wallbox)','Macht der Elektriker mit.'],
+    ['nein','Anschluss Unterverteilung, Wechselrichter, Wallbox','Nur eingetragene Elektrofachkraft, sonst keine Anmeldung beim Netzbetreiber.'],
     ['ja','Eintrag im Marktstammdatenregister','Online, kostenlos, innerhalb eines Monats nach Inbetriebnahme.']
-  ];
+  ].filter(Boolean);
   $('#diyTab').innerHTML=rows.map(([k,t,n])=>`<span class="pill ${k}">${k==='ja'?'selbst':k==='teil'?'teilweise':'Fachbetrieb'}</span><div><b style="font-weight:600">${t}</b><div class="note">${n}</div></div>`).join('');
   const W=WALLBOXES[S.wb];
   $('#permitList').innerHTML=[
+    'Bach direkt hinter dem Zaun: Beim Landratsamt (Wasserrecht) kurz nachfragen, ob ein Abstand zum Gewässer gilt. Im BayernAtlas bzw. UmweltAtlas sieht man, ob die Fläche im Überschwemmungsgebiet liegt. Dort sind Bauten genehmigungspflichtig.',
+    'Regenwasser vom Dach nicht in den Bach leiten, dafür bräuchte es eine Erlaubnis. Eine Sickermulde im Rasen ist einfacher.',
+    'Fundamente nicht direkt an die Ufermauer setzen, damit die Mauer keine zusätzliche Last bekommt.',
     'Carport bis 50 m² und 3 m mittlerer Wandhöhe ist in Bayern verfahrensfrei (Art. 57 BayBO). Bebauungsplan und Grenzabstand trotzdem einhalten.',
-    'Solarmodule auf dem Carportdach sind ebenfalls verfahrensfrei.',
-    S.pv?'PV vor Inbetriebnahme beim Netzbetreiber anmelden, danach im Marktstammdatenregister eintragen.':null,
-    S.pv?'Neue PV ohne Smart Meter darf nur 60 % der Leistung einspeisen (Solarspitzengesetz). Bei Überschussladen ins Auto fällt das kaum ins Gewicht.':null,
-    W.kw===11?'Wallbox mit 11 kW ist beim Netzbetreiber meldepflichtig.':null,
-    W.kw===22?'Wallbox mit 22 kW braucht vorher die Genehmigung des Netzbetreibers.':null,
-    W.kw?'Wallboxen ab 4,2 kW gelten als steuerbare Verbrauchseinrichtung (§ 14a EnWG). Dafür gibt es günstigere Netzentgelte.':null,
+    S.pv?(S.pvExisting?'Die Module sind eine Erweiterung der bestehenden PV. Die muss beim Netzbetreiber und im Marktstammdatenregister angemeldet werden.':'PV beim Netzbetreiber anmelden und im Marktstammdatenregister eintragen.'):null,
+    S.pv?'Neue PV ohne Smart Meter darf nur 60 % der Leistung einspeisen (Solarspitzengesetz). Mit Überschussladen ins Auto fällt das kaum ins Gewicht.':null,
+    W.kw?'Wallbox mit 11 kW ist beim Netzbetreiber meldepflichtig. Ab 4,2 kW gilt sie als steuerbare Verbrauchseinrichtung (§ 14a EnWG), dafür gibt es günstigere Netzentgelte.':null,
     'Statik: Schneelastzone der Gemeinde prüfen, besonders mit Modulen auf dem Dach.'
+  ].filter(Boolean).map(t=>`<li>${t}</li>`).join('');
+  $('#orderList').innerHTML=[
+    'Maße, Bebauungsplan und Wasserrecht klären, Elektriker den Zählerschrank und die bestehende PV ansehen lassen.',
+    'Kabel und Netzwerkkabel mit dem Zugdraht einziehen.',
+    umbau?'Altes Pflaster aufnehmen, Fundamente setzen, Unterbau herstellen.':'Pflaster an den Stützen aufnehmen, Fundamente setzen.',
+    'Fundamente aushärten lassen (bei Beton ca. 4 Wochen bis zur vollen Last).',
+    'Carport aufstellen, Dach, Rinne und Sickermulde.',
+    umbau?'Pflaster neu verlegen, Granitkante setzen, Kiesstreifen am Zaun.':null,
+    S.pv?'PV-Unterkonstruktion und Module montieren.':null,
+    'Elektriker: Unterverteilung, Wechselrichter, Wallbox anschließen, Netzbetreiber anmelden.',
+    S.pv?'Marktstammdatenregister-Eintrag.':null
   ].filter(Boolean).map(t=>`<li>${t}</li>`).join('');
 }
 function renderHeader(o,e){
   $('#hdrTotal').textContent=eur(o.tot.total);
   $('#hdrTotalSub').textContent=o.tot.save?`inkl. ${eur(o.tot.save)} Eigenleistung`:'Projekt gesamt, brutto';
-  const w=SIM.worst, cls=clrClass(w.c);
+  const cls=clrClass(SIM.worst.c);
   $('#hdrKpis').innerHTML=`<span class="chip">${TYPES[S.type].name.split(',')[0]} ${nf(S.w,1)} × ${nf(S.d,1)} m</span>
   ${S.pv?`<span class="chip acc">${nf(o.kwp,1)} kWp · ${nf(Math.round(e.y.kwh/100)*100)} kWh/a</span>`:''}
-  ${S.wb!=='none'?`<span class="chip">${S.wbCount>1?'2 × ':''}Wallbox ${WALLBOXES[S.wb].kw} kW</span>`:''}
-  <span class="chip ${cls}">Einfahrt: ${cls==='ok'?'frei':cls==='warn'?'knapp':'Kollision'}</span>`;
+  ${S.wb!=='none'?`<span class="chip">${S.wbCount>1?'2 × ':''}Wallbox 11 kW</span>`:''}
+  <span class="chip ${cls}">Einfahrt: ${cls==='ok'?'frei':cls==='warn'?'knapp':'Kollision'}</span>
+  <span class="chip ${postFenceDist()>=1?'ok':'warn'}">Bachzaun bleibt</span>`;
 }
 
 // Events --------------------------------------------------------------------
-function bindRange(id,key,num=true){$('#'+id).addEventListener('input',ev=>{S[key]=num?+ev.target.value:ev.target.value;renderAll();});}
-['cableLen','pipeD','gap','w','d','h','tilt','offX','shade'].forEach(k=>bindRange(k,k));
+['cableLen','gap','postFence','w','d','h','tilt','offX','shade'].forEach(k=>$('#'+k).addEventListener('input',ev=>{S[k]=+ev.target.value;renderAll();}));
 ['price','km'].forEach(k=>$('#'+k).addEventListener('input',ev=>{S[k]=+ev.target.value;renderAll(false);}));
 $('#compass').addEventListener('change',ev=>{S.compass=ev.target.value;renderAll();});
 $('#pipeD').addEventListener('change',ev=>{S.pipeD=+ev.target.value;renderAll(false);});
 const chk=(id,key,rb=true)=>$('#'+id).addEventListener('change',ev=>{S[key]=ev.target.checked;renderAll(rb);});
-chk('pv','pv'); chk('cat','cat',false); chk('meter','meter',false); chk('sBump','bump'); chk('sStop','stop'); chk('sLight','light');
+chk('pv','pv'); chk('pvExisting','pvExisting'); chk('cat','cat',false); chk('meter','meter',false); chk('sBump','bump'); chk('sStop','stop'); chk('sLight','light');
 document.addEventListener('click',ev=>{
-  const b=ev.target.closest('button'); if(!b) return;
-  const D=b.dataset;
+  const b=ev.target.closest('button'); if(!b||b.disabled) return; const D=b.dataset;
   if(D.cam){setCam(D.cam);return;}
   if(D.step&&b.classList.contains('tab')){showStep(D.step);return;}
   if(D.goto){showStep(D.goto);$('#panel').scrollTop=0;if(innerWidth<=900)$('.ph').scrollIntoView({behavior:'smooth'});return;}
+  if(b.getAttribute('aria-disabled')==='true') return;
   if(D.type){S.type=D.type;renderAll();return;}
   if(D.module){S.module=D.module;renderAll();return;}
   if(D.wb){S.wb=D.wb;renderAll();return;}
   if(D.inv){S.inverter=D.inv;if(D.inv==='micro')S.invLoc='carport';renderAll();return;}
   if(D.slope){S.slope=D.slope;renderAll();return;}
   if(D.path){S.path=D.path;anim=null;renderAll();return;}
+  if(D.pave){S.pave=D.pave;renderAll();return;}
   if(D.n){S.wbCount=+D.n;renderAll();return;}
-  if(D.loc){if(S.inverter==='micro')return;S.invLoc=D.loc;renderAll();return;}
-  if(D.bat!==undefined&&!b.disabled){S.bat=+D.bat;renderAll(false);if(renderer){buildCarport();setLabels();}return;}
+  if(D.loc){S.invLoc=D.loc;renderAll();return;}
+  if(D.bat!==undefined){S.bat=+D.bat;renderAll();return;}
   if(D.size){const [w,d]=D.size.split(',').map(Number);S.w=w;S.d=d;renderAll();return;}
   if(D.pkg){applyPkg(D.pkg);return;}
 });
 document.addEventListener('change',ev=>{const id=ev.target.dataset&&ev.target.dataset.diy;if(id){S.diy[id]=ev.target.checked;renderAll(false);}});
-$('#diyAll').addEventListener('click',()=>{offer();const o=offer();for(const g in o.G)o.G[g].forEach(it=>{if(it.diy!=='nein'&&it.lab>0)S.diy[it.id]=true;});renderAll(false);});
+function diyAll(){const o=offer();for(const g in o.G)o.G[g].forEach(it=>{if(it.diy!=='nein'&&it.lab>0)S.diy[it.id]=true;});}
+$('#diyAll').addEventListener('click',()=>{diyAll();renderAll(false);});
 $('#diyNone').addEventListener('click',()=>{S.diy={};renderAll(false);});
 $('#ovTrail').addEventListener('change',()=>buildCars());
 $('#season').addEventListener('change',updateSun); $('#sunTime').addEventListener('input',updateSun);
-$('#btnPlay').addEventListener('click',()=>{if(!SIM)return; if(anim){anim=null;$('#btnPlay').textContent='▶ Einparken zeigen';placeCar(carMove,SIM.path[SIM.path.length-1]);return;} anim={s:0};$('#btnPlay').textContent='■ Stopp';});
+$('#btnPlay').addEventListener('click',()=>{if(!SIM)return;if(anim){anim=null;$('#btnPlay').textContent='▶ Einparken zeigen';placeCar(carMove,SIM.path[SIM.path.length-1]);return;}anim={s:0};$('#btnPlay').textContent='■ Stopp';});
 function showStep(n){$$('.tab').forEach(t=>t.setAttribute('aria-selected',t.dataset.step===String(n)));$$('section.step').forEach(s=>s.hidden=s.dataset.step!==String(n));}
 function applyPkg(k){
   const p=PKG[k]; Object.keys(p).forEach(key=>{if(key in S) S[key]=p[key];});
-  S.diy={};
-  const o=offer();
-  if(p.diyAll){for(const g in o.G)o.G[g].forEach(it=>{if(it.diy!=='nein'&&it.lab>0)S.diy[it.id]=true;});}
-  (p.diyPick||[]).forEach(id=>S.diy[id]=true);
+  S.diy={}; if(p.diyAll) diyAll(); (p.diyPick||[]).forEach(id=>S.diy[id]=true);
   anim=null; renderAll(); showStep(5);
 }
-$$('[data-pkg]').forEach(b=>b.title='Paket laden und Angebot anzeigen');
 
 // Start ---------------------------------------------------------------------
-try{const saved=JSON.parse(localStorage.getItem('carport-plan')||'null');if(saved&&typeof saved==='object')Object.assign(S,saved,{diy:saved.diy||{}});}catch(_){}
+try{const saved=JSON.parse(localStorage.getItem(STORE)||'null');if(saved&&typeof saved==='object')Object.assign(S,saved,{diy:saved.diy||{}});}catch(_){}
 if(renderer){buildEnv();resize();setCam('foto',true);}
 renderAll();
 requestAnimationFrame(loop);
