@@ -265,7 +265,7 @@ a{color:var(--accent)}
       <section class="step" data-step="1">
         <div class="sec">
           <h2>Grundriss</h2>
-          <p class="lead">So verstehe ich deine Skizze: Durchs Tor rein, rechts geht die Durchfahrt zum Haus. Die graue Ecke am Bachzaun ist der Parkplatz, das rote Feld davor der Wendeplatz. Beides muss frei bleiben. Stimmt etwas nicht, zieh die Punkte im Plan an die richtige Stelle.</p>
+          <p class="lead">So verstehe ich deine Skizze: Durchs Tor rein, rechts geht die Durchfahrt zum Haus. Die graue Fläche am Bachzaun ist der Parkplatz. Neben dem Tor ist sie nur schmal, tief wird sie erst weiter links. Das rote Feld davor ist der Wendeplatz. Durchfahrt und Wendeplatz müssen frei bleiben. Stimmt etwas nicht, zieh die Punkte im Plan an die richtige Stelle.</p>
           <div class="planwrap"><svg id="plan" viewBox="-7 -3.5 22 18" role="img" aria-label="Grundriss von oben mit verschiebbaren Punkten"></svg></div>
           <div class="legend"><span><i style="background:var(--pl-corr)"></i>Durchfahrt</span><span><i style="background:var(--pl-turn)"></i>Wendeplatz</span><span><i style="background:var(--pl-grey)"></i>Parkplatz (grau)</span><span><i style="border:2px dashed var(--fg);background:none"></i>Carport-Dach</span></div>
           <div class="row"><label for="fenceLen">Hinterer Zaun gemessen, Knick zu Knick (m)</label><span></span>
@@ -468,7 +468,7 @@ const LAT=48.4;
 // Grundriss: verschiebbare Punkte in Metern. Linker Zaunknick = (0,0), hinterer Zaun auf der x-Achse.
 const GP_DEF={c23:[7,0],f1:[-3.1,-5.2],p1:[9.39,2.69],p2:[11.85,5.46],leer:[3.6,0.15],
   r0:[-0.53,0.48],r1:[1.89,3.44],r2:[-0.54,5.41],r3:[-2.77,1.96],
-  a0:[9.05,3.1],a1:[7.5,3.85],a2:[5.9,4.28],a3:[4.96,4.53],a4:[3.74,4.6],a5:[2.67,4.32],a6:[1.8,3.71],
+  a0:[9.05,3.1],a1:[7.6,2.5],a2:[6.3,2.4],a3:[5.3,3.4],a4:[4.0,4.3],a5:[2.67,4.32],a6:[1.8,3.71],
   h:[3.9,10.1]};
 const HNAME={c23:'Zaunknick rechts (Länge hinterer Zaun)',f1:'Zaun links, Richtung',p1:'Torpfeiler',p2:'Pfeiler Gartentürl',leer:'Leerrohr-Ende',
   r0:'Wendeplatz Ecke',r1:'Wendeplatz Ecke',r2:'Wendeplatz Ecke',r3:'Wendeplatz Ecke',a0:'Granitbogen',a1:'Granitbogen',a2:'Granitbogen',a3:'Granitbogen',a4:'Granitbogen',a5:'Granitbogen',a6:'Granitbogen',h:'Durchfahrt Richtung Haus'};
@@ -499,8 +499,8 @@ geo();
 const CAR={L:4.61,B:1.99,body:1.86};                // Polestar 2
 const pz=()=>LG().parkZ!=null?LG().parkZ:0.65;
 const LAGEN={
-  ecke:{name:'Parkplatz in der Zaunecke, längs zum Bach',d:'Ein Auto parkt längs am Bachzaun, so wie heute. Stützen nur auf der Zaunseite, die Längsseite zum Hof ist offen. Durchfahrt und Wendeplatz bleiben frei.',
-    get phi(){return -90;}, get O0(){return [xF3(0.35)-0.4,0.35];}, bz:0.5, parkZ:0.35,
+  ecke:{name:'Parkplatz in der Zaunecke, längs zum Bach',d:'Ein Auto parkt längs am Bachzaun im tiefen Teil der grauen Fläche, mit Abstand zum Tor. Stützen nur auf der Zaunseite, die Längsseite zum Hof ist offen. Durchfahrt und Wendeplatz bleiben frei.',
+    get phi(){return -90;}, get O0(){return [Math.min(6.75,xF3(0.35)-0.4),0.35];}, bz:0.5, parkZ:0.35,
     sideX(){return Math.max(0.1,S.postFence-frame().O[1]);}, spotX(){return Math.min(S.w-1.05,Math.max(S.w/2,this.sideX()+1.45));},
     tags:[['ok','Durchfahrt frei'],['ok','Wendeplatz frei'],['','1 Auto']],
     def:{w:3.6,d:5.4,offX:0,gap:0,slope:'left',wbCount:1,path:'rueck'}},
@@ -566,7 +566,7 @@ const PKG={
 };
 const S=JSON.parse(JSON.stringify(DEF));
 PKG.empf.diyPick.forEach(id=>S.diy[id]=true);
-const STORE='carport-plan-v5';
+const STORE='carport-plan-v6';
 
 // ======================================================================
 // Hilfen
