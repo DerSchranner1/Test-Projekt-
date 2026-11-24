@@ -42,6 +42,9 @@ const DEFAULT_SETTINGS = {
   markerPlay: true,
   jumpEight: true,
   zoom: 8,
+  keepAlive: true,      // Bluetooth wach halten
+  keepLevel: 'low',
+  screenOn: false,
 };
 
 const state = {
@@ -167,10 +170,12 @@ function ctx() {
   return audioCtx;
 }
 // Lautstärke über einen GainNode, weil iOS audio.volume ignoriert.
+// iPhone/iPad: Web Audio pausiert beim Sperren – dann die Musik direkt ausgeben
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 function ensureGraph() {
   try {
     ctx();
-    if (!gainNode) {
+    if (!gainNode && !isIOS) {
       gainNode = audioCtx.createGain();
       audioCtx.createMediaElementSource(audio).connect(gainNode).connect(audioCtx.destination);
       audio.volume = 1;
@@ -183,6 +188,101 @@ function ensureGraph() {
 function setVol(v) {
   if (gainNode) gainNode.gain.value = v;
   else audio.volume = v;
+}
+
+/* ---------- Bluetooth / Hintergrund wach halten ----------
+ * 1. Ein unhörbar leises Rauschen läuft in Schleife über ein eigenes <audio>-Element: Bluetooth-Boxen
+ *    schalten bei Stille ab, und Android/iOS beenden den Audiokanal, wenn nichts mehr kommt.
+ * 2. Android-App: Vordergrund-Dienst mit Wake-Lock (Plugin „KeepAlive“), damit die App gesperrt weiterläuft.
+ * 3. Optional: Bildschirm anlassen.
+ */
+let keepEl = null, keepLevelLoaded = null, screenLock = null, keepNativeOn = false;
+
+function noiseWav(level) {
+  const sr = 22050, n = sr * 2;
+  const amp = level === 'mid' ? 0.003 : 0.0006; // etwa −50 dB bzw. −64 dB
+  const buf = new ArrayBuffer(44 + n * 2);
+  const v = new DataView(buf);
+  const w = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+  w(36, 'data'); v.setUint32(40, n * 2, true);
+  let lp = 0;
+  for (let i = 0; i < n; i++) {
+    lp += 0.2 * ((Math.random() * 2 - 1) - lp); // weiches Rauschen ohne Zischen
+    v.setInt16(44 + i * 2, Math.round(lp * amp * 3 * 32767), true);
+  }
+  return new Blob([buf], { type: 'audio/wav' });
+}
+
+async function keepAliveNative(on) {
+  if (!isNative() || keepNativeOn === on) return;
+  try {
+    await window.Capacitor.nativePromise('KeepAlive', on ? 'start' : 'stop', { text: 'Wiedergabe aktiv – Bluetooth bleibt verbunden' });
+    keepNativeOn = on;
+  } catch (e) {
+    console.warn('KeepAlive', e);
+  }
+}
+
+function updateKeepAlive() {
+  const on = state.settings.keepAlive;
+  if (on) {
+    if (!keepEl || keepLevelLoaded !== state.settings.keepLevel) {
+      keepEl?.pause();
+      keepEl = new Audio(URL.createObjectURL(noiseWav(state.settings.keepLevel)));
+      keepEl.loop = true;
+      keepEl.setAttribute('playsinline', '');
+      keepLevelLoaded = state.settings.keepLevel;
+    }
+    if (keepEl.paused) keepEl.play().catch(() => {});
+  } else {
+    keepEl?.pause();
+  }
+  keepAliveNative(on);
+  updateScreenOn();
+  $('kaInd').hidden = !on;
+}
+
+async function updateScreenOn() {
+  const on = state.settings.screenOn;
+  if (isNative()) {
+    try { await window.Capacitor.nativePromise('KeepAlive', 'screenOn', { on }); } catch (e) { /* ältere App */ }
+    return;
+  }
+  try {
+    if (on && !screenLock && navigator.wakeLock && document.visibilityState === 'visible') {
+      screenLock = await navigator.wakeLock.request('screen');
+      screenLock.addEventListener('release', () => { screenLock = null; });
+    } else if (!on && screenLock) {
+      await screenLock.release();
+      screenLock = null;
+    }
+  } catch (e) {
+    console.warn('Wake Lock', e);
+  }
+}
+
+async function updateBatteryRow() {
+  if (!isNative()) return;
+  $('batteryRow').hidden = false;
+  try {
+    const r = await window.Capacitor.nativePromise('KeepAlive', 'batteryStatus', {});
+    $('batteryState').textContent = r.unrestricted ? '✓ ist aus' : 'ist noch an – kann die Verbindung trennen';
+  } catch (e) {
+    $('batteryRow').hidden = true;
+  }
+}
+
+// Systemsteuerung (Sperrbildschirm, Kopfhörer-/Box-Tasten), wo verfügbar
+function updateMediaSession() {
+  if (!('mediaSession' in navigator)) return;
+  const t = current();
+  try {
+    navigator.mediaSession.metadata = t ? new MediaMetadata({ title: t.name, artist: t.artist || 'Narrhalla Player' }) : null;
+    navigator.mediaSession.playbackState = audio.paused ? 'paused' : 'playing';
+  } catch (e) { /* nicht unterstützt */ }
 }
 
 /* ---------- Analyse: Wellenform, Tempo, Zählzeit ---------- */
@@ -697,6 +797,7 @@ function onEnded() {
 
 function fadeOut(ms = 2500) {
   if (audio.paused || fading) return;
+  if (isIOS && !gainNode) { toast('Fade-Out geht am iPhone nicht – gestoppt'); return pause(); }
   const start = performance.now();
   const from = state.volume;
   const tick = (now) => {
@@ -720,6 +821,8 @@ audio.addEventListener('seeked', resetCountSchedule);
 
 function syncPlayBtn() {
   $('playBtn').textContent = audio.paused ? '▶' : '⏸';
+  updateMediaSession();
+  if (!audio.paused && state.settings.keepAlive && keepEl?.paused) keepEl.play().catch(() => {});
   renderTracks();
   draw();
 }
@@ -1652,6 +1755,11 @@ function openSettings() {
   $('setCountOffsetVal').textContent = `${s.countOffsetMs} ms`;
   renderVoiceSelects();
   renderLabelList();
+  $('setKeepAlive').checked = s.keepAlive;
+  $('setKeepLevel').value = s.keepLevel;
+  $('setScreenOn').checked = s.screenOn;
+  $('iosHint').hidden = !isIOS;
+  updateBatteryRow();
   $('settingsDlg').showModal();
 }
 for (const [id, key, prop] of [
@@ -2164,6 +2272,32 @@ function setCountMode(v) {
   if (v !== 'off') ensureGraph();
   resetCountSchedule();
   renderTempo();
+}
+$('setKeepAlive').onchange = (e) => { state.settings.keepAlive = e.target.checked; save(); updateKeepAlive(); };
+$('setKeepLevel').onchange = (e) => { state.settings.keepLevel = e.target.value; save(); updateKeepAlive(); };
+$('setScreenOn').onchange = (e) => { state.settings.screenOn = e.target.checked; save(); updateScreenOn(); };
+$('batteryBtn').onclick = async () => {
+  try { await window.Capacitor.nativePromise('KeepAlive', 'openBatterySettings', {}); } catch (e) { toast('Bitte in den Android-Einstellungen bei der App „Akku: Nicht eingeschränkt“ wählen', 4000); }
+};
+// Browser erlauben Ton erst nach der ersten Berührung
+const firstTouch = () => {
+  window.removeEventListener('pointerdown', firstTouch, true);
+  window.removeEventListener('keydown', firstTouch, true);
+  ctx();
+  updateKeepAlive();
+};
+window.addEventListener('pointerdown', firstTouch, true);
+window.addEventListener('keydown', firstTouch, true);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  if (audioCtx?.state === 'suspended') audioCtx.resume();
+  if (state.settings.keepAlive && keepEl?.paused) keepEl.play().catch(() => {});
+  if (state.settings.screenOn) updateScreenOn();
+  if (isNative()) updateBatteryRow();
+});
+if ('mediaSession' in navigator) {
+  const h = { play: () => play(), pause: () => pause(), stop: () => stop(), nexttrack: () => step(1), previoustrack: () => step(-1) };
+  for (const [k, fn] of Object.entries(h)) { try { navigator.mediaSession.setActionHandler(k, fn); } catch (e) { /* nicht unterstützt */ } }
 }
 $('voiceSel').onchange = (e) => { setVoice(e.target.value); if (state.settings.countMode !== 'voice') setCountMode('voice'); };
 $('setVoice').onchange = (e) => setVoice(e.target.value);

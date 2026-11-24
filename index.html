@@ -16,7 +16,8 @@
 </head>
 <body>
   <header class="topbar">
-    <div class="brand"><span class="logo">🎭</span> Narrhalla Player <span class="draft">Draft</span></div>
+    <div class="brand"><span class="logo">🎭</span> Narrhalla Player <span class="draft">Draft</span>
+      <span id="kaInd" class="sub" title="Bluetooth wird wach gehalten (⚙)" hidden><span class="ka-dot"></span>BT wach</span></div>
     <div class="top-actions">
       <label class="btn">
         + Audio laden
@@ -219,9 +220,26 @@
   <dialog id="settingsDlg">
     <form method="dialog" class="dlg">
       <h2>Einstellungen</h2>
-      <label class="field row"><input id="setScrubAudio" type="checkbox"> Ton beim Schieben in der Musik</label>
-      <label class="field row"><input id="setMarkerPlay" type="checkbox"> Marker antippen startet die Wiedergabe<br><small class="sub">aus: springt nur hin und wartet auf Play</small></label>
-      <label class="field row"><input id="setJumpEight" type="checkbox"> Vor/Zurück springt um einen Achter (sonst 5 s)</label>
+      <div class="field box">
+        <b>Training / Bluetooth</b>
+        <label class="field row"><input id="setKeepAlive" type="checkbox"><span>Bluetooth-Verbindung wach halten<br>
+          <small class="sub">Unhörbar leises Dauersignal, damit Box und Handy die Verbindung nicht trennen – auch gesperrt.
+          In der Android-App läuft dazu ein Hintergrund-Dienst (Benachrichtigung „Narrhalla Player“).</small></span></label>
+        <label class="field">Stärke des Wachhalte-Signals
+          <select id="setKeepLevel" class="sel">
+            <option value="low">unhörbar (Standard)</option>
+            <option value="mid">etwas stärker – falls die Box trotzdem abschaltet</option>
+          </select></label>
+        <label class="field row"><input id="setScreenOn" type="checkbox"><span>Bildschirm nicht automatisch sperren</span></label>
+        <div id="batteryRow" class="row-inline" hidden>
+          <button id="batteryBtn" type="button" class="btn small ghost">Akku-Optimierung für die App ausschalten</button>
+          <span id="batteryState" class="sub"></span>
+        </div>
+        <p id="iosHint" class="sub" hidden>iPhone/iPad: Lautstärke und Fade-Out laufen hier über die Gerätetasten, damit die Musik auch bei gesperrtem Bildschirm weiterspielt.</p>
+      </div>
+      <label class="field row"><input id="setScrubAudio" type="checkbox"><span>Ton beim Schieben in der Musik</span></label>
+      <label class="field row"><input id="setMarkerPlay" type="checkbox"><span>Marker antippen startet die Wiedergabe<br><small class="sub">aus: springt nur hin und wartet auf Play</small></span></label>
+      <label class="field row"><input id="setJumpEight" type="checkbox"><span>Vor/Zurück springt um einen Achter (sonst 5 s)</span></label>
       <label class="field">Lautstärke Mitzählen <input id="setCountVol" type="range" min="0" max="1.5" step="0.05"></label>
       <div class="field">Zählstimme
         <div class="row-inline">

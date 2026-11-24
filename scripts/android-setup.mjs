@@ -2,9 +2,10 @@
 // - Narrhalla-Icon statt Capacitor-Standard
 // - Versionsnummer aus BUILD_NUMBER, damit Updates installierbar sind
 // - Mikrofon-Berechtigung (eigene Zählstimme)
+// - Hintergrund-Dienst, damit Wiedergabe und Bluetooth beim Sperren weiterlaufen
 // - Release-Build mit festem Schlüssel aus dem Repo (release.keystore), damit
 //   neue Versionen sich über die alte installieren lassen, ohne Daten zu verlieren
-import { copyFileSync, readdirSync, rmSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { copyFileSync, readdirSync, rmSync, readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const res = 'android/app/src/main/res';
@@ -43,11 +44,25 @@ if (!gradle.includes('signingConfigs')) {
 }
 writeFileSync(gradleFile, gradle);
 
-// Mikrofon für „eigene Zählstimme aufnehmen“
+// Berechtigungen: Mikrofon (eigene Zählstimme), Hintergrund-Wiedergabe (Bluetooth wach halten)
 const manifestFile = 'android/app/src/main/AndroidManifest.xml';
 let manifest = readFileSync(manifestFile, 'utf8');
-for (const perm of ['android.permission.RECORD_AUDIO', 'android.permission.MODIFY_AUDIO_SETTINGS']) {
+for (const perm of [
+  'android.permission.RECORD_AUDIO', 'android.permission.MODIFY_AUDIO_SETTINGS',
+  'android.permission.FOREGROUND_SERVICE', 'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
+  'android.permission.WAKE_LOCK', 'android.permission.POST_NOTIFICATIONS',
+  'android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS',
+]) {
   if (!manifest.includes(perm)) manifest = manifest.replace('</manifest>', `    <uses-permission android:name="${perm}" />\n</manifest>`);
 }
+if (!manifest.includes('KeepAliveService')) {
+  manifest = manifest.replace('</application>', `    <service android:name=".KeepAliveService" android:exported="false" android:foregroundServiceType="mediaPlayback" />\n    </application>`);
+}
 writeFileSync(manifestFile, manifest);
+
+// eigener Code: Hintergrund-Dienst und Plugin „KeepAlive“
+const javaDir = 'android/app/src/main/java/de/narrhalla/player';
+for (const f of readdirSync('native/android/java')) copyFileSync(join('native/android/java', f), join(javaDir, f));
+mkdirSync(join(res, 'drawable'), { recursive: true });
+for (const f of readdirSync('native/android/res/drawable')) copyFileSync(join('native/android/res/drawable', f), join(res, 'drawable', f));
 console.log('Android-Projekt angepasst (Icons, Version, Signatur)');

@@ -354,3 +354,12 @@ dialog h2 { margin-top: 0; }
 .chip.label-chip::before { content: ''; width: 12px; height: 12px; border-radius: 3px; background: var(--c); }
 .chip.label-chip.on::before { background: #111; }
 .song-label { font-size: 10px; color: var(--muted); }
+
+.field.box { border: 1px solid var(--line); border-radius: 8px; padding: 10px; gap: 8px; }
+.field.box > b { color: var(--text); }
+.ka-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #3ddc97; margin-right: 4px; }
+
+[hidden] { display: none !important; }
+.dlg { text-align: left; }
+.field.row > span { display: flex; flex-direction: column; gap: 2px; }
+.field.row > span br { display: none; }

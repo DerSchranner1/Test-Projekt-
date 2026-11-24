@@ -103,6 +103,21 @@ Statt die Datei zu schneiden, legst du nur fest, wo sie startet und endet:
 3. **Import** → Setlisten-Datei wählen. Gruppen, Marker, Takt, Cues und Reihenfolge werden über Titelname,
    Dateiname oder Länge zugeordnet.
 
+## Training: Bluetooth bleibt verbunden
+
+Unter ⚙ → **Training / Bluetooth** (ist von Anfang an eingeschaltet):
+- **Bluetooth-Verbindung wach halten:** Die App spielt ständig ein unhörbar leises Signal ab. So schaltet sich die
+  Box in Pausen nicht ab und das Handy trennt die Verbindung nicht – auch wenn es gesperrt ist. Oben neben dem
+  Namen steht dann „● BT wach“.
+- In der **Android-App** läuft dazu ein Hintergrund-Dienst; du siehst die Benachrichtigung „Narrhalla Player –
+  Wiedergabe aktiv“. Beim ersten Mal fragt Android, ob die App Benachrichtigungen zeigen darf – bitte erlauben.
+- **Akku-Optimierung ausschalten** (nur Android): Knopf antippen und „Zulassen“ wählen. Manche Handys (Samsung,
+  Xiaomi, Huawei) beenden Apps sonst trotzdem nach einer Weile.
+- Schaltet die Box trotzdem ab: **Stärke** auf „etwas stärker“ stellen.
+- **Bildschirm nicht automatisch sperren:** praktisch, wenn das Handy beim Training am Lautsprecher liegt.
+- **iPhone/iPad:** Damit die Musik gesperrt weiterläuft, regelst du die Lautstärke dort über die Gerätetasten;
+  Fade-Out stoppt am iPhone sofort.
+
 ## So funktioniert es (grob)
 
 - Die App ist eine Webseite, die sich wie eine App installieren lässt. Nach dem ersten Öffnen läuft sie ohne Internet.
