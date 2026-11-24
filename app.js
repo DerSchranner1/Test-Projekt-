@@ -6,7 +6,7 @@
 
 const $ = (id) => document.getElementById(id);
 const STATE_KEY = 'narrhalla.state.v1';
-const APP_VERSION = '0.9.1';
+const APP_VERSION = '0.9.2';
 const PEAK_COUNT = 600;   // Punkte der Übersichts-Wellenform
 const HI_RATE = 100;      // Punkte pro Sekunde der Detail-Wellenform
 const PALETTE = [
@@ -169,7 +169,7 @@ function saveNow() {
     localStorage.setItem(STATE_KEY, JSON.stringify(state));
   } catch (e) {
     console.warn('Speichern fehlgeschlagen', e);
-    showBanner('save', 'Speichern fehlgeschlagen – der Speicher ist voll. Bitte jetzt sichern und unbenutzte Titel löschen.', 'Jetzt sichern', exportSet);
+    showBanner('save', 'Speichern fehlgeschlagen – der Speicher ist voll. Bitte jetzt sichern und unbenutzte Titel löschen.', 'Jetzt sichern', exportSet, 'error');
   }
 }
 
@@ -382,7 +382,10 @@ function updateMediaSession() {
   } catch (e) { /* nicht unterstützt */ }
 }
 
-/* ---------- Warnungen oben ---------- */
+/* ---------- Hinweise ----------
+ * Unaufdringlich: oben nur ein kleines „⚠ n“. Antippen zeigt die Hinweise mit „Beheben“,
+ * „Später“ (3 Tage Ruhe) und „Nicht mehr erinnern“ – beides wird gespeichert.
+ * Nur echte Notfälle (z. B. Speicher voll) erscheinen als Leiste. */
 const banners = new Map();
 function showBanner(id, msg, actionLabel = null, action = null, kind = 'warn') {
   banners.set(id, { msg, actionLabel, action, kind });
@@ -391,36 +394,80 @@ function showBanner(id, msg, actionLabel = null, action = null, kind = 'warn') {
 function hideBanner(id) {
   if (banners.delete(id)) renderBanners();
 }
+function snoozed(id) {
+  const u = state.snoozed?.[id];
+  return u === 'never' || (typeof u === 'number' && Date.now() < u);
+}
+function snooze(id, until) {
+  state.snoozed = { ...(state.snoozed || {}), [id]: until };
+  save();
+  renderBanners();
+}
+function activeNotices() {
+  return [...banners].filter(([id, b]) => b.kind === 'error' || !snoozed(id));
+}
 function renderBanners() {
   const box = $('banners');
   box.replaceChildren();
-  for (const [id, b] of banners) {
-    const row = el('div', { className: 'banner' + (b.kind === 'info' ? ' info' : '') },
-      el('span', { className: 'msg', textContent: (b.kind === 'info' ? 'ℹ ' : '⚠ ') + b.msg }));
+  const active = activeNotices();
+  // Notfälle als Leiste
+  for (const [, b] of active.filter(([, b]) => b.kind === 'error')) {
+    const row = el('div', { className: 'banner' }, el('span', { className: 'msg', textContent: '⚠ ' + b.msg }));
     if (b.action) {
       const btn = el('button', { className: 'btn small', textContent: b.actionLabel });
       btn.onclick = b.action;
       row.append(btn);
     }
-    const x = el('button', { className: 'btn ghost small', textContent: 'Später', title: 'Ausblenden' });
-    x.onclick = () => { dismissed.add(id); hideBanner(id); };
-    row.append(x);
     box.append(row);
   }
+  // alles andere nur als kleines Symbol oben
+  const rest = active.filter(([, b]) => b.kind !== 'error');
+  const chip = $('noticeChip');
+  chip.hidden = !rest.length;
+  chip.classList.toggle('info', rest.every(([, b]) => b.kind === 'info'));
+  $('noticeCount').textContent = rest.length;
+  chip.title = rest.map(([, b]) => b.msg).join('\n');
+  if ($('noticeDlg').open) renderNoticeList();
 }
-const dismissed = new Set(); // in dieser Sitzung weggeklickt
+function renderNoticeList() {
+  const ul = $('noticeList');
+  ul.replaceChildren();
+  const rest = activeNotices().filter(([, b]) => b.kind !== 'error');
+  if (!rest.length) {
+    ul.append(el('li', { className: 'empty', textContent: 'Alles in Ordnung.' }));
+    return;
+  }
+  for (const [id, b] of rest) {
+    const btns = el('div', { className: 'row-inline' });
+    if (b.action) {
+      const fix = el('button', { type: 'button', className: 'btn small', textContent: b.actionLabel });
+      fix.onclick = () => { $('noticeDlg').close(); b.action(); };
+      btns.append(fix);
+    }
+    const later = el('button', { type: 'button', className: 'btn ghost small', textContent: 'Später' });
+    later.onclick = () => snooze(id, Date.now() + 3 * 864e5);
+    const never = el('button', { type: 'button', className: 'btn ghost small', textContent: 'Nicht mehr erinnern' });
+    never.onclick = () => snooze(id, 'never');
+    btns.append(later, never);
+    ul.append(el('li', { className: 'notice-item' + (b.kind === 'info' ? ' info' : '') }, el('p', { textContent: b.msg }), btns));
+  }
+}
+function openNotices() {
+  renderNoticeList();
+  $('noticeDlg').showModal();
+}
 
 async function checkWarnings() {
   const s = state.settings;
   // Android: Akku-Optimierung / Benachrichtigungen
   if (isNative() && s.keepAlive) {
     const h = await checkNativeHealth();
-    if (h && !h.unrestricted && !dismissed.has('battery')) {
+    if (h && !h.unrestricted ) {
       showBanner('battery', 'Akku-Optimierung ist an: Android kann die App im Training beenden und Bluetooth trennen.', 'Beheben', async () => {
         try { await native('openBatterySettings'); } catch (e) { toast('Einstellungen → Apps → Narrhalla Player → Akku → „Nicht eingeschränkt“', 6000); }
       });
     } else hideBanner('battery');
-    if (h && h.notifications === false && !dismissed.has('notif')) {
+    if (h && h.notifications === false ) {
       showBanner('notif', 'Benachrichtigungen sind aus: Android kann die Wiedergabe bei gesperrtem Handy beenden.', 'Beheben', async () => {
         try { await native('openNotificationSettings'); } catch (e) { toast('Einstellungen → Apps → Narrhalla Player → Benachrichtigungen → an', 6000); }
       });
@@ -430,18 +477,18 @@ async function checkWarnings() {
     hideBanner('notif');
   }
   // Bluetooth-Wachhalten ausgeschaltet
-  if (!s.keepAlive && !dismissed.has('keep')) {
+  if (!s.keepAlive) {
     showBanner('keep', '„Bluetooth wach halten“ ist aus – im Training kann die Box abschalten.', 'Einschalten', () => {
       s.keepAlive = true; save(); hideBanner('keep'); keepAliveTouch(); checkWarnings();
     }, 'info');
   } else hideBanner('keep');
   // iPhone im Safari-Tab: Daten werden nach 7 Tagen gelöscht
   const standalone = window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone;
-  if (isIOS && !standalone && !isNative() && !dismissed.has('ios')) {
+  if (isIOS && !standalone && !isNative()) {
     showBanner('ios', 'iPhone: Bitte über Teilen → „Zum Home-Bildschirm“ installieren. Im Safari-Tab löscht iOS die Titel nach 7 Tagen ohne Nutzung.');
   }
   // Speicher kann geräumt werden
-  if (!isNative() && navigator.storage?.persisted && !dismissed.has('persist')) {
+  if (!isNative() && navigator.storage?.persisted) {
     const ok = await navigator.storage.persisted().catch(() => true);
     if (!ok && state.tracks.length) {
       showBanner('persist', 'Der Browser darf die Titel bei Platzmangel löschen. Bitte regelmäßig sichern.', 'Jetzt sichern', exportSet, 'info');
@@ -452,7 +499,7 @@ async function checkWarnings() {
   const last = state.lastBackup || 0;
   const changedSince = (state.lastChange || 0) > last;
   const due = last ? Date.now() - last > 14 * 864e5 : Date.now() - state.firstUse > 3 * 864e5;
-  if (state.tracks.length && changedSince && due && !dismissed.has('backup')) {
+  if (state.tracks.length && changedSince && due) {
     showBanner('backup', last ? `Letzte Sicherung vor ${Math.round((Date.now() - last) / 864e5)} Tagen.` : 'Noch nie gesichert – Marker und Korrekturen gehen sonst bei einem Handywechsel verloren.', 'Jetzt sichern', exportSet, 'info');
   } else hideBanner('backup');
 }
@@ -470,31 +517,63 @@ function mixMono(buf) {
   return out;
 }
 
+/* Wellenform-Daten (Version 2): Lautstärke in dB je 10 ms statt Spitzenwert.
+ * Fertig gemischte Musik erreicht fast überall die Spitze – die mittlere Lautstärke dagegen
+ * unterscheidet Lieder und Abschnitte. Gezeichnet wird relativ zu den lautesten Stellen des Titels. */
+const WAVE_V = 2;
+const DB_FLOOR = -90;
+const LEVEL_RANGE = 30;   // so viele dB unter „laut“ sind noch sichtbar
+const POW_OF = new Float32Array(256).map((_, v) => 10 ** ((v / 255 * -DB_FLOOR + DB_FLOOR) / 10));
+const levelOf = (db, ref) => Math.pow(clamp((db - (ref - LEVEL_RANGE)) / LEVEL_RANGE, 0, 1), 1.6);
+// mittlere Lautstärke der 10-ms-Stücke a..b als Höhe 0–1
+function levelRange(hi, a, b, ref) {
+  let pw = 0, n = 0;
+  for (let j = Math.max(0, a); j < b && j < hi.length; j++) { pw += POW_OF[hi[j]]; n++; }
+  return n ? levelOf(10 * Math.log10(pw / n + 1e-12), ref) : 0;
+}
+
 function makePeaks(mono, sr) {
-  const peaks = [];
-  const step = Math.max(1, Math.floor(mono.length / PEAK_COUNT));
-  let max = 0;
-  for (let i = 0; i < PEAK_COUNT; i++) {
-    let p = 0;
-    const end = Math.min(mono.length, (i + 1) * step);
-    for (let j = i * step; j < end; j += 4) { const v = Math.abs(mono[j]); if (v > p) p = v; }
-    peaks.push(p);
-    if (p > max) max = p;
-  }
   const hop = sr / HI_RATE;
   const n = Math.floor(mono.length / hop);
   const hi = new Uint8Array(n);
-  let hmax = 0;
-  const tmp = new Float32Array(n);
+  const dbs = new Float32Array(n);
   for (let i = 0; i < n; i++) {
-    let p = 0;
-    const s = Math.floor(i * hop), e = Math.floor((i + 1) * hop);
-    for (let j = s; j < e; j += 2) { const v = Math.abs(mono[j]); if (v > p) p = v; }
-    tmp[i] = p;
-    if (p > hmax) hmax = p;
+    let e = 0;
+    const a = Math.floor(i * hop), b = Math.floor((i + 1) * hop);
+    for (let j = a; j < b; j++) e += mono[j] * mono[j];
+    const db = 10 * Math.log10(e / (b - a) + 1e-12);
+    dbs[i] = db;
+    hi[i] = Math.round(clamp((db - DB_FLOOR) / -DB_FLOOR, 0, 1) * 255);
   }
-  for (let i = 0; i < n; i++) hi[i] = Math.round((hmax ? tmp[i] / hmax : 0) * 255);
-  return { peaks: peaks.map((p) => Math.round((max ? p / max : 0) * 100) / 100), hi };
+  // Bezug: die lautesten 0,5 % des Titels
+  const loud = Array.from(dbs).filter((d) => d > -80).sort((x, y) => x - y);
+  const ref = loud.length ? Math.round(loud[Math.floor(loud.length * 0.995)] * 10) / 10 : -10;
+  const peaks = [];
+  for (let k = 0; k < PEAK_COUNT; k++) {
+    peaks.push(Math.round(levelRange(hi, Math.floor((k / PEAK_COUNT) * n), Math.floor(((k + 1) / PEAK_COUNT) * n), ref) * 100) / 100);
+  }
+  return { peaks, hi, ref };
+}
+
+// ältere Titel: Wellenform einmal im Hintergrund neu berechnen
+const waveRefreshing = new Set();
+async function refreshWave(t) {
+  if (waveRefreshing.has(t.id)) return;
+  waveRefreshing.add(t.id);
+  try {
+    const buf = await decodeLow(await getFile(t.id));
+    const w = makePeaks(mixMono(buf), buf.sampleRate);
+    await putHi(t.id, w.hi);
+    hiCache.set(t.id, w.hi);
+    Object.assign(t, { peaks: w.peaks, waveRef: w.ref, waveV: WAVE_V });
+    overviewCache = null;
+    save();
+    draw();
+  } catch (e) {
+    console.warn('Wellenform', e);
+  } finally {
+    waveRefreshing.delete(t.id);
+  }
 }
 
 // Für die Analyse in 22 kHz dekodieren: halber Speicher, reicht für Takt und Wellenform
@@ -569,10 +648,10 @@ async function withFeatures(t, msg, direct) {
 async function analyseBlob(blob, id = null, label = '') {
   const buf = await decodeLow(blob);
   const mono = mixMono(buf);
-  const { peaks, hi } = makePeaks(mono, buf.sampleRate);
+  const { peaks, hi, ref } = makePeaks(mono, buf.sampleRate);
   const r = await runAnalysis(mono, buf.sampleRate, (p) => toast(`Analysiere ${label}… ${Math.round(p * 100)} %`, 30000));
   if (id) featCache = { id, F: r.F };
-  return { duration: buf.duration, peaks, hi, segments: r.segments, beats: r.beats, ones: r.ones };
+  return { duration: buf.duration, peaks, hi, ref, segments: r.segments, beats: r.beats, ones: r.ones };
 }
 
 async function featuresFor(t) {
@@ -712,6 +791,8 @@ async function addFiles(files) {
         fileSize: file.size,
         duration: info.duration,
         peaks: info.peaks,
+        waveRef: info.ref,
+        waveV: WAVE_V,
         groupId: filterGroup || '',
         markers: [],
         cueIn: 0,
@@ -897,12 +978,13 @@ async function ensureDetail(t) {
       const info = await analyseBlob(await getFile(t.id), t.id);
       hi = info.hi;
       await putHi(t.id, hi);
+      Object.assign(t, { peaks: info.peaks, waveRef: info.ref, waveV: WAVE_V });
       if (needTempo) {
         t.segments = toSegments(info.segments, t.segments || [], t.duration);
         t.beats = info.beats;
         t.ones = info.ones;
-        save();
       }
+      save();
       toast('Analyse fertig');
     } catch (e) {
       console.warn(e);
@@ -911,6 +993,7 @@ async function ensureDetail(t) {
     }
   }
   hiCache.set(t.id, hi);
+  if (t.waveV !== WAVE_V) refreshWave(t);
   renderAll();
 }
 
@@ -2093,6 +2176,8 @@ async function replaceAudio(t, file) {
     if (urlCache.has(t.id)) { URL.revokeObjectURL(urlCache.get(t.id)); urlCache.delete(t.id); }
     t.duration = info.duration;
     t.peaks = info.peaks;
+    t.waveRef = info.ref;
+    t.waveV = WAVE_V;
     t.fileName = file.name || t.fileName;
     if (!t.beats?.length) { t.segments = toSegments(info.segments, t.segments || [], t.duration); t.beats = info.beats; t.ones = info.ones; }
     save();
@@ -2221,6 +2306,19 @@ const markerText = (m, i) => `${i + 1}${m.label ? ' ' + m.label : ''}`;
 
 let waveLayout = { top: 0 };
 // Schmaler Streifen: ganzes Stück mit Liedfarben, Markern und dem Ausschnitt der großen Leiste
+let overviewCache = null;
+function overviewLevels(t, cols) {
+  const hi = hiCache.get(t.id);
+  if (!hi || t.waveV !== WAVE_V) {
+    return Array.from({ length: cols }, (_, c) => t.peaks[Math.floor((c / cols) * t.peaks.length)] || 0);
+  }
+  const key = `${t.id}:${cols}:${hi.length}`;
+  if (overviewCache?.key === key) return overviewCache.lv;
+  const lv = new Float32Array(cols);
+  for (let c = 0; c < cols; c++) lv[c] = levelRange(hi, Math.floor((c / cols) * hi.length), Math.floor(((c + 1) / cols) * hi.length), t.waveRef ?? -10);
+  overviewCache = { key, lv };
+  return lv;
+}
 function drawOverview() {
   const { g, w, h } = prepCanvas(wave);
   const t = current();
@@ -2235,14 +2333,12 @@ function drawOverview() {
   const mid = TOP + (h - TOP - BAND) / 2, amp = (h - TOP - BAND) / 2 - 1;
   const px = x(cur), inX = x(cueIn(t)), outX = x(cueOut(t));
   let si = 0;
+  const cols = Math.ceil(w / 2);
+  const lvs = overviewLevels(t, cols);
   for (let bx = 0; bx < w; bx += 2) {
     const sec = (bx / w) * dur;
     while (si + 1 < segs.length && segs[si + 1].start <= sec) si++;
-    const a = Math.floor((bx / w) * t.peaks.length);
-    const b = Math.max(a + 1, Math.floor(((bx + 2) / w) * t.peaks.length));
-    let p = 0;
-    for (let j = a; j < b; j++) p = Math.max(p, t.peaks[j] || 0);
-    p = Math.max(0.05, p);
+    const p = Math.max(0.05, lvs[bx / 2] || 0);
     const played = bx < px;
     g.fillStyle = played || multi ? segColor(t, segs[si]) : unplayed;
     g.globalAlpha = (bx < inX || bx > outX ? 0.3 : 1) * (played ? 1 : multi ? 0.4 : 1);
@@ -2297,16 +2393,22 @@ function drawZoom() {
   const mid = top + (h - top) / 2;
   const amp = (h - top) / 2 - 2;
   if (hi) {
-    const barW = 2;
-    for (let x = 0; x < w; x += barW + 1) {
-      const sec = start + x / pxPerSec;
-      if (sec < 0 || sec > t.duration) continue;
-      const a = Math.floor(sec * HI_RATE), b = Math.max(a + 1, Math.floor((start + (x + barW + 1) / pxPerSec) * HI_RATE));
-      let p = 0;
-      for (let j = a; j < b && j < hi.length; j++) if (hi[j] > p) p = hi[j];
-      const v = Math.max(0.02, p / 255) * amp;
+    const dpr = window.devicePixelRatio || 1;
+    const v2 = t.waveV === WAVE_V;
+    // jeder Balken steht für ein festes Zeitstück → Höhen bleiben beim Abspielen ruhig
+    const binSec = Math.max(3 / pxPerSec, 1 / HI_RATE);
+    const barW = Math.max(1, Math.round(binSec * pxPerSec * 0.66 * dpr) / dpr);
+    for (let k = Math.floor(Math.max(0, start) / binSec); k * binSec < start + span; k++) {
+      const sec = k * binSec;
+      if (sec > t.duration) break;
+      const a = Math.floor(sec * HI_RATE), b = Math.max(a + 1, Math.floor((sec + binSec) * HI_RATE));
+      let lv;
+      if (v2) lv = levelRange(hi, a, b, t.waveRef ?? -10);
+      else { let p = 0; for (let j = a; j < b && j < hi.length; j++) if (hi[j] > p) p = hi[j]; lv = p / 255; }
+      const v = Math.max(0.02, lv) * amp;
+      const x = Math.round(X(sec) * dpr) / dpr;
       const outside = sec < cueIn(t) || sec > cueOut(t);
-      const played = sec < cur;
+      const played = sec + binSec / 2 < cur;
       g.fillStyle = played || multi ? segColor(t, segAt(t, sec)) : unplayed;
       g.globalAlpha = (outside ? 0.3 : 1) * (played ? 1 : multi ? 0.38 : 1);
       g.fillRect(x, mid - v, barW, v * 2);
@@ -2539,6 +2641,7 @@ async function exportSet() {
     save();
     hideBanner('backup');
     hideBanner('persist');
+    if (state.snoozed) { delete state.snoozed.backup; save(); }
     if ($('lastBackup')) $('lastBackup').textContent = `Letzte Sicherung: ${new Date(state.lastBackup).toLocaleString('de-DE')}`;
   };
   if (isNative()) {
@@ -2642,6 +2745,7 @@ $('emptyFileInput').onchange = (e) => { addFiles(e.target.files); e.target.value
 $('importInput').onchange = (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) { $('settingsDlg').close(); importSet(f); } };
 $('exportBtn').onclick = () => { $('settingsDlg').close(); exportSet(); };
 $('helpBtn').onclick = () => $('helpDlg').showModal();
+$('noticeChip').onclick = openNotices;
 $('settingsBtn').onclick = openSettings;
 $('addGroupBtn').onclick = () => openGroupDialog(null);
 $('nowTitleBtn').onclick = () => current() && openTrackDialog(current());

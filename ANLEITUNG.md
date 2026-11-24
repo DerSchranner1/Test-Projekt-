@@ -65,8 +65,9 @@ Alles lässt sich mit **Rückgängig** zurücknehmen.
   und das Handy trennt nicht – auch gesperrt. Oben steht dann „● BT wach“.
 - **Android-App:** Es erscheint die Benachrichtigung „Narrhalla Player“ mit Tasten für Von vorn / Pause / Stopp.
   Auch die Tasten an der Box oder am Kopfhörer funktionieren.
-- **Gelbe Warnung oben?** Auf **Beheben** tippen. Typisch: Akku-Optimierung ist an oder Benachrichtigungen sind aus –
-  dann kann Android die App im Training beenden.
+- **Gelbes ⚠ oben neben dem Namen?** Antippen → **Beheben**. Typisch: Akku-Optimierung ist an oder Benachrichtigungen
+  sind aus – dann kann Android die App im Training beenden. Mit **Später** ist 3 Tage Ruhe, mit **Nicht mehr erinnern**
+  für immer. Die App lässt sich dabei ganz normal weiter benutzen.
 - Schaltet die Box trotzdem ab: **Stärke** auf „etwas stärker“.
 - **iPhone/iPad:** Musik läuft gesperrt weiter. Lautstärke über die Gerätetasten; Ausblenden und Mitzählen
   gehen nur bei entsperrtem Bildschirm. Die App unbedingt über Teilen → **Zum Home-Bildschirm** installieren.

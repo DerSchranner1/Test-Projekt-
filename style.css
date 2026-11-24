@@ -51,6 +51,15 @@ h3 { font-size: 15px; margin: 0 0 4px; }
 .ka-ind { font-size: 11px; font-weight: 600; color: #3ddc97; white-space: nowrap; }
 .ka-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #3ddc97; margin-right: 4px; }
 .top-actions { display: flex; gap: 8px; }
+.notice-chip {
+  min-height: 34px; padding: 2px 12px; border-radius: 999px; font-weight: 750; font-size: 14px;
+  background: var(--warn-bg); color: #ffe08a; border: 1px solid var(--warn-line); white-space: nowrap;
+}
+.notice-chip.info { background: #12263a; color: #d6f1ff; border-color: #4cc9f0; }
+.notice-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.notice-item { border: 1px solid var(--warn-line); background: var(--warn-bg); border-radius: 10px; padding: 10px 12px; }
+.notice-item.info { border-color: #4cc9f0; background: #12263a; }
+.notice-item p { margin: 0 0 8px; color: var(--text); }
 
 /* ---------- Buttons ---------- */
 .btn {
@@ -373,6 +382,9 @@ body.has-mini .toast { bottom: calc(84px + env(safe-area-inset-bottom)); }
   .transport { gap: 6px; }
   .tbtn { width: 50px; height: 50px; }
   .tbtn.big { width: 72px; height: 72px; }
+}
+@media (max-width: 480px) {
+  .brand-name { display: none; }
 }
 @media (max-width: 400px) {
   .now { flex-wrap: wrap; }

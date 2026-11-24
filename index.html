@@ -16,8 +16,9 @@
 </head>
 <body>
   <header class="topbar">
-    <div class="brand"><span class="logo">🎭</span> Narrhalla Player
-      <span id="kaInd" class="ka-ind" title="Bluetooth wird wach gehalten" hidden><span class="ka-dot"></span>BT wach</span></div>
+    <div class="brand"><span class="logo">🎭</span> <span class="brand-name">Narrhalla Player</span>
+      <span id="kaInd" class="ka-ind" title="Bluetooth wird wach gehalten" hidden><span class="ka-dot"></span>BT wach</span>
+      <button id="noticeChip" class="notice-chip" title="Hinweise" hidden>⚠ <span id="noticeCount"></span></button></div>
     <div class="top-actions">
       <label class="btn" title="Audiodateien laden">
         + Titel
@@ -358,6 +359,14 @@
     </form>
   </dialog>
 
+  <dialog id="noticeDlg">
+    <form method="dialog" class="dlg">
+      <h2>Hinweise</h2>
+      <ul id="noticeList" class="notice-list"></ul>
+      <div class="dlg-actions"><button class="btn ghost">Schließen</button></div>
+    </form>
+  </dialog>
+
   <dialog id="confirmDlg">
     <form method="dialog" class="dlg">
       <h2 id="confirmTitle"></h2>
@@ -379,7 +388,7 @@
         <p><b>Marker:</b> „+ Marker hier“ setzt einen Marker an der aktuellen Stelle. Den farbigen Marker antippen startet genau dort. ✎ daneben: Name, Farbe, löschen.</p>
         <p><b>Mitzählen:</b> Stimme oder Klick zählt 1–8 mit. Stimmt die 1 nicht: „Bearbeiten“ → an die richtige Stelle schieben → „Hier ist die 1“.</p>
         <p><b>Rückgängig:</b> Nach jeder Änderung erscheint unten kurz „Rückgängig“.</p>
-        <p><b>Training mit Bluetooth-Box:</b> ⚙ → „Bluetooth-Verbindung wach halten“ (ist an). Erscheint oben eine gelbe Warnung, bitte auf „Beheben“ tippen.</p>
+        <p><b>Training mit Bluetooth-Box:</b> ⚙ → „Bluetooth-Verbindung wach halten“ (ist an). Steht oben ein gelbes ⚠, antippen und „Beheben“ wählen.</p>
         <p><b>Sichern:</b> ⚙ → „Jetzt sichern“. Ohne Sicherung sind Marker und Korrekturen weg, wenn das Handy kaputtgeht oder die App gelöscht wird.</p>
       </div>
       <div id="keyHelp" class="help-keys">
