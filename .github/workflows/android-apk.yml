@@ -28,6 +28,7 @@ jobs:
           distribution: temurin
           java-version: 21
           cache: gradle
+          cache-dependency-path: package-lock.json
 
       - name: Web-App in Android-Projekt verpacken
         run: |
