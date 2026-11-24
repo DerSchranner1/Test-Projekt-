@@ -241,7 +241,7 @@ a{color:var(--accent)}
         <button data-pkg="spar"><b>Spar</b><span>Holz · PV · viel selbst</span></button>
         <button data-pkg="empf"><b>Empfehlung</b><span>Ecke · längs · PV</span></button>
         <button data-pkg="komfort"><b>Komfort</b><span>Solar-Carport · Speicher</span></button>
-        <button data-pkg="doppel"><b>Doppel</b><span>2 Autos · zu groß</span></button>
+        <button data-pkg="zwei"><b>Zwei Autos</b><span>Kragarm · ohne Stützen vorne</span></button>
       </div>
       <nav class="tabs" role="tablist" aria-label="Planungsschritte">
         <button class="tab" role="tab" data-step="1" aria-selected="true"><span>1</span>Platz</button>
@@ -496,6 +496,12 @@ const LAGEN={
     sideX(){return Math.max(0.1,S.postFence-frame().O[1]);}, spotX(){return Math.min(S.w-1.05,Math.max(S.w/2,this.sideX()+1.45));},
     tags:[['ok','Durchfahrt frei'],['ok','Wendeplatz frei'],['','1 Auto']],
     def:{w:3.6,d:5.4,offX:0,gap:0,slope:'left',wbCount:1,path:'rueck'}},
+  ecke2:{name:'Zwei Autos nebeneinander, längs am Bachzaun',d:'Beide Autos parken längs zum Bachzaun, eins hinter dem Zaun, eins davor. Die Stützen stehen nur ganz hinten am Zaun hinter einem Bordstein, dort kommt kein Auto hin. Das Dach kragt rund 5,5 m frei aus.',
+    get phi(){return -90;}, get O0(){return [Math.min(6.75,xF3(0.35)-0.4),0.35];}, bz:0.6, parkZ:0.35, curb:true,
+    sideX(){return Math.max(0.1,S.postFence-frame().O[1]);},
+    spotsX(){const a=this.sideX()+1.7;return [a,a+CAR.B+0.75];},
+    tags:[['ok','Keine Stütze zum Anfahren'],['ok','2 Autos'],['warn','Zweites Auto steht vor der grauen Fläche'],['warn','Statik + Ufermauer prüfen']],
+    def:{w:6.0,d:5.4,h:2.1,offX:0,gap:0.4,slope:'left',tilt:4,postFence:0.7,type:'krag',path:'rueck',wbCount:1}},
   zaun:{name:'Doppel-Carport quer zum Bachzaun',d:'Zwei Autos mit der Nase zum Zaun. Braucht 5,5 m Tiefe und ragt deshalb in die Durchfahrt und an den Wendeplatz.',
     phi:0,O0:[0,0],bz:null,tags:[['bad','Ragt in die Durchfahrt'],['','2 Autos']],
     def:{w:6.0,d:5.5,offX:0.6,gap:0.3,slope:'back',path:'rueck'}},
@@ -510,6 +516,9 @@ const TYPES={
   tform:{name:'Mittelstützen (T-Form)',d:'Zwei Stützen in der Mitte zwischen den Autos, beim Einzel-Carport auf einer Seite. Das Dach kragt aus, vorne und am Zaun steht nichts.',
     base:2200,perM2:200,mont:0.25,crane:0,fundMat:260,fundLab:650,statik:450,pf:0.25,post:0.16,diy:'teil',
     tags:[['ok','Vorne frei'],['ok','Nichts am Bachzaun'],['warn','Stütze neben dem Auto']]},
+  krag:{name:'Kragarm einseitig, Stützen nur am Zaun',d:'Stahlrahmen, alle Stützen hinten an der Zaunseite hinter einem Bordstein. Das Dach kragt nach vorne frei aus. Es gibt nichts, wogegen man fahren kann. Einzelanfertigung vom Stahl- oder Metallbauer.',
+    base:3500,perM2:300,mont:0.25,crane:600,fundMat:600,fundLab:1300,statik:900,pf:0.45,post:0.22,diy:'teil',
+    tags:[['ok','Nichts zum Anfahren'],['ok','Auch für 2 Autos'],['warn','Große Fundamente nah am Bach'],['warn','Teuer, Kran']]},
   portal:{name:'Alu/Stahl, Stützen eingerückt',d:'Vier Stützen an den Seiten, vorne 1,6 m und hinten mit Abstand zum Zaun eingerückt. Das Dach steht vorne und hinten über.',
     base:1500,perM2:170,mont:0.25,crane:0,fundMat:70,fundLab:240,statik:0,pf:0.16,post:0.12,diy:'teil',
     tags:[['ok','Ecken frei'],['','Typenstatik'],['warn','Stützen seitlich neben dem Auto']]},
@@ -554,6 +563,7 @@ const PKG={
   spar:{lage:'ecke',type:'holz',w:3.6,d:5.4,h:2.2,tilt:5,slope:'left',offX:0,gap:0,path:'rueck',pave:'bestand',bump:true,stop:true,light:false,pv:true,module:'std',wb:'smart',wbCount:1,inverter:'string',invLoc:'carport',bat:0,cat:true,diyAll:true},
   empf:{lage:'ecke',type:'tform',w:3.6,d:5.4,h:2.2,tilt:6,slope:'left',offX:0,gap:0,path:'rueck',pave:'bestand',bump:false,stop:true,light:true,pv:true,module:'gg',wb:'smart',wbCount:1,inverter:'string',invLoc:'carport',bat:0,cat:true,diyAll:false,diyPick:['cp_drain','pv_mount','cab','cat','stops']},
   komfort:{lage:'ecke',type:'solar',w:3.6,d:5.4,h:2.25,tilt:6,slope:'left',offX:0,gap:0,path:'rueck',pave:'umbau',bump:false,stop:true,light:true,pv:true,module:'semi',wb:'fronius',wbCount:1,inverter:'hybrid',invLoc:'carport',bat:5,cat:true,diyAll:false},
+  zwei:{lage:'ecke2',type:'krag',w:6.0,d:5.4,h:2.1,tilt:4,slope:'left',offX:0,gap:0.4,postFence:0.7,path:'rueck',pave:'umbau',bump:false,stop:true,light:true,pv:true,module:'gg',wb:'smart',wbCount:1,inverter:'string',invLoc:'carport',bat:0,cat:true,diyAll:false,diyPick:['cp_drain','pv_mount','cab','cat','stops','curb','pf_out','pf_gravel']},
   doppel:{lage:'zaun',type:'tform',w:6.0,d:5.5,h:2.2,tilt:6,slope:'back',offX:0.6,gap:0.3,path:'rueck',pave:'umbau',bump:false,stop:true,light:true,pv:true,module:'gg',wb:'smart',wbCount:1,inverter:'string',invLoc:'carport',bat:0,cat:true,diyAll:false}
 };
 const S=JSON.parse(JSON.stringify(DEF));
@@ -583,7 +593,7 @@ function frame(){const p=rad(LG().phi),u=[Math.sin(p),Math.cos(p)],xd=[Math.cos(
 const toW=(x,z)=>{const f=frame();return {x:f.O[0]+x*f.xd[0]+z*f.u[0],z:f.O[1]+x*f.xd[1]+z*f.u[1]};};
 const toL=(x,z)=>{const f=frame(),dx=x-f.O[0],dz=z-f.O[1];return {x:dx*f.xd[0]+dz*f.xd[1],z:dx*f.u[0]+dz*f.u[1]};};
 const backRow=()=>LG().bz!=null?LG().bz:Math.max(0.15,S.postFence-S.gap);
-function spots(){if(LG().spotX)return [LG().spotX()];return S.w>=5.2?[S.w*0.25,S.w*0.75]:[S.w/2];}
+function spots(){if(LG().spotsX)return LG().spotsX();if(LG().spotX)return [LG().spotX()];return S.w>=5.2?[S.w*0.25,S.w*0.75]:[S.w/2];}
 function postsLocal(){
   const {w,d,type}=S, P=[], bz=backRow(), xl=LG().sideX?LG().sideX():0.08;
   if(type==='holz'){
@@ -598,6 +608,9 @@ function postsLocal(){
   }else if(type==='tform'){
     const x=spots().length>1?w/2:(LG().sideX?LG().sideX():0.1);
     for(const z of [Math.max(bz,1.0),Math.max(bz+2,d-1.2)]) P.push({x,z});
+  }else if(type==='krag'){
+    const x=LG().sideX?LG().sideX():0.25;
+    for(const z of [0.6,d/2,d-0.6]) P.push({x,z});
   }else{
     const xs=w<=4.2?[0.3,w-0.3]:[0.3,w/2,w-0.3];
     for(const x of xs) P.push({x,z:bz});
@@ -609,7 +622,7 @@ const alongX=()=>S.slope==='left'||S.slope==='right';
 function yU(x,z){const t=Math.tan(rad(S.tilt)),e=roofExt();return S.h+t*{back:z-e.za,front:e.zb-z,left:x-e.xa,right:e.xb-x}[S.slope];}
 function roofDims(){const e=roofExt(),c=Math.cos(rad(S.tilt)),sx=e.xb-e.xa,sz=e.zb-e.za;return {RX:alongX()?sx/c:sx,RZ:alongX()?sz:sz/c,cx:(e.xa+e.xb)/2,cz:(e.za+e.zb)/2,c};}
 function toRoof(x,z){const r=roofDims();return {lx:(x-r.cx)/(alongX()?r.c:1),lz:(z-r.cz)/(alongX()?1:r.c)};}
-function topLayer(){return {holz:{raf:0.12,cov:0.03},portal:{raf:0.07,cov:0.04},frei:{raf:0.08,cov:0.04},solar:{raf:0.05,cov:0},tform:{raf:0.07,cov:0.04}}[S.type];}
+function topLayer(){return {holz:{raf:0.12,cov:0.03},portal:{raf:0.07,cov:0.04},frei:{raf:0.08,cov:0.04},krag:{raf:0.08,cov:0.04},solar:{raf:0.05,cov:0},tform:{raf:0.07,cov:0.04}}[S.type];}
 function roofHeights(){
   const e=roofExt(),T=TYPES[S.type],L=topLayer(),add=T.pf+L.raf+L.cov+(S.pv&&S.type!=='solar'?0.1:0);
   const ys=[[e.xa,e.za],[e.xb,e.za],[e.xa,e.zb],[e.xb,e.zb]].map(([x,z])=>yU(x,z));
@@ -631,7 +644,7 @@ function pvYield(kwp){
   return {kwh:kwp*1050*f*(1-S.shade/100)*(1+MODULES[S.module].bif),face,f};
 }
 function invAtCarport(){return S.pv&&S.inverter!=='existing'&&(S.invLoc==='carport'||S.inverter==='micro');}
-function boardLocal(){if(S.lage==='ecke'){const l=toL(LEER.x,LEER.z);return {x:0.12,z:clamp(l.z,0.7,S.d-0.7),atPipe:true,rot:Math.PI/2};}const l=toL(LEER.x,LEER.z+0.2);if(l.x>0.4&&l.x<S.w-0.4&&l.z>-1.5&&l.z<1.5)return {x:l.x,z:0.06,atPipe:true};if(S.lage==='feld')return {x:-0.3,z:1.25,atPipe:false};return {x:spots().length>1?S.w/2+0.7:S.w-0.5,z:0.06,atPipe:false};}
+function boardLocal(){if(S.lage==='ecke'||S.lage==='ecke2'){const l=toL(LEER.x,LEER.z);return {x:0.12,z:clamp(l.z,0.7,S.d-0.7),atPipe:true,rot:Math.PI/2};}const l=toL(LEER.x,LEER.z+0.2);if(l.x>0.4&&l.x<S.w-0.4&&l.z>-1.5&&l.z<1.5)return {x:l.x,z:0.06,atPipe:true};if(S.lage==='feld')return {x:-0.3,z:1.25,atPipe:false};return {x:spots().length>1?S.w/2+0.7:S.w-0.5,z:0.06,atPipe:false};}
 function extraRun(){const b=boardLocal();if(b.atPipe)return 0;const w=toW(b.x,b.z);return Math.round(Math.hypot(w.x-LEER.x,w.z-LEER.z)*10)/10+0.5;}
 function cableCalc(){
   const W=WALLBOXES[S.wb],lay=moduleLayout(),kwp=lay.n*MODULES[S.module].wp/1000,atC=invAtCarport();
@@ -683,6 +696,7 @@ function buildPath(){
 }
 function wallboxSpots(){
   if(S.wb==='none') return [];
+  if(S.type==='krag'){const P=postsLocal().slice().sort((a,b)=>Math.abs(a.z-S.d/2)-Math.abs(b.z-S.d/2));return P.slice(0,S.wbCount).map(p=>({x:p.x+0.17,z:p.z,onPost:true}));}
   const {w}=S,P=postsLocal(),bz=Math.min(...P.map(p=>p.z)),back=P.filter(p=>Math.abs(p.z-bz)<0.01);
   const two=S.wbCount===2,many=spots().length>1;
   const xs=two?(many?[w/2-0.35,w/2+0.35]:[w/2-0.3,w/2+0.3]):[many?w/2:(S.type==='tform'?0.1:w-0.3)];
@@ -804,18 +818,19 @@ function offer(){
   const add=(g,o)=>G[g].push(Object.assign({mat:0,lab:0,diy:'nein',vat:19},o));
   const kit=T.base+T.perM2*A;
   add('carport',{id:'cp_kit',label:T.name,note:`Bausatz ${nf(S.w,1)} × ${nf(S.d,1)} m inkl. Dachhaut${S.type==='solar'?' (ohne Module)':''}, Montage durch Fachbetrieb vom Hof aus`,mat:kit,lab:kit*T.mont,diy:S.type==='holz'?'ja':'teil'});
-  add('carport',{id:'cp_found',label:`Fundamente für ${posts.length} Stützen`,note:`${S.type==='frei'?'Große Blockfundamente ca. 1,0 × 1,0 × 1,2 m wegen des Kragarms':S.type==='tform'?'Blockfundamente ca. 0,8 × 0,8 × 1,0 m mit Ankerkorb':'Punktfundamente 50 × 50 × 80 cm mit H-Ankern'}, mind. ${m(postFenceDist(),1)} vom Zaun${umbau?'':', Pflaster öffnen und schließen'}`,mat:posts.length*T.fundMat+40,lab:posts.length*T.fundLab+(umbau?0:150),diy:(S.type==='frei'||S.type==='tform')?'teil':'ja'});
-  if(T.statik||S.pv) add('carport',{id:'cp_statik',label:T.statik?'Statik (Einzelnachweis)':'Statik-Check mit PV-Last',note:'Schneelastzone, Wind, Modulgewicht ca. 15 kg/m²',lab:T.statik||250});
+  add('carport',{id:'cp_found',label:`Fundamente für ${posts.length} Stützen`,note:`${S.type==='krag'?'Eingespannte Blockfundamente ca. 1,2 × 1,2 × 1,2 m wegen des Kragarms':S.type==='frei'?'Große Blockfundamente ca. 1,0 × 1,0 × 1,2 m wegen des Kragarms':S.type==='tform'?'Blockfundamente ca. 0,8 × 0,8 × 1,0 m mit Ankerkorb':'Punktfundamente 50 × 50 × 80 cm mit H-Ankern'}, mind. ${m(postFenceDist(),1)} vom Zaun${umbau?'':', Pflaster öffnen und schließen'}`,mat:posts.length*T.fundMat+40,lab:posts.length*T.fundLab+(umbau?0:150),diy:(S.type==='frei'||S.type==='tform'||S.type==='krag')?'teil':'ja'});
+  if(T.statik||S.pv) add('carport',{id:'cp_statik',label:T.statik?'Statik (Einzelnachweis)':'Statik-Check mit PV-Last',note:S.type==='krag'?'Kragarm, Schnee, Wind, PV-Last, dazu Nachweis, dass die Fundamente die Ufermauer nicht belasten':'Schneelastzone, Wind, Modulgewicht ca. 15 kg/m²',lab:T.statik||250});
   if(T.crane) add('carport',{id:'cp_crane',label:'Autokran / Teleskoplader',note:'Stahlträger sind zu schwer zum Tragen',lab:T.crane});
   add('carport',{id:'cp_drain',label:'Dachrinne, Fallrohr, Versickerung',note:'Fallrohr in eine Sickermulde im Rasen, nicht in den Bach',mat:320,lab:300,diy:'ja'});
-  const entryPosts=posts.filter(p=>p.z>S.d*0.5&&(p.x<0.5||p.x>S.w-0.5)).length;
+  const entryPosts=posts.filter(p=>S.type!=='krag'&&p.z>S.d*0.5&&(p.x<0.5||p.x>S.w-0.5)).length;
   if(S.bump&&entryPosts) add('carport',{id:'bump',label:`Anfahrschutz, ${entryPosts} Stützen`,note:'Rammschutz-Manschetten gelb-schwarz',mat:entryPosts*85,diy:'ja'});
+  if(LG().curb&&S.type==='krag') add('carport',{id:'curb',label:`Schrammbord vor den Stützen, ${nf(S.d-0.2,1)} m`,note:'Granit- oder Betonbord, 20 cm hoch. Damit kommt kein Rad an die Stützen',mat:(S.d-0.2)*25,lab:(S.d-0.2)*30,diy:'ja'});
   if(S.stop) add('carport',{id:'stops',label:`Radstopper, ${spots().length} Stellplatz${spots().length>1?'e':''}`,note:'Gummi, verschraubt',mat:spots().length*70,lab:spots().length*40,diy:'ja'});
   if(S.light) add('carport',{id:'light',label:'LED-Licht mit Bewegungsmelder',note:'Anschluss an die Unterverteilung',mat:180,lab:150,diy:'teil'});
   if(umbau){
     const P=umbauPoly(), Ap=polyArea(P);
     let edge=0; for(let i=1;i<P.length;i++) edge+=Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1]);
-    const gravel=S.lage==='zaun'?Math.min(7,S.w+0.8)+(toW(S.w,0).x>6.3?Math.min(3.6,S.d*0.6):0):S.lage==='ecke'?S.d+0.8:0;
+    const gravel=S.lage==='zaun'?Math.min(7,S.w+0.8)+(toW(S.w,0).x>6.3?Math.min(3.6,S.d*0.6):0):(S.lage==='ecke'||S.lage==='ecke2')?S.d+0.8:0;
     add('pflaster',{id:'pf_out',label:'Altes Pflaster und Granitbogen aufnehmen',note:`${nf(Ap,1)} m², Steine sauber stapeln zum Wiederverwenden`,lab:18*Ap,diy:'ja'});
     add('pflaster',{id:'pf_base',label:'Unterbau prüfen, Splittbett, verdichten',note:'inkl. Rüttelplatte (Miete) und Ausgleich auf Gefälle zum Hof',mat:9*Ap+60,lab:14*Ap,diy:'ja'});
     add('pflaster',{id:'pf_lay',label:'Pflaster neu verlegen',note:'vorhandene Steine wiederverwenden, ca. 15 % neue',mat:5*Ap,lab:30*Ap,diy:'ja'});
@@ -1047,14 +1062,23 @@ function buildCarport(){
     const hh=yU(p.x,p.z);
     box(T.post,hh,T.post,steel,p.x,hh/2,p.z,CP);
     box(T.post+0.12,0.02,T.post+0.12,mat(0x8e9192,{metalness:0.5}),p.x,0.02,p.z,CP);
-    if(S.bump&&p.z>S.d*0.5&&(p.x<0.5||p.x>S.w-0.5)){const c=new THREE.Mesh(new THREE.CylinderGeometry(T.post*0.9,T.post*0.9,0.8,16,1,true),new THREE.MeshStandardMaterial({map:stripeTex(),side:THREE.DoubleSide}));c.position.set(p.x,0.42,p.z);c.castShadow=true;CP.add(c);}
+    if(S.bump&&S.type!=='krag'&&p.z>S.d*0.5&&(p.x<0.5||p.x>S.w-0.5)){const c=new THREE.Mesh(new THREE.CylinderGeometry(T.post*0.9,T.post*0.9,0.8,16,1,true),new THREE.MeshStandardMaterial({map:stripeTex(),side:THREE.DoubleSide}));c.position.set(p.x,0.42,p.z);c.castShadow=true;CP.add(c);}
   });
   // Dachgruppe (alles darin liegt in der Dachebene)
   const R=new THREE.Group(); R.position.set(r.cx,yU(r.cx,r.cz)+T.pf,r.cz);
   if(S.slope==='back')R.rotation.x=-tl; else if(S.slope==='front')R.rotation.x=tl; else if(S.slope==='left')R.rotation.z=tl; else R.rotation.z=-tl;
   CP.add(R);
   // Haupttragwerk
-  if(S.type==='frei'){
+  if(S.type==='krag'){
+    const lxp=toRoof(posts[0].x,0).lx;
+    posts.forEach(p=>{
+      const geo=new THREE.BoxGeometry(RX,1,0.18,16,1,1),pos=geo.attributes.position;
+      for(let i=0;i<pos.count;i++){const x=pos.getX(i),y=pos.getY(i);let dep;if(x>=lxp){const t=(x-lxp)/(RX/2-lxp);dep=0.45*(1-t)+0.14*t;}else dep=0.45;pos.setY(i,y>0?0:-dep);}
+      geo.computeVertexNormals();
+      const me=new THREE.Mesh(geo,steel);me.position.set(0,0,toRoof(0,p.z).lz);me.castShadow=true;R.add(me);
+    });
+    box(0.2,0.45,RZ,steel,lxp,-0.225,0,R);
+  }else if(S.type==='frei'){
     const lzp=toRoof(0,posts[0].z).lz;
     posts.forEach(p=>{
       const geo=new THREE.BoxGeometry(0.16,1,RZ,1,1,12),pos=geo.attributes.position;
@@ -1107,6 +1131,7 @@ function buildCarport(){
   if(S.light){const p=toRoof(w/2,d-0.35);const led=new THREE.Mesh(new THREE.BoxGeometry(Math.min(w-0.6,3),0.02,0.05),new THREE.MeshBasicMaterial({color:0xfff6d8}));led.position.set(p.lx,-0.012,p.lz);R.add(led);}
   buildTech();
   if(S.stop) spots().forEach(x=>{for(const k of [-0.6,0.6]) box(0.5,0.1,0.15,mat(0x2b2b2b),x+k,0.05,pz()+0.53,CP);});
+  if(LG().curb&&S.type==='krag'){const cx=postsLocal()[0].x+TYPES.krag.post/2+0.25;box(0.18,0.2,S.d-0.2,mat(0xb8bab7),cx,0.1,S.d/2,CP);}
   // Fallrohr
   const e=roofExt(); const c={back:[e.xa,e.za],front:[e.xa,e.zb],left:[e.xa,e.zb-0.15],right:[e.xb,e.zb-0.15]}[S.slope];
   const lowY=yU(c[0],c[1])+T.pf; const dp=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,lowY,10),mat(0x8b8f93,{metalness:0.5}));
@@ -1304,10 +1329,11 @@ const clrText=c=>c<0?'Kollision':nf(c*100)+' cm';
 function renderSim(){
   const order=['Stütze','Torpfeiler','Zweites Auto','Technik','Zaun'];
   const rows=order.filter(k=>SIM.best[k]).map(k=>{const c=SIM.best[k].c,col={ok:'var(--ok)',warn:'var(--warn)',bad:'var(--bad)'}[clrClass(c)];return `<span class="dot" style="background:${col}"></span><span>${k}</span><span class="num">${clrText(c)}</span>`;}).join('');
-  const posts=postsLocal(), entry=posts.filter(p=>p.z>S.d*0.5&&(p.x<0.5||p.x>S.w-0.5)).length;
+  const posts=postsLocal(), entry=posts.filter(p=>S.type!=='krag'&&p.z>S.d*0.5&&(p.x<0.5||p.x>S.w-0.5)).length;
   const sp=spots(), between=sp.length>1?(sp[1]-sp[0])-CAR.body:null;
   let side=sp.length>1?Math.min(sp[0]-CAR.body/2,S.w-sp[1]-CAR.body/2):(S.w-CAR.body)/2;
   if(S.type==='tform'&&sp.length>1) side=Math.min(side,(sp[1]-sp[0])/2-CAR.body/2-TYPES.tform.post/2);
+  if(S.type==='krag') side=sp[0]-CAR.body/2-(postsLocal()[0].x+TYPES.krag.post/2+0.34);
   const w=SIM.worst, cls=SIM.path.ok?clrClass(w.c):'warn';
   $('#simBox').innerHTML=`<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><b>${!SIM.path.ok?'Geht so nicht in einem Zug':cls==='ok'?'Passt, genug Luft':cls==='warn'?'Knapp, Vorsicht beim Rangieren':'Hier kracht es'}</b>${SIM.path.ok?`<span class="chip ${cls}">engste Stelle: ${w.cat}</span>`:''}</div>
   ${SIM.path.ok?`<div class="clr">${rows}</div>`:''}
