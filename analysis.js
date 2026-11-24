@@ -282,7 +282,7 @@ function NarrhallaAnalysis(root) {
     const starts = [0];
     for (let i = 1; i < beats.length; i++) {
       const r = (beats[i] - beats[i - 1]) / med;
-      if ((r < 0.82 || r > 1.18) && i - starts[starts.length - 1] >= 8) starts.push(i);
+      if ((r < 0.75 || r > 1.25) && i - starts[starts.length - 1] >= 8) starts.push(i);
     }
     const chromaAt = (t0, t1) => normalize(meanVec(F.chroma, 12, Math.round(t0 * CFPS), Math.round(t1 * CFPS)));
     let maxOn = 1e-9;
@@ -306,7 +306,10 @@ function NarrhallaAnalysis(root) {
     starts.forEach((s, si) => {
       const e = si + 1 < starts.length ? starts[si + 1] : beats.length;
       const len = e - s;
-      if (len < 16) { ones.push(s); return; }
+      // nach einer vermuteten Schnittstelle: im Zweifel einfach weiterzählen
+      const prev = ones[ones.length - 1];
+      const jc = si > 0 ? mod(prev - s, 8) : null; // wo die 1 läge, wenn weitergezählt wird
+      if (len < 16) { if (si === 0) ones.push(s); return; }
       const acc = new Float32Array(8);
       for (let k = s; k < e; k++) acc[(k - s) % 8] += bass[k] / maxOn + 2 * change[k];
       const total = acc.reduce((p, q) => p + q, 0) || 1;
@@ -320,6 +323,11 @@ function NarrhallaAnalysis(root) {
       for (let j = 0; j < 8; j++) {
         const sc = acc[j] / total + (j === fj ? 0.1 : 0) + (j === (fj + 4) % 8 ? 0.02 : 0);
         if (sc > bs) { bs = sc; bj = j; }
+      }
+      if (si > 0) {
+        // nur neu anfangen, wenn Bass und Harmonie deutlich eine andere 1 zeigen und der Abschnitt lang ist
+        const margin = acc[bj] / total - acc[jc] / total;
+        if (bj === jc || len < 32 || margin < 0.08) return;
       }
       ones.push(s + bj);
     });

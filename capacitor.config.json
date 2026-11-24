@@ -2,5 +2,8 @@
   "appId": "de.narrhalla.player",
   "appName": "Narrhalla Player",
   "webDir": "www",
-  "backgroundColor": "#121216"
+  "backgroundColor": "#121216",
+  "android": {
+    "adjustMarginsForEdgeToEdge": "force"
+  }
 }

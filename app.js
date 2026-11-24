@@ -6,7 +6,7 @@
 
 const $ = (id) => document.getElementById(id);
 const STATE_KEY = 'narrhalla.state.v1';
-const APP_VERSION = '0.9.0';
+const APP_VERSION = '0.9.1';
 const PEAK_COUNT = 600;   // Punkte der Übersichts-Wellenform
 const HI_RATE = 100;      // Punkte pro Sekunde der Detail-Wellenform
 const PALETTE = [
@@ -2333,20 +2333,28 @@ function drawZoom() {
   g.textBaseline = 'middle';
   if (hasBeats(t)) {
     const b = t.beats;
-    let k = Math.max(0, bsearch(b, start));
-    const avg = b.length > 1 ? (b[b.length - 1] - b[0]) / (b.length - 1) : 0.5;
-    const step = pxPerSec * avg < 14 ? 2 : 1;
-    for (; k < b.length && b[k] <= start + span; k++) {
-      const x = X(b[k]);
-      const c = countOfBeat(t, k);
-      const one = c === 1;
+    const vis = [];
+    for (let k = Math.max(0, bsearch(b, start)); k < b.length && b[k] <= start + span; k++) {
+      vis.push({ x: X(b[k]), c: countOfBeat(t, k) });
+    }
+    for (const v of vis) {
+      const one = v.c === 1;
       g.fillStyle = one ? 'rgba(255,210,63,.55)' : 'rgba(255,255,255,.12)';
-      g.fillRect(Math.round(x), COUNT_H, one ? 2 : 1, h - COUNT_H);
-      if (one || mod(c - 1, step) === 0) {
-        g.font = one ? '700 13px system-ui, sans-serif' : '600 11px system-ui, sans-serif';
-        g.fillStyle = one ? css('--accent-2') : c === 5 ? '#ddd' : '#999';
-        g.fillText(String(c), x, COUNT_H / 2);
-      }
+      g.fillRect(Math.round(v.x), COUNT_H, one ? 2 : 1, h - COUNT_H);
+    }
+    // Zahlen ohne Überlappung: erst alle Einsen, dann die übrigen nur, wo Platz ist
+    const placed = [];
+    const free = (x, gap) => placed.every((p) => Math.abs(p - x) >= gap);
+    const label = (v) => {
+      const one = v.c === 1;
+      g.font = one ? '700 13px system-ui, sans-serif' : '600 11px system-ui, sans-serif';
+      g.fillStyle = one ? css('--accent-2') : v.c === 5 ? '#ddd' : '#999';
+      g.fillText(String(v.c), v.x, COUNT_H / 2);
+      placed.push(v.x);
+    };
+    for (const v of vis) if (v.c === 1 && free(v.x, 12)) label(v);
+    for (const want of [[5], [3, 7], [2, 4, 6, 8]]) {
+      for (const v of vis) if (want.includes(v.c) && free(v.x, 13)) label(v);
     }
   } else {
     g.textAlign = 'left';
