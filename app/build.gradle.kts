@@ -12,13 +12,26 @@ android {
         applicationId = "de.laermwaechter"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        // GitHub sets the run number, so every build installs over the previous one.
+        versionCode = System.getenv("BUILD_NUMBER")?.toIntOrNull() ?: 1
+        versionName = "1.0." + (System.getenv("BUILD_NUMBER") ?: "0")
+    }
+
+    signingConfigs {
+        // Fixed key kept in the repository, so new APKs install over older ones.
+        // Fine for a personal sideloaded app; a Play Store app would keep its key secret.
+        create("release") {
+            storeFile = rootProject.file("release.keystore")
+            storePassword = "laermwaechter"
+            keyAlias = "laermwaechter"
+            keyPassword = "laermwaechter"
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 

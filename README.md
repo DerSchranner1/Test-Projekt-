@@ -41,15 +41,24 @@ unter Einstellungen → Akku.
   Mikrofon-Dienste). Sie zeigt dann eine Benachrichtigung zum Antippen.
 - Es wird nichts aufgenommen oder gespeichert, und die App hat keine Internet-Berechtigung.
 
-## Bauen und installieren
+## Herunterladen und installieren
+
+Fester Download-Link zur neuesten Version (immer dieselbe Adresse):
+
+https://github.com/DerSchranner1/Test-Projekt-/releases/download/laermwaechter-latest/Laermwaechter.apk
+
+Auf dem Telefon öffnen und die Installation aus unbekannter Quelle erlauben. Der Workflow „Build“
+baut bei jedem Push eine neue APK und ersetzt die Datei hinter dem Link. Neue Versionen lassen
+sich über die alte installieren, weil alle mit demselben Schlüssel (`release.keystore`) signiert
+sind.
+
+Selbst bauen:
 
 ```
-./gradlew assembleDebug
+./gradlew assembleRelease
 ```
 
-Die APK liegt danach unter `app/build/outputs/apk/debug/app-debug.apk`. Auf dem Telefon die Datei
-öffnen und die Installation aus unbekannter Quelle erlauben. Auf GitHub baut der Workflow „Build“
-bei jedem Push eine APK und hängt sie als Artefakt an.
+Die APK liegt danach unter `app/build/outputs/apk/release/app-release.apk`.
 
 Mindestens Android 8.0. Die App nutzt die Berechtigung `USE_EXACT_ALARM`; für eine Veröffentlichung
 im Play Store müsste sie durch `SCHEDULE_EXACT_ALARM` ersetzt werden.
