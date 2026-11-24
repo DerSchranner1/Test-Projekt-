@@ -1,130 +1,92 @@
 # Narrhalla Player – Anleitung
 
-## 1. Einrichten (einmalig, zu Hause)
-
-1. App öffnen (am Rechner `index.html`, am Handy die installierte App).
-2. **+ Audio laden** antippen und alle Titel auswählen – oder am Rechner die Dateien ins Fenster ziehen.
-3. Titel in die richtige Reihenfolge ziehen.
-4. Bei jedem Titel auf **✎** tippen: Titel umbenennen und **Farbgruppe** wählen (vorgegeben: Show, Garde, Elfer – eigene kannst du anlegen).
-   Der Titel wird aus der Datei gelesen (MP3, M4A, OGG/FLAC). Steht dort nichts, nimmt die App den Dateinamen.
-5. **Farben der Gruppen:** bei der Gruppe auf **✎** tippen → Name ändern, Farbe aus der Palette antippen, Speichern.
-   Neue Gruppen über **+ Neue Gruppe**.
-6. **Export** drücken und die Setlisten-Datei aufheben – das ist deine Sicherung.
-
-Die App merkt sich alles. Beim nächsten Öffnen ist die Setliste wieder da.
-
-## 2. Abspielen (auf der Veranstaltung)
+## Auf einen Blick
 
 | Was | Wie |
 |---|---|
-| Titel starten | Doppelklick / Doppeltipp auf den Titel, oder Titel wählen und `Enter` |
-| Play / Pause | großer oranger Knopf oder `Leertaste` |
-| Stopp (zurück zum Anfang) | ■ oder `Esc` |
-| Sanft ausblenden | **Fade-Out** oder `F` |
-| Nochmal von vorn | ⟲ oder `R` |
-| Nochmal ab dem letzten Marker | **⟲ ab Marker** oder `Shift`+`R` |
-| Den Titel davor nochmal | **⟲ letzter Titel** oder `L` |
-| Springen | in die Wellenform tippen, oder -5s / +5s |
+| Titel laden | oben **+ Titel** |
+| Titel abspielen | in der Liste auf **▶** beim Titel |
+| Abspielen / Pause | großer oranger Knopf |
+| Stopp (zurück an den Anfang) | ■ |
+| Nochmal | **⟲ Von vorn**, **⟲ Ab Marker** (letzter Marker vor der aktuellen Stelle), **⏪ Voriger Titel** |
+| Springen | **−1 Achter / +1 Achter**, oder in die Musik-Leiste tippen |
+| In der Musik schieben | große Wellenform mit dem Finger nach links/rechts ziehen |
+| Sanft aufhören | **Ausblenden** |
+| Mitzählen 1–8 | **Mitzählen**: Aus / Stimme / Klick, daneben die Lautstärke |
+| Marker setzen | **+ Marker hier**; farbigen Marker antippen = startet genau dort |
+| Rückgängig | erscheint nach jeder Änderung unten kurz – antippen |
 
-Nach jedem Titel bleibt der Player stehen. Soll es automatisch weiterlaufen (z. B. Pausenmusik),
-**Auto-Weiter** einschalten. Für Dauerschleife **Loop**.
+Scrollt man am Handy nach unten, bleibt unten eine kleine Leiste mit ▶/⏸, ■ und ⟲.
 
-Mit einem Klick auf eine Farbgruppe links siehst du nur deren Titel – praktisch für „alle Tusche“.
+## 1. Einrichten (einmalig, zu Hause)
 
-## 3. Mehrere Lieder in einer Datei (Medley)
+1. **+ Titel** antippen und die Musik auswählen. Die App liest Titelnamen, erkennt die einzelnen Lieder
+   in einem Zusammenschnitt, das Tempo und die „1“.
+2. Bei jedem Titel **✎**: Namen prüfen, **Gruppe** wählen (Show, Garde, Elfer – eigene über **+ Gruppe**),
+   bei Bedarf eigene Farbe, **▲/▼** für die Reihenfolge.
+3. ⚙ → **Jetzt sichern**. Das ist deine Sicherung, falls das Handy kaputtgeht.
 
-Ist eine Datei ein fertig geschnittener Zusammenschnitt, erkennt die App beim Laden die einzelnen Lieder.
-Jedes Lied bekommt eine eigene Farbe in der Wellenform und **eigenes Tempo und eigene Zählzeiten** –
-die Zählung fängt am Liedwechsel wieder mit 1 an.
+## 2. Die Musik-Leiste
 
-Unter **Lieder in der Datei**:
-- **Farbfeld** antippen → Farbe wählen – entweder eine eigene **Farbe mit Bezeichnung** (siehe unten) oder nur eine Farbe;
-  **Namensfeld** → z. B. „Prinzengarde“, „Schautanz Teil 2“
-- **Zeit** antippen → an den Liedanfang springen
-- **⇤** → Liedanfang auf die aktuelle Stelle legen (wenn die Grenze nicht genau stimmt)
-- **✕** → mit dem Lied davor zusammenführen (wenn fälschlich geteilt)
-- **Hier teilen** → an der aktuellen Stelle beginnt ein neues Lied
-- **Lieder erkennen** → alles neu erkennen (Namen und Farben bleiben)
+- Oben die **große Wellenform**: mit dem Finger waagerecht ziehen verschiebt die Musik – wie eine Platte.
+  Tippen springt an die Stelle. Senkrecht wischen scrollt nur die Seite. Die Zahlen oben sind die Zählzeiten 1–8,
+  die gelbe Linie ist jeweils die „1“. Mit **−/+** zoomst du.
+- Darunter der **schmale Streifen**: das ganze Stück mit den Farben der Lieder und den Markern (Dreiecke).
+  Der Rahmen zeigt, welcher Ausschnitt oben groß zu sehen ist. Antippen springt dorthin.
+- Für Auftritte: ⚙ → **Musik-Leiste sperren** – dann springt nichts, wenn man versehentlich drankommt.
 
-Tempo, „Hier ist die 1“ und „Erkennen“ wirken immer auf das Lied, in dem du gerade bist (steht neben „Tempo“).
+## 3. Marker
 
-**Farben mit Bezeichnung:** Unter ⚙ → „Farben mit Bezeichnung“ legst du eigene Farben mit Namen an,
-z. B. Rot = „Garde tanzt“, Blau = „Alle“, Gelb = „Solo“. Diese wählst du dann für die Lieder aus;
-änderst du später die Farbe einer Bezeichnung, ändern sich alle Lieder mit dieser Bezeichnung mit.
+- **+ Marker hier** setzt einen Marker an der aktuellen Stelle (rastet auf der Zählzeit ein).
+- Den **farbigen Marker antippen** → die Musik startet genau dort.
+- **✎** daneben → Name (z. B. „Einsatz Garde“), Farbe, „Hier anfangen/aufhören“, löschen.
 
-**Farbe des ganzen Titels:** ✎ beim Titel → „Eigene Farbe des Titels“. Ohne eigene Farbe gilt die Farbe der Gruppe.
+## 4. Bearbeiten (aufklappen: „✎ Bearbeiten“)
 
-## 4. Zählen (1–8)
+**Zählung und Tempo** – gilt für das Lied, in dem du gerade bist:
+- **Hier ist die 1:** Musik an die richtige Stelle schieben, dann drücken – ab dort wird neu mit 1 gezählt.
+- **◀ früher / später ▶:** Zählung fein verschieben.
+- **½ / ×2:** halb oder doppelt so schnell zählen.
+- **Im Takt tippen:** Musik abspielen, mindestens 4× im Takt tippen, kurz warten.
+- **Takt neu erkennen:** fragt vorher nach.
 
-Beim Laden verfolgt die App jeden einzelnen Schlag und erkennt, wo die „1“ ist – auch nach Schnitten
-innerhalb eines Lieds, wie sie bei zusammengeschnittener Show-Musik üblich sind. Unten in der Detail-Wellenform stehen die
-Zählzeiten 1 2 3 4 5 6 7 8 über der Musik, groß oben rechts siehst du die aktuelle Zahl und den wievielten Achter.
+**Lieder in der Datei** (bei Zusammenschnitten): jedes Lied mit eigener Farbe, eigenem Namen und eigenem Takt.
+Farbfeld = Farbe, „▶ ab …“ = ab Liedanfang spielen, **Anfang hierher**, **Mit vorigem verbinden**,
+**Hier neues Lied**, **Lieder neu erkennen** (fragt vorher nach).
 
-- **Stimmt die 1 nicht?** An die richtige Stelle schieben und **Hier ist die 1** drücken – ab dort wird neu mit 1 gezählt,
-  davor bleibt alles, wie es war. So kannst du ein Lied Stück für Stück von vorne korrigieren. Feinjustieren mit ◀ 10 ms / 10 ms ▶.
-- **Stimmt das Tempo nicht?** **½** oder **×2** versuchen, oder bei laufender Musik mindestens 4× im Takt auf **Tap** tippen.
-- **Mitzählen:** Aus / Stimme / Klick. Daneben die **Stimme** wählen (Deutsch Frau/Mann, Englisch Frau/Mann
-  oder eigene Aufnahme) und die **Lautstärke** einstellen.
-- **Eigene Stimme:** ⚙ → „● Eigene aufnehmen“ → Start → „eins – zwei – … – acht“ mit kurzen Pausen sprechen.
-  Die App schneidet die Wörter selbst und nimmt ab dann deine Stimme. (Die App fragt einmal nach dem Mikrofon.)
-- Hinkt die Stimme hinterher: ⚙ → „Mitzählen früher/später“ nach links.
-- **Einrasten:** Marker, Cue-Punkte und Springen landen genau auf einer Zählzeit (1–8) oder nur auf der 1 eines Achters.
-- **−8 / +8** springen einen Achter zurück bzw. vor.
+**Start und Ende kürzen:** spielt später an bzw. hört früher auf, die Datei bleibt unverändert.
 
-## 5. In der Musik schieben
+Alles lässt sich mit **Rückgängig** zurücknehmen.
 
-In der unteren (Detail-)Wellenform die Musik mit dem Finger nach links oder rechts schieben – wie eine Platte.
-Beim Loslassen rastet sie auf der nächsten Zählzeit ein und spielt weiter, falls sie lief.
-Den Ton beim Schieben kannst du unter ⚙ ein- und ausschalten. Mit **−** / **+** zoomst du.
+## 5. Training mit Bluetooth-Box
 
-## 6. Marker setzen
+⚙ → **Training / Bluetooth** (ist eingeschaltet):
+- Während der Wiedergabe und bis 30 Minuten danach läuft ein unhörbar leises Signal. So schaltet die Box nicht ab
+  und das Handy trennt nicht – auch gesperrt. Oben steht dann „● BT wach“.
+- **Android-App:** Es erscheint die Benachrichtigung „Narrhalla Player“ mit Tasten für Von vorn / Pause / Stopp.
+  Auch die Tasten an der Box oder am Kopfhörer funktionieren.
+- **Gelbe Warnung oben?** Auf **Beheben** tippen. Typisch: Akku-Optimierung ist an oder Benachrichtigungen sind aus –
+  dann kann Android die App im Training beenden.
+- Schaltet die Box trotzdem ab: **Stärke** auf „etwas stärker“.
+- **iPhone/iPad:** Musik läuft gesperrt weiter. Lautstärke über die Gerätetasten; Ausblenden und Mitzählen
+  gehen nur bei entsperrtem Bildschirm. Die App unbedingt über Teilen → **Zum Home-Bildschirm** installieren.
 
-Marker sind Sprungstellen im Titel, z. B. „Einsatz Garde“ oder „Refrain“.
+## 6. Mitzählen
 
-1. An der Stelle **+ Marker** drücken (`M`), oder doppelt in die obere Wellenform tippen. Der Marker rastet auf der Zählzeit ein.
-2. In der Markerliste eine Beschriftung eintippen; das Farbfeld daneben ändert die Farbe.
-3. **Cuen:** den farbigen Marker-Knopf antippen (oder das Fähnchen in der Wellenform, Taste `1`–`9`) –
-   die Musik startet genau dort. Soll er nur hinspringen und auf Play warten: ⚙ → „Marker antippen startet die Wiedergabe“ aus.
-4. **In** / **Out** am Marker machen ihn zum Start- bzw. Endpunkt des Titels.
+- **Stimme** wählen: ⚙ → Mitzählen → Deutsch/Englisch, Frau/Mann, oder **● Eigene aufnehmen**
+  („eins – zwei – … – acht“ mit kurzen Pausen sprechen).
+- Hinkt die Stimme hinterher (Bluetooth verzögert): ⚙ → „Früher/später“ nach links.
 
-## 7. Anfang und Ende kürzen (Cue)
+## 7. Sichern und anderes Gerät
 
-Statt die Datei zu schneiden, legst du nur fest, wo sie startet und endet:
-
-1. An die gewünschte Startstelle springen → **In setzen**.
-2. An die gewünschte Endstelle springen → **Out setzen**.
-3. **Zurücksetzen** macht beides rückgängig. Die Originaldatei bleibt immer unverändert.
-
-## 8. Sichern und auf ein anderes Gerät umziehen
-
-1. **Export**: In der Android-App öffnet sich das Teilen-Menü – dort z. B. „In Drive speichern“, an dich selbst
-   per Mail/WhatsApp schicken oder in „Dateien“ ablegen. Im Browser wird die Datei heruntergeladen.
-2. Am neuen Gerät dieselben Audiodateien über **+ Audio laden** laden.
-3. **Import** → Setlisten-Datei wählen. Gruppen, Marker, Takt, Cues und Reihenfolge werden über Titelname,
-   Dateiname oder Länge zugeordnet.
-
-## Training: Bluetooth bleibt verbunden
-
-Unter ⚙ → **Training / Bluetooth** (ist von Anfang an eingeschaltet):
-- **Bluetooth-Verbindung wach halten:** Die App spielt ständig ein unhörbar leises Signal ab. So schaltet sich die
-  Box in Pausen nicht ab und das Handy trennt die Verbindung nicht – auch wenn es gesperrt ist. Oben neben dem
-  Namen steht dann „● BT wach“.
-- In der **Android-App** läuft dazu ein Hintergrund-Dienst; du siehst die Benachrichtigung „Narrhalla Player –
-  Wiedergabe aktiv“. Beim ersten Mal fragt Android, ob die App Benachrichtigungen zeigen darf – bitte erlauben.
-- **Akku-Optimierung ausschalten** (nur Android): Knopf antippen und „Zulassen“ wählen. Manche Handys (Samsung,
-  Xiaomi, Huawei) beenden Apps sonst trotzdem nach einer Weile.
-- Schaltet die Box trotzdem ab: **Stärke** auf „etwas stärker“ stellen.
-- **Bildschirm nicht automatisch sperren:** praktisch, wenn das Handy beim Training am Lautsprecher liegt.
-- **iPhone/iPad:** Damit die Musik gesperrt weiterläuft, regelst du die Lautstärke dort über die Gerätetasten;
-  Fade-Out stoppt am iPhone sofort.
+- ⚙ → **Jetzt sichern** speichert Setliste, Gruppen, Marker, Takt, Lieder und Farben.
+  In der Android-App z. B. „In Drive speichern“ oder per Mail an dich. Die App erinnert, wenn länger nicht gesichert wurde.
+- Neues Gerät: dieselben Musikdateien mit **+ Titel** laden, dann ⚙ → **Sicherung laden**.
+  Die App zeigt vorher, welcher Titel wozu passt.
+- Fehlt die Musikdatei eines Titels: ✎ → **Audiodatei ersetzen** – Marker und Takt bleiben.
 
 ## So funktioniert es (grob)
 
-- Die App ist eine Webseite, die sich wie eine App installieren lässt. Nach dem ersten Öffnen läuft sie ohne Internet.
-- Beim Laden wird jede Audiodatei **in den Speicher der App kopiert**. Die App merkt sich also keine Dateipfade –
-  sie braucht die Originaldateien danach nicht mehr, auch wenn du sie verschiebst oder den USB-Stick abziehst.
-- Setliste, Gruppen, Marker, Takt und Cues werden bei jeder Änderung automatisch gespeichert.
-- Alles bleibt auf dem Gerät. Es wird nichts hochgeladen, und Geräte gleichen sich nicht untereinander ab.
-
-**Wichtig:** Wer die Browserdaten bzw. App-Daten löscht, löscht auch Titel und Setliste. Deshalb vor jeder
-Veranstaltung exportieren und die Audiodateien zusätzlich griffbereit haben.
+- Die Musikdateien werden in die App kopiert; die Originale braucht sie danach nicht mehr.
+- Alles bleibt auf dem Gerät, es wird nichts hochgeladen. Jede Änderung wird sofort gespeichert.
+- Wer die App deinstalliert oder die App-Daten löscht, löscht auch Titel und Marker – deshalb sichern.

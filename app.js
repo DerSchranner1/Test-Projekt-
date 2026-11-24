@@ -6,6 +6,7 @@
 
 const $ = (id) => document.getElementById(id);
 const STATE_KEY = 'narrhalla.state.v1';
+const APP_VERSION = '0.9.0';
 const PEAK_COUNT = 600;   // Punkte der Übersichts-Wellenform
 const HI_RATE = 100;      // Punkte pro Sekunde der Detail-Wellenform
 const PALETTE = [
@@ -65,7 +66,6 @@ let lastPlayedId = null;
 let filterGroup = null;   // null = alle, '' = ohne Gruppe
 let loop = false;
 let fading = null;
-const history = [];
 const urlCache = new Map();
 const hiCache = new Map();   // id -> Uint8Array
 const audio = new Audio();
@@ -92,25 +92,85 @@ function fmt(sec, tenths = false) {
 }
 
 let toastTimer;
-function toast(msg, ms = 2000) {
-  const el = $('toast');
-  el.textContent = msg;
-  el.classList.add('show');
+function toast(msg, ms = 2200, action = null) {
+  const box = $('toast');
+  $('toastText').textContent = msg;
+  const btn = $('toastAction');
+  if (action) {
+    btn.hidden = false;
+    btn.textContent = action.label;
+    btn.onclick = () => { box.classList.remove('show'); action.fn(); };
+    ms = Math.max(ms, 6000);
+  } else {
+    btn.hidden = true;
+  }
+  box.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), ms);
+  toastTimer = setTimeout(() => box.classList.remove('show'), ms);
+}
+
+// Rückfrage im App-Stil statt confirm(); Ergebnis true/false
+function ask(title, html, okLabel = 'OK', danger = false) {
+  return new Promise((resolve) => {
+    const dlg = $('confirmDlg');
+    $('confirmTitle').textContent = title;
+    $('confirmText').innerHTML = html;
+    const yes = $('confirmYes');
+    yes.textContent = okLabel;
+    yes.classList.toggle('danger-solid', danger);
+    yes.style.background = danger ? 'var(--danger)' : '';
+    yes.style.color = danger ? '#fff' : '';
+    dlg.returnValue = '';
+    dlg.onclose = () => resolve(dlg.returnValue === 'ok');
+    dlg.showModal();
+  });
+}
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+/* Rückgängig: vor jeder Änderung an einem Titel eine Kopie merken */
+const undoStack = [];
+const EDIT_KEYS = ['beats', 'ones', 'segments', 'markers', 'cueIn', 'cueOut', 'name', 'artist', 'groupId', 'color', 'labelId'];
+function snapshot(t, label) {
+  if (!t) return;
+  const data = {};
+  for (const k of EDIT_KEYS) data[k] = t[k] === undefined ? undefined : JSON.parse(JSON.stringify(t[k]));
+  undoStack.push({ id: t.id, data, label });
+  if (undoStack.length > 20) undoStack.shift();
+}
+function undo() {
+  const u = undoStack.pop();
+  if (!u) return toast('Nichts zum Rückgängigmachen');
+  const t = track(u.id);
+  if (!t) return toast('Titel gibt es nicht mehr');
+  for (const k of EDIT_KEYS) { if (u.data[k] === undefined) delete t[k]; else t[k] = u.data[k]; }
+  save();
+  resetCountSchedule();
+  renderAll();
+  toast(`Rückgängig: ${u.label}`);
+}
+// Änderung ausführen und „Rückgängig“ anbieten
+function edit(label, fn, t = current()) {
+  if (!t) return;
+  snapshot(t, label);
+  const r = fn(t);
+  if (r === false) { undoStack.pop(); return; }
+  toast(label, 3000, { label: 'Rückgängig', fn: undo });
 }
 
 let saveTimer;
 function save() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    try {
-      localStorage.setItem(STATE_KEY, JSON.stringify(state));
-    } catch (e) {
-      console.warn('Speichern fehlgeschlagen', e);
-      toast('Speichern fehlgeschlagen – Speicher voll?');
-    }
-  }, 150);
+  saveTimer = setTimeout(saveNow, 150);
+}
+function saveNow() {
+  clearTimeout(saveTimer);
+  try {
+    state.lastChange = Date.now();
+    localStorage.setItem(STATE_KEY, JSON.stringify(state));
+  } catch (e) {
+    console.warn('Speichern fehlgeschlagen', e);
+    showBanner('save', 'Speichern fehlgeschlagen – der Speicher ist voll. Bitte jetzt sichern und unbenutzte Titel löschen.', 'Jetzt sichern', exportSet);
+  }
 }
 
 function el(tag, props = {}, ...children) {
@@ -171,6 +231,7 @@ function ctx() {
 }
 // Lautstärke über einen GainNode, weil iOS audio.volume ignoriert.
 // iPhone/iPad: Web Audio pausiert beim Sperren – dann die Musik direkt ausgeben
+const isTouch = matchMedia('(pointer: coarse)').matches;
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 function ensureGraph() {
   try {
@@ -197,37 +258,42 @@ function setVol(v) {
  * 3. Optional: Bildschirm anlassen.
  */
 let keepEl = null, keepLevelLoaded = null, screenLock = null, keepNativeOn = false;
+let keepUntil = 0;            // bis wann wach halten (ms seit 1970)
+const KEEP_AFTER_MS = 30 * 60 * 1000;
+let nativeHealth = null;      // {unrestricted, notifications}
 
 function noiseWav(level) {
   const sr = 22050, n = sr * 2;
   const amp = level === 'mid' ? 0.003 : 0.0006; // etwa −50 dB bzw. −64 dB
   const buf = new ArrayBuffer(44 + n * 2);
   const v = new DataView(buf);
-  const w = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  const w = (o, str) => [...str].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
   w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
   v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
   v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
   w(36, 'data'); v.setUint32(40, n * 2, true);
   let lp = 0;
   for (let i = 0; i < n; i++) {
-    lp += 0.2 * ((Math.random() * 2 - 1) - lp); // weiches Rauschen ohne Zischen
+    lp += 0.2 * ((Math.random() * 2 - 1) - lp);
     v.setInt16(44 + i * 2, Math.round(lp * amp * 3 * 32767), true);
   }
   return new Blob([buf], { type: 'audio/wav' });
 }
 
-async function keepAliveNative(on) {
-  if (!isNative() || keepNativeOn === on) return;
-  try {
-    await window.Capacitor.nativePromise('KeepAlive', on ? 'start' : 'stop', { text: 'Wiedergabe aktiv – Bluetooth bleibt verbunden' });
-    keepNativeOn = on;
-  } catch (e) {
-    console.warn('KeepAlive', e);
-  }
+const native = (method, opts = {}) => window.Capacitor.nativePromise('KeepAlive', method, opts);
+
+// Wiedergabe-Sitzung verlängern: beim Abspielen und beim Anhalten (dann 30 min Nachlauf)
+function keepAliveTouch() {
+  keepUntil = Date.now() + KEEP_AFTER_MS;
+  updateKeepAlive();
 }
 
-function updateKeepAlive() {
-  const on = state.settings.keepAlive;
+function keepActive() {
+  return state.settings.keepAlive && current() && (!audio.paused || Date.now() < keepUntil);
+}
+
+async function updateKeepAlive() {
+  const on = !!keepActive();
   if (on) {
     if (!keepEl || keepLevelLoaded !== state.settings.keepLevel) {
       keepEl?.pause();
@@ -240,15 +306,37 @@ function updateKeepAlive() {
   } else {
     keepEl?.pause();
   }
-  keepAliveNative(on);
+  await keepAliveNative(on);
   updateScreenOn();
   $('kaInd').hidden = !on;
+}
+setInterval(() => { if (keepEl && !keepEl.paused && !keepActive()) updateKeepAlive(); }, 30000);
+
+async function keepAliveNative(on) {
+  if (!isNative()) return;
+  const text = audio.paused ? 'Pausiert – Bluetooth bleibt verbunden' : `Spielt: ${current()?.name || ''}`;
+  try {
+    if (on) {
+      // vor der ersten Android-Rückfrage erklären, wofür die Benachrichtigung ist
+      if (!state.notifExplained) {
+        state.notifExplained = true;
+        save();
+        await ask('Bluetooth im Training', '<p>Damit die Musik und die Bluetooth-Box auch bei gesperrtem Handy weiterlaufen, zeigt die App während der Wiedergabe eine Benachrichtigung „Narrhalla Player“.</p><p>Android fragt gleich, ob die App Benachrichtigungen zeigen darf – bitte <b>Zulassen</b> tippen.</p>', 'Verstanden');
+      }
+      await native('start', { text, playing: !audio.paused, title: current()?.name || 'Narrhalla Player' });
+    } else if (keepNativeOn) {
+      await native('stop');
+    }
+    keepNativeOn = on;
+  } catch (e) {
+    console.warn('KeepAlive', e);
+  }
 }
 
 async function updateScreenOn() {
   const on = state.settings.screenOn;
   if (isNative()) {
-    try { await window.Capacitor.nativePromise('KeepAlive', 'screenOn', { on }); } catch (e) { /* ältere App */ }
+    try { await native('screenOn', { on }); } catch (e) { /* ältere App */ }
     return;
   }
   try {
@@ -264,18 +352,27 @@ async function updateScreenOn() {
   }
 }
 
-async function updateBatteryRow() {
-  if (!isNative()) return;
-  $('batteryRow').hidden = false;
+// Android: Akku-Optimierung und Benachrichtigungen prüfen
+async function checkNativeHealth() {
+  if (!isNative()) return null;
   try {
-    const r = await window.Capacitor.nativePromise('KeepAlive', 'batteryStatus', {});
-    $('batteryState').textContent = r.unrestricted ? '✓ ist aus' : 'ist noch an – kann die Verbindung trennen';
+    nativeHealth = await native('batteryStatus');
   } catch (e) {
-    $('batteryRow').hidden = true;
+    nativeHealth = null;
   }
+  return nativeHealth;
 }
 
-// Systemsteuerung (Sperrbildschirm, Kopfhörer-/Box-Tasten), wo verfügbar
+async function updateBatteryRow() {
+  if (!isNative()) return;
+  const h = await checkNativeHealth();
+  if (!h) return;
+  $('batteryRow').hidden = false;
+  $('batteryState').textContent = h.unrestricted ? '✓ ist aus' : '⚠ ist noch an – kann die Verbindung trennen';
+  $('batteryBtn').hidden = h.unrestricted;
+}
+
+// Systemsteuerung (Sperrbildschirm, Box-Tasten), wo der Browser es kann
 function updateMediaSession() {
   if (!('mediaSession' in navigator)) return;
   const t = current();
@@ -283,6 +380,81 @@ function updateMediaSession() {
     navigator.mediaSession.metadata = t ? new MediaMetadata({ title: t.name, artist: t.artist || 'Narrhalla Player' }) : null;
     navigator.mediaSession.playbackState = audio.paused ? 'paused' : 'playing';
   } catch (e) { /* nicht unterstützt */ }
+}
+
+/* ---------- Warnungen oben ---------- */
+const banners = new Map();
+function showBanner(id, msg, actionLabel = null, action = null, kind = 'warn') {
+  banners.set(id, { msg, actionLabel, action, kind });
+  renderBanners();
+}
+function hideBanner(id) {
+  if (banners.delete(id)) renderBanners();
+}
+function renderBanners() {
+  const box = $('banners');
+  box.replaceChildren();
+  for (const [id, b] of banners) {
+    const row = el('div', { className: 'banner' + (b.kind === 'info' ? ' info' : '') },
+      el('span', { className: 'msg', textContent: (b.kind === 'info' ? 'ℹ ' : '⚠ ') + b.msg }));
+    if (b.action) {
+      const btn = el('button', { className: 'btn small', textContent: b.actionLabel });
+      btn.onclick = b.action;
+      row.append(btn);
+    }
+    const x = el('button', { className: 'btn ghost small', textContent: 'Später', title: 'Ausblenden' });
+    x.onclick = () => { dismissed.add(id); hideBanner(id); };
+    row.append(x);
+    box.append(row);
+  }
+}
+const dismissed = new Set(); // in dieser Sitzung weggeklickt
+
+async function checkWarnings() {
+  const s = state.settings;
+  // Android: Akku-Optimierung / Benachrichtigungen
+  if (isNative() && s.keepAlive) {
+    const h = await checkNativeHealth();
+    if (h && !h.unrestricted && !dismissed.has('battery')) {
+      showBanner('battery', 'Akku-Optimierung ist an: Android kann die App im Training beenden und Bluetooth trennen.', 'Beheben', async () => {
+        try { await native('openBatterySettings'); } catch (e) { toast('Einstellungen → Apps → Narrhalla Player → Akku → „Nicht eingeschränkt“', 6000); }
+      });
+    } else hideBanner('battery');
+    if (h && h.notifications === false && !dismissed.has('notif')) {
+      showBanner('notif', 'Benachrichtigungen sind aus: Android kann die Wiedergabe bei gesperrtem Handy beenden.', 'Beheben', async () => {
+        try { await native('openNotificationSettings'); } catch (e) { toast('Einstellungen → Apps → Narrhalla Player → Benachrichtigungen → an', 6000); }
+      });
+    } else hideBanner('notif');
+  } else {
+    hideBanner('battery');
+    hideBanner('notif');
+  }
+  // Bluetooth-Wachhalten ausgeschaltet
+  if (!s.keepAlive && !dismissed.has('keep')) {
+    showBanner('keep', '„Bluetooth wach halten“ ist aus – im Training kann die Box abschalten.', 'Einschalten', () => {
+      s.keepAlive = true; save(); hideBanner('keep'); keepAliveTouch(); checkWarnings();
+    }, 'info');
+  } else hideBanner('keep');
+  // iPhone im Safari-Tab: Daten werden nach 7 Tagen gelöscht
+  const standalone = window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone;
+  if (isIOS && !standalone && !isNative() && !dismissed.has('ios')) {
+    showBanner('ios', 'iPhone: Bitte über Teilen → „Zum Home-Bildschirm“ installieren. Im Safari-Tab löscht iOS die Titel nach 7 Tagen ohne Nutzung.');
+  }
+  // Speicher kann geräumt werden
+  if (!isNative() && navigator.storage?.persisted && !dismissed.has('persist')) {
+    const ok = await navigator.storage.persisted().catch(() => true);
+    if (!ok && state.tracks.length) {
+      showBanner('persist', 'Der Browser darf die Titel bei Platzmangel löschen. Bitte regelmäßig sichern.', 'Jetzt sichern', exportSet, 'info');
+    }
+  }
+  // Erinnerung ans Sichern
+  state.firstUse ??= Date.now();
+  const last = state.lastBackup || 0;
+  const changedSince = (state.lastChange || 0) > last;
+  const due = last ? Date.now() - last > 14 * 864e5 : Date.now() - state.firstUse > 3 * 864e5;
+  if (state.tracks.length && changedSince && due && !dismissed.has('backup')) {
+    showBanner('backup', last ? `Letzte Sicherung vor ${Math.round((Date.now() - last) / 864e5)} Tagen.` : 'Noch nie gesichert – Marker und Korrekturen gehen sonst bei einem Handywechsel verloren.', 'Jetzt sichern', exportSet, 'info');
+  } else hideBanner('backup');
 }
 
 /* ---------- Analyse: Wellenform, Tempo, Zählzeit ---------- */
@@ -366,16 +538,32 @@ function getWorker() {
   return worker;
 }
 
-function runAnalysis(mono, sr, onProgress) {
-  const direct = () => Analysis.analyse(mono, sr, { onProgress });
+const fBuffers = (F) => [F.env.buffer, F.flt.buffer, F.onL.buffer, F.rms.buffer, F.chroma.buffer, F.bands.buffer];
+function runJob(msg, transfer, direct, onProgress) {
   const w = getWorker();
   if (!w) return Promise.resolve().then(direct);
   return new Promise((resolve, reject) => {
     const id = ++jobId;
-    const copy = new Float32Array(mono);
-    jobs.set(id, { resolve, reject, onProgress, fallback: () => resolve(direct()) });
-    w.postMessage({ id, mono: copy, sr }, [copy.buffer]);
+    jobs.set(id, { resolve, reject, onProgress, fallback: () => { try { resolve(direct()); } catch (e) { reject(e); } } });
+    w.postMessage({ id, ...msg }, transfer);
   });
+}
+function runAnalysis(mono, sr, onProgress) {
+  const copy = new Float32Array(mono);
+  return runJob({ op: 'analyse', mono: copy, sr }, [copy.buffer], () => Analysis.analyse(mono, sr, { onProgress }), onProgress);
+}
+// Rechnung auf den Merkmalen eines Titels im Hintergrund (songs / range)
+async function withFeatures(t, msg, direct) {
+  const F = await featuresFor(t);
+  featCache = { id: t.id, F: null }; // wird übertragen – kommt mit dem Ergebnis zurück
+  try {
+    const r = await runJob({ ...msg, F }, getWorker() ? fBuffers(F) : [], () => ({ ...direct(F), F }));
+    featCache = { id: t.id, F: r.F };
+    return r;
+  } catch (e) {
+    featCache = { id: null, F: null };
+    throw e;
+  }
 }
 
 async function analyseBlob(blob, id = null, label = '') {
@@ -391,18 +579,38 @@ async function featuresFor(t) {
   if (featCache.id === t.id && featCache.F) return featCache.F;
   toast('Analysiere …', 30000);
   const buf = await decodeLow(await getFile(t.id));
-  featCache = { id: t.id, F: Analysis.features(mixMono(buf), buf.sampleRate) };
-  return featCache.F;
+  const mono = mixMono(buf);
+  const r = await runJob({ op: 'features', mono, sr: buf.sampleRate }, [mono.buffer],
+    () => ({ F: Analysis.features(mono, buf.sampleRate) }),
+    (p) => toast(`Analysiere … ${Math.round(p * 100)} %`, 30000));
+  featCache = { id: t.id, F: r.F };
+  return r.F;
 }
 
-function toSegments(list, old = []) {
-  return list.map((x, i) => ({
-    id: uid(),
-    start: x.start,
-    name: old[i]?.name || '',
-    labelId: old[i]?.labelId || null,
-    color: list.length > 1 ? old[i]?.color || SEG_COLORS[i % SEG_COLORS.length] : old[0]?.color ?? null,
-  }));
+function toSegments(list, old = [], duration = Infinity) {
+  const endOf = (arr, i) => (i + 1 < arr.length ? arr[i + 1].start : duration);
+  const used = new Set();
+  const segs = list.map((x, i) => {
+    // altes Lied, das sich am meisten mit dem neuen überschneidet
+    let best = null, bo = 0;
+    old.forEach((o, j) => {
+      const ov = Math.min(endOf(list, i), endOf(old, j)) - Math.max(x.start, o.start);
+      if (ov > bo && !used.has(j)) { bo = ov; best = j; }
+    });
+    const len = endOf(list, i) - x.start;
+    const o = best != null && bo > len * 0.5 ? old[best] : null;
+    if (o) used.add(best);
+    return { id: uid(), start: x.start, name: o?.name || '', labelId: o?.labelId || null, color: o?.color || null };
+  });
+  if (segs.length > 1) {
+    const taken = new Set(segs.map((x) => x.color).filter(Boolean));
+    for (const sg of segs) {
+      if (sg.color) continue;
+      sg.color = SEG_COLORS.find((c) => !taken.has(c)) || SEG_COLORS[segs.indexOf(sg) % SEG_COLORS.length];
+      taken.add(sg.color);
+    }
+  }
+  return segs;
 }
 
 /* ---------- Titelinfos aus der Datei lesen (ID3, MP4, Vorbis) ---------- */
@@ -486,6 +694,9 @@ async function addFiles(files) {
   if (!list.length) return;
   let ok = 0;
   for (const file of list) {
+    const dup = state.tracks.find((t) => t.fileName && t.fileName === file.name && t.fileSize === file.size);
+    if (dup && !(await ask('Schon vorhanden', `<p><b>${esc(file.name)}</b> ist schon als „${esc(dup.name)}“ in der App.</p><p>Trotzdem ein zweites Mal laden?</p>`, 'Nochmal laden'))) continue;
+    if (file.size > 60e6 && !(await ask('Sehr große Datei', `<p><b>${esc(file.name)}</b> ist ${Math.round(file.size / 1e6)} MB groß. Auf älteren Handys kann das Laden lange dauern oder abbrechen.</p>`, 'Trotzdem laden'))) continue;
     toast(`Lade „${file.name || 'Audio'}“ …`, 60000);
     try {
       const id = uid();
@@ -498,13 +709,14 @@ async function addFiles(files) {
         name: tags.title || nameFromFile(file.name) || `Titel ${state.tracks.length + 1}`,
         artist: tags.artist || '',
         fileName: file.name || '',
+        fileSize: file.size,
         duration: info.duration,
         peaks: info.peaks,
         groupId: filterGroup || '',
         markers: [],
         cueIn: 0,
         cueOut: null,
-        segments: toSegments(info.segments),
+        segments: toSegments(info.segments, [], info.duration),
         beats: info.beats,
         ones: info.ones,
       });
@@ -513,16 +725,18 @@ async function addFiles(files) {
       renderAll();
     } catch (e) {
       console.error(e);
-      toast(`„${file.name}“ ist keine lesbare Audiodatei`);
+      toast(`„${file.name}“ ist keine lesbare Audiodatei`, 4000);
       await new Promise((r) => setTimeout(r, 1500));
     }
   }
   if (ok) {
     const last = state.tracks[state.tracks.length - 1];
     const n = last.segments.length;
-    toast(ok === 1 && n > 1 ? `Geladen – ${n} Lieder erkannt, bitte kurz prüfen` : `${ok} Titel geladen – Takt bitte kurz prüfen`, 3500);
+    const g = filterGroup ? group(filterGroup) : null;
+    toast((ok === 1 && n > 1 ? `Geladen – ${n} Lieder erkannt` : `${ok} Titel geladen`) + (g ? ` (in Gruppe ${g.name})` : ''), 3500);
+    if (!currentId || audio.paused) load(last.id, false);
+    checkWarnings();
   }
-  if (!currentId && state.tracks.length) load(state.tracks[0].id, false);
 }
 
 /* ---------- Lieder in der Datei und Zählzeiten ----------
@@ -638,29 +852,40 @@ function gridBeats(from, to, bpm, oneAt) {
 const cueIn = (t) => t?.cueIn || 0;
 const cueOut = (t) => (t && t.cueOut != null ? t.cueOut : t?.duration ?? 0);
 
+let loadToken = 0;
 async function load(id, autoplay = true, at = null) {
   const t = track(id);
   if (!t) return;
+  const my = ++loadToken;
   cancelFade();
   if (id !== currentId) {
     const url = await urlFor(id);
-    if (!url) return toast('Audiodatei fehlt – bitte neu laden');
-    if (currentId) lastPlayedId = currentId;
+    if (my !== loadToken) return;
+    if (!url) {
+      toast('Die Audiodatei fehlt. ✎ beim Titel → „Audiodatei ersetzen“ – Marker und Takt bleiben erhalten.', 6000);
+      return;
+    }
+    if (currentId && playedSinceLoad) lastPlayedId = currentId;
+    playedSinceLoad = false;
     currentId = id;
     selectedId = id;
     scrubBuf = null;
+    scrubBufFor = null;
     audio.src = url;
     await new Promise((res) => {
       audio.addEventListener('loadedmetadata', res, { once: true });
       audio.addEventListener('error', res, { once: true });
     });
+    if (my !== loadToken) return;
     ensureDetail(t);
   }
   audio.currentTime = at ?? cueIn(t);
+  lastPos = audio.currentTime;
   resetCountSchedule();
   renderAll();
   if (autoplay) play();
 }
+let playedSinceLoad = false;
 
 // Detail-Wellenform (und bei alten Titeln das Tempo) bei Bedarf nachberechnen
 async function ensureDetail(t) {
@@ -673,7 +898,7 @@ async function ensureDetail(t) {
       hi = info.hi;
       await putHi(t.id, hi);
       if (needTempo) {
-        t.segments = toSegments(info.segments, t.segments || []);
+        t.segments = toSegments(info.segments, t.segments || [], t.duration);
         t.beats = info.beats;
         t.ones = info.ones;
         save();
@@ -692,21 +917,21 @@ async function ensureDetail(t) {
 function play() {
   const t = current();
   if (!t) {
-    const first = visibleTracks()[0];
-    if (first) load(selectedId || first.id);
+    const list = visibleTracks();
+    const first = track(selectedId) || list[0] || state.tracks[0];
+    if (first) load(first.id);
+    else toast('Erst einen Titel laden: oben „+ Titel“');
     return;
   }
   cancelFade();
   if (audio.currentTime >= cueOut(t) - 0.05) audio.currentTime = cueIn(t);
+  lastPos = audio.currentTime;
   ensureGraph();
   setVol(state.volume);
   resetCountSchedule();
+  playedSinceLoad = true;
   audio.play().catch((e) => toast('Wiedergabe blockiert: ' + e.message));
-  if (history[0]?.id !== t.id) {
-    history.unshift({ id: t.id, at: new Date() });
-    history.length = Math.min(history.length, 8);
-    renderHistory();
-  }
+  keepAliveTouch();
 }
 function pause() { audio.pause(); }
 function toggle() { audio.paused ? play() : pause(); }
@@ -723,6 +948,7 @@ function seek(sec) {
   const t = current();
   if (!t) return;
   audio.currentTime = clamp(sec, 0, t.duration - 0.01);
+  lastPos = audio.currentTime;
   resetCountSchedule();
   draw();
 }
@@ -776,6 +1002,7 @@ function step(dir) {
   const i = list.findIndex((t) => t.id === currentId);
   const n = list[i + dir];
   if (n) load(n.id, !audio.paused || state.autoNext);
+  else toast(dir > 0 ? 'Das ist der letzte Titel der Liste' : 'Das ist der erste Titel der Liste');
 }
 
 function onEnded() {
@@ -795,22 +1022,29 @@ function onEnded() {
   if (t) audio.currentTime = cueIn(t);
 }
 
-function fadeOut(ms = 2500) {
+let fadeTimer = null;
+function fadeOut(ms = 3000) {
   if (audio.paused || fading) return;
-  if (isIOS && !gainNode) { toast('Fade-Out geht am iPhone nicht – gestoppt'); return pause(); }
-  const start = performance.now();
-  const from = state.volume;
-  const tick = (now) => {
-    const k = Math.min(1, (now - start) / ms);
-    setVol(from * (1 - k));
-    if (k < 1) fading = requestAnimationFrame(tick);
-    else { fading = null; audio.pause(); setVol(state.volume); }
-  };
-  fading = requestAnimationFrame(tick);
+  if (!gainNode) { toast(isIOS ? 'Ausblenden geht am iPhone nicht – gestoppt' : 'Gestoppt'); return pause(); }
+  const c = audioCtx;
+  const g = gainNode.gain;
+  g.cancelScheduledValues(c.currentTime);
+  g.setValueAtTime(g.value, c.currentTime);
+  g.linearRampToValueAtTime(0.0001, c.currentTime + ms / 1000);
+  fading = true;
+  $('fadeBtn').classList.add('on');
+  fadeTimer = setTimeout(() => {
+    fading = null;
+    audio.pause();
+    setVol(state.volume);
+    $('fadeBtn').classList.remove('on');
+  }, ms + 50);
 }
 function cancelFade() {
-  if (fading) cancelAnimationFrame(fading);
+  clearTimeout(fadeTimer);
   fading = null;
+  $('fadeBtn')?.classList.remove('on');
+  if (gainNode) { gainNode.gain.cancelScheduledValues(audioCtx.currentTime); }
   setVol(state.volume);
 }
 
@@ -821,6 +1055,8 @@ audio.addEventListener('seeked', resetCountSchedule);
 
 function syncPlayBtn() {
   $('playBtn').textContent = audio.paused ? '▶' : '⏸';
+  $('miniPlay').textContent = audio.paused ? '▶' : '⏸';
+  if (audio.paused) keepAliveTouch();
   updateMediaSession();
   if (!audio.paused && state.settings.keepAlive && keepEl?.paused) keepEl.play().catch(() => {});
   renderTracks();
@@ -868,6 +1104,12 @@ async function loadCountSounds(id = state.settings.voice) {
 }
 
 async function setVoice(id) {
+  if (id === 'own' && !state.ownVoice) {
+    renderVoiceSelects();
+    $('recordStatus').textContent = 'Bereit';
+    $('recordDlg').showModal();
+    return;
+  }
   state.settings.voice = id;
   save();
   renderVoiceSelects();
@@ -879,10 +1121,9 @@ async function setVoice(id) {
 }
 
 function renderVoiceSelects() {
-  for (const sel of [$('voiceSel'), $('setVoice')]) {
-    sel.replaceChildren(...VOICES.map((v) => new Option(v.name, v.id)));
-    sel.value = state.settings.voice;
-  }
+  const sel = $('setVoice');
+  sel.replaceChildren(...VOICES.map((v) => new Option(v.name + (v.id === 'own' && !state.ownVoice ? ' (noch nicht aufgenommen)' : ''), v.id)));
+  sel.value = state.settings.voice;
   $('countVol').value = state.settings.countVolume;
 }
 
@@ -899,15 +1140,21 @@ async function testVoice() {
 }
 
 /* Eigene Stimme: 10 s aufnehmen, an den Pausen in 8 Wörter schneiden */
+let recording = false;
 async function recordVoice() {
+  if (recording) return;
   const status = $('recordStatus');
+  const startBtn = $('recordStart');
   let stream;
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true, autoGainControl: true } });
   } catch (e) {
-    status.textContent = 'Kein Zugriff aufs Mikrofon – bitte erlauben';
+    status.textContent = 'Kein Zugriff aufs Mikrofon – bitte in den Einstellungen des Handys erlauben';
     return;
   }
+  recording = true;
+  startBtn.disabled = true;
+  if (!audio.paused) pause();
   const c = ctx();
   const src = c.createMediaStreamSource(stream);
   const proc = c.createScriptProcessor(4096, 1, 1);
@@ -916,28 +1163,37 @@ async function recordVoice() {
   const mute = c.createGain();
   mute.gain.value = 0;
   src.connect(proc).connect(mute).connect(c.destination);
+  const dlg = $('recordDlg');
+  let aborted = false;
+  const onClose = () => { aborted = true; };
+  dlg.addEventListener('close', onClose, { once: true });
   status.classList.add('rec');
-  for (let s = 10; s > 0; s--) {
-    status.textContent = `● Aufnahme … ${s}`;
+  for (let n = 10; n > 0 && !aborted; n--) {
+    status.textContent = `● Aufnahme … ${n}`;
     await new Promise((r) => setTimeout(r, 1000));
   }
+  dlg.removeEventListener('close', onClose);
   status.classList.remove('rec');
   proc.disconnect();
   src.disconnect();
   stream.getTracks().forEach((t) => t.stop());
+  recording = false;
+  startBtn.disabled = false;
+  if (aborted) return toast('Aufnahme abgebrochen');
   const len = chunks.reduce((n, x) => n + x.length, 0);
   const all = new Float32Array(len);
   let o = 0;
   for (const x of chunks) { all.set(x, o); o += x.length; }
   const parts = splitWords(all, c.sampleRate);
   if (parts.length !== 8) {
-    status.textContent = `${parts.length} Wörter erkannt statt 8 – bitte nochmal, mit kurzen Pausen dazwischen.`;
+    status.textContent = `${parts.length} Wörter erkannt statt 8 – bitte nochmal, deutlich und mit kurzen Pausen dazwischen.`;
     return;
   }
   await putHi('voice:own', { sr: c.sampleRate, parts });
   voiceCache.delete('own');
+  state.ownVoice = true;
   await setVoice('own');
-  status.textContent = 'Gespeichert ✓ – „Eigene Aufnahme“ ist jetzt ausgewählt.';
+  status.textContent = 'Gespeichert ✓ – deine Stimme zählt jetzt mit.';
   testVoice();
 }
 
@@ -1018,12 +1274,14 @@ function playCount(count, when) {
   }
 }
 
+let lastPos = 0;
 function scheduler() {
   const t = current();
   if (!t || audio.paused) return;
-  if (audio.currentTime >= cueOut(t) && t.cueOut != null) onEnded();
-  if (state.settings.countMode === 'off' || !hasBeats(t) || !audioCtx || scrub) return;
   const now = audio.currentTime;
+  if (t.cueOut != null && lastPos < t.cueOut && now >= t.cueOut) { lastPos = now; onEnded(); return; }
+  lastPos = now;
+  if (state.settings.countMode === 'off' || !hasBeats(t) || !audioCtx || scrub) return;
   const rate = audio.playbackRate || 1;
   const nb = nextBeat(t, lastCountTime ?? now - 0.03);
   if (!nb) return;
@@ -1048,7 +1306,12 @@ async function ensureScrubBuffer() {
   if (!t || scrubBufFor === t.id) return;
   scrubBufFor = t.id;
   try {
-    scrubBuf = await decodeLow(await getFile(t.id));
+    // nur ein Kanal behalten: halber Speicher
+    const buf = await decodeLow(await getFile(t.id));
+    const mono = mixMono(buf);
+    const b = ctx().createBuffer(1, mono.length, buf.sampleRate);
+    b.copyToChannel(mono, 0);
+    scrubBuf = b;
   } catch (e) {
     console.warn(e);
     scrubBufFor = null;
@@ -1111,24 +1374,27 @@ function addMarker(time = viewTime()) {
   const at = snap(clamp(time, 0, t.duration));
   if (t.markers.some((m) => Math.abs(m.time - at) < 0.05)) return toast('Hier ist schon ein Marker');
   const m = { id: uid(), time: at, label: '', color: MARKER_COLORS[t.markers.length % MARKER_COLORS.length] };
-  t.markers.push(m);
-  t.markers.sort((a, b) => a.time - b.time);
-  save();
-  renderMarkers();
-  renderTracks();
-  draw();
   const c = countAt(t, at + 0.001);
-  toast(`Marker bei ${fmt(m.time, true)}${c?.count ? ` (Zählzeit ${c.count})` : ''}`);
+  edit(`Marker bei ${fmt(m.time, true)}${c?.count ? ` (Zählzeit ${c.count})` : ''} – ✎ für Namen`, () => {
+    t.markers.push(m);
+    t.markers.sort((a, b) => a.time - b.time);
+    save();
+    renderMarkers();
+    renderTracks();
+    draw();
+  }, t);
 }
 
 function removeMarker(id) {
   const t = current();
   if (!t) return;
-  t.markers = t.markers.filter((m) => m.id !== id);
-  save();
-  renderMarkers();
-  renderTracks();
-  draw();
+  edit('Marker gelöscht', () => {
+    t.markers = t.markers.filter((m) => m.id !== id);
+    save();
+    renderMarkers();
+    renderTracks();
+    draw();
+  }, t);
 }
 
 // Marker als Cue: hinspringen und (je nach Einstellung) sofort abspielen
@@ -1142,20 +1408,18 @@ function setCue(which, at = viewTime()) {
   const t = current();
   if (!t) return;
   const now = snap(at);
-  if (which === 'in') {
-    if (now >= cueOut(t)) return toast('Cue-In muss vor Cue-Out liegen');
-    t.cueIn = now;
-  } else if (which === 'out') {
-    if (now <= cueIn(t)) return toast('Cue-Out muss nach Cue-In liegen');
-    t.cueOut = now;
-  } else {
-    t.cueIn = 0;
-    t.cueOut = null;
-  }
-  save();
-  renderCues();
-  renderTracks();
-  draw();
+  if (which === 'in' && now >= cueOut(t)) return toast('Der Start muss vor dem Ende liegen');
+  if (which === 'out' && now <= cueIn(t)) return toast('Das Ende muss nach dem Start liegen');
+  const label = which === 'in' ? `Start bei ${fmt(now, true)}` : which === 'out' ? `Ende bei ${fmt(now, true)}` : 'Wird wieder ganz abgespielt';
+  edit(label, () => {
+    if (which === 'in') t.cueIn = now;
+    else if (which === 'out') t.cueOut = now;
+    else { t.cueIn = 0; t.cueOut = null; }
+    save();
+    renderCues();
+    renderTracks();
+    draw();
+  }, t);
 }
 
 /* ---------- Tempo und Lieder bearbeiten ---------- */
@@ -1177,25 +1441,51 @@ function afterBeatEdit() {
   draw();
 }
 
+// Schläge eines Lieds ersetzen (Ergebnis einer Erkennung)
+function applyRange(t, i, r) {
+  t.beats ??= [];
+  t.ones ??= [];
+  const end = segEnd(t, i);
+  while (r.beats.length > 1 && i + 1 < t.segments.length && end - r.beats[r.beats.length - 1] < 0.5 * (r.beats[1] - r.beats[0])) r.beats.pop();
+  const [a, e] = segBeatRange(t, i);
+  replaceBeats(t, a, e, r.beats, r.ones);
+}
+
 // gleichmäßiges Raster mit neuem Tempo, ausgerichtet am Schlag an der aktuellen Stelle
-function setTempo(bpm) {
+// Tempo vorgeben (Feld oder Tippen): die Schläge werden mit diesem Tempo neu verfolgt,
+// die Zählung (wo die 1 ist) bleibt an der aktuellen Stelle erhalten
+async function setTempo(bpm) {
   const t = current();
   const i = curSegIndex();
   if (!t || i < 0 || !bpm) return;
   bpm = clamp(bpm, 40, 240);
-  t.beats ??= [];
-  t.ones ??= [];
-  const [a, e] = segBeatRange(t, i);
   const now = viewTime();
-  let k = bsearch(t.beats, now);
-  if (k < a || k >= e) k = -1;
-  const anchorTime = k >= 0 ? t.beats[k] : now;
-  const cnt = k >= 0 ? countOfBeat(t, k) : 1;
-  const bl = 60 / bpm;
-  const oneAt = anchorTime - (cnt - 1) * bl;
-  const g = gridBeats(t.segments[i].start, segEnd(t, i), bpm, oneAt);
-  replaceBeats(t, a, e, g.beats, g.ones);
-  afterBeatEdit();
+  const keepCount = hasBeats(t) ? countAt(t, now) : null;
+  let r;
+  try {
+    r = await withFeatures(t, { op: 'range', start: t.segments[i].start, end: segEnd(t, i), bpm },
+      (F) => Analysis.analyseRange(F, t.segments[i].start, segEnd(t, i), bpm));
+  } catch (e) {
+    console.warn(e);
+  }
+  edit(`Tempo ${Math.round(bpm * 10) / 10}`, () => {
+    if (r?.beats?.length) applyRange(t, i, r);
+    else {
+      const [a, e] = segBeatRange(t, i);
+      const g = gridBeats(t.segments[i].start, segEnd(t, i), bpm, t.segments[i].start);
+      replaceBeats(t, a, e, g.beats, g.ones);
+    }
+    // bisherige Zählung an dieser Stelle beibehalten
+    if (keepCount?.count) {
+      const k = bsearch(t.beats, now + 0.005);
+      if (k >= 0) {
+        const one = k - (keepCount.count - 1);
+        const [a, e] = segBeatRange(t, i);
+        t.ones = [...t.ones.filter((j) => j < a || j >= e), clamp(one, a, e - 1)].sort((x, y) => x - y);
+      }
+    }
+    afterBeatEdit();
+  }, t);
 }
 
 function scaleTempo(f) {
@@ -1204,6 +1494,7 @@ function scaleTempo(f) {
   if (!hasBeats(t) || i < 0) return;
   const [a, e] = segBeatRange(t, i);
   if (e - a < 4) return;
+  snapshot(t, f < 1 ? 'Halb so schnell zählen' : 'Doppelt so schnell zählen');
   const part = t.beats.slice(a, e);
   const firstOne = (t.ones.find((k) => k >= a && k < e) ?? a) - a;
   let nb, ones;
@@ -1218,63 +1509,70 @@ function scaleTempo(f) {
   }
   replaceBeats(t, a, e, nb, ones);
   afterBeatEdit();
+  toast(f < 1 ? 'Zählt jetzt halb so schnell' : 'Zählt jetzt doppelt so schnell', 3000, { label: 'Rückgängig', fn: undo });
 }
 
+let nudgeTimer = null;
 function nudge(sec) {
   const t = current();
   const i = curSegIndex();
   if (!hasBeats(t) || i < 0) return;
+  // mehrere Tipper hintereinander = ein Rückgängig-Schritt
+  if (!nudgeTimer) snapshot(t, 'Zählung verschoben');
+  clearTimeout(nudgeTimer);
+  nudgeTimer = setTimeout(() => { nudgeTimer = null; }, 2500);
   const [a, e] = segBeatRange(t, i);
   for (let k = a; k < e; k++) t.beats[k] = Math.round((t.beats[k] + sec) * 1000) / 1000;
   afterBeatEdit();
+  toast(`Zählung ${sec < 0 ? 'früher' : 'später'} (${Math.round(sec * 1000)} ms)`, 2500, { label: 'Rückgängig', fn: undo });
 }
 
 let taps = [];
+let tapTimer = null;
 function tapTempo() {
   if (!current()) return;
+  if (audio.paused) return toast('Erst die Musik abspielen, dann im Takt tippen');
   const now = performance.now();
   if (taps.length && now - taps[taps.length - 1] > 2000) taps = [];
   taps.push(now);
-  if (taps.length > 8) taps.shift();
-  if (taps.length >= 4) {
-    const bpm = 60000 / ((taps[taps.length - 1] - taps[0]) / (taps.length - 1));
-    setTempo(Math.round(bpm * 10) / 10);
-    if (!audio.paused) setOne(audio.currentTime, false);
-  } else {
-    toast(`Weiter im Takt tippen … (${taps.length}/4)`, 1200);
-  }
+  if (taps.length > 12) taps.shift();
+  clearTimeout(tapTimer);
+  if (taps.length < 4) return toast(`Weiter im Takt tippen … (${taps.length}/4)`, 1500);
+  const bpm = 60000 / ((taps[taps.length - 1] - taps[0]) / (taps.length - 1));
+  toast(`≈ ${Math.round(bpm)} BPM – weiter tippen oder kurz warten`, 1500);
+  // erst übernehmen, wenn nicht mehr getippt wird
+  tapTimer = setTimeout(() => { taps = []; setTempo(Math.round(bpm * 10) / 10); }, 1600);
 }
 
+// Ab dieser Stelle neu mit 1 zählen
 // Ab dieser Stelle neu mit 1 zählen
 function setOne(at = viewTime(), msg = true) {
   const t = current();
   if (!hasBeats(t)) return toast('Erst Tempo erkennen oder antippen');
   const b = t.beats;
+  // bei laufender Musik kommt der Druck meist etwas zu spät (Reaktion, Bluetooth): zurückrechnen
+  if (!audio.paused && !scrub) at -= 0.25;
   let k = bsearch(b, at);
   if (k < 0 || (k + 1 < b.length && Math.abs(b[k + 1] - at) < Math.abs(b[k] - at))) k++;
   k = clamp(k, 0, b.length - 1);
-  t.ones = [...t.ones.filter((j) => Math.abs(j - k) >= 8), k].sort((x, y) => x - y);
-  afterBeatEdit();
-  if (msg) toast('Ab hier wird neu mit 1 gezählt');
+  edit('Ab hier wird mit 1 gezählt', () => {
+    t.ones = [...t.ones.filter((j) => Math.abs(j - k) >= 3), k].sort((x, y) => x - y);
+    afterBeatEdit();
+  }, t);
 }
 
+// Tempo und Schläge nur für das aktuelle Lied neu erkennen
 // Tempo und Schläge nur für das aktuelle Lied neu erkennen
 async function redetect() {
   const t = current();
   const i = curSegIndex();
   if (!t || i < 0) return;
+  if (!(await ask('Takt neu erkennen?', `<p>Für <b>${esc(segName(t, i))}</b> werden Tempo und Zählung neu erkannt. Eigene Korrekturen in diesem Lied werden ersetzt.</p><p class="sub">Danach kannst du mit „Rückgängig“ zurück.</p>`, 'Neu erkennen'))) return;
   try {
-    const F = await featuresFor(t);
-    const r = Analysis.analyseRange(F, t.segments[i].start, segEnd(t, i));
-    if (!r.beats.length) return toast('Kein Takt erkannt – bitte Tap benutzen');
-    t.beats ??= [];
-    t.ones ??= [];
-    const end = segEnd(t, i);
-    while (r.beats.length > 1 && i + 1 < t.segments.length && end - r.beats[r.beats.length - 1] < 0.5 * (r.beats[1] - r.beats[0])) r.beats.pop();
-    const [a, e] = segBeatRange(t, i);
-    replaceBeats(t, a, e, r.beats, r.ones);
-    afterBeatEdit();
-    toast(`${segName(t, i)}: ${segBpm(t, i)} BPM erkannt`, 2500);
+    const r = await withFeatures(t, { op: 'range', start: t.segments[i].start, end: segEnd(t, i) },
+      (F) => Analysis.analyseRange(F, t.segments[i].start, segEnd(t, i)));
+    if (!r.beats.length) return toast('Kein Takt erkannt – bitte „Im Takt tippen“ benutzen');
+    edit(`${segName(t, i)}: Takt neu erkannt (${Analysis.bpmOfBeats(r.beats)} BPM)`, () => { applyRange(t, i, r); afterBeatEdit(); }, t);
   } catch (e) {
     console.warn(e);
     toast('Erkennung fehlgeschlagen');
@@ -1282,21 +1580,21 @@ async function redetect() {
 }
 
 // Alle Lieder in der Datei neu erkennen
+// Alle Lieder in der Datei neu erkennen
 async function detectSongs() {
   const t = current();
   if (!t) return;
-  if (t.segments?.length > 1 && !confirm('Lieder neu erkennen? Eigene Grenzen und Zählkorrekturen werden ersetzt (Namen und Farben bleiben).')) return;
+  if (!(await ask('Lieder neu erkennen?', '<p>Liedgrenzen, Tempo und Zählung der ganzen Datei werden neu erkannt. Eigene Korrekturen gehen dabei verloren; Namen und Farben bleiben bei den Liedern, die wiedererkannt werden.</p><p class="sub">Danach kannst du mit „Rückgängig“ zurück.</p>', 'Neu erkennen'))) return;
   try {
-    const F = await featuresFor(t);
     toast('Suche Lieder …', 30000);
-    await new Promise((r) => setTimeout(r, 30));
-    const r = Analysis.songsFromFeatures(F);
-    t.segments = toSegments(r.segments, t.segments);
-    t.beats = r.beats;
-    t.ones = r.ones;
-    afterBeatEdit();
-    renderAll();
-    toast(t.segments.length > 1 ? `${t.segments.length} Lieder erkannt` : 'Ein durchgehendes Lied erkannt', 3000);
+    const r = await withFeatures(t, { op: 'songs' }, (F) => Analysis.songsFromFeatures(F));
+    edit(`${r.segments.length > 1 ? r.segments.length + ' Lieder' : 'Ein Lied'} erkannt`, () => {
+      t.segments = toSegments(r.segments, t.segments, t.duration);
+      t.beats = r.beats;
+      t.ones = r.ones;
+      afterBeatEdit();
+      renderAll();
+    }, t);
   } catch (e) {
     console.warn(e);
     toast('Erkennung fehlgeschlagen');
@@ -1327,22 +1625,24 @@ function splitHere() {
   const i = segIndexAt(t, at);
   const sg = t.segments[i];
   if (at - sg.start < 2 || segEnd(t, i) - at < 2) return toast('Zu nah an einer Liedgrenze');
-  t.segments.splice(i + 1, 0, { id: uid(), start: Math.round(at * 1000) / 1000, name: '', labelId: null, color: null });
-  colorizeSegments(t);
-  addOneAt(t, at);
-  afterBeatEdit();
-  renderAll();
-  toast(`${segName(t, i + 1)} beginnt bei ${fmt(at, true)} – mit 1`, 2500);
+  edit(`Neues Lied ab ${fmt(at, true)} – zählt dort mit 1`, () => {
+    t.segments.splice(i + 1, 0, { id: uid(), start: Math.round(at * 1000) / 1000, name: '', labelId: null, color: null });
+    colorizeSegments(t);
+    addOneAt(t, at);
+    afterBeatEdit();
+    renderAll();
+  }, t);
 }
 
 function mergeSong(i) {
   const t = current();
   if (!t || i < 1) return;
-  if (!confirm(`„${segName(t, i)}“ mit dem Lied davor zusammenführen?`)) return;
-  t.segments.splice(i, 1);
-  if (t.segments.length === 1) t.segments[0].color = null;
-  afterBeatEdit();
-  renderAll();
+  edit(`„${segName(t, i)}“ mit dem Lied davor verbunden`, () => {
+    t.segments.splice(i, 1);
+    if (t.segments.length === 1) t.segments[0].color = null;
+    afterBeatEdit();
+    renderAll();
+  }, t);
 }
 
 function setSongStart(i) {
@@ -1350,16 +1650,18 @@ function setSongStart(i) {
   if (!t || i < 1) return;
   const at = snap(viewTime(), t, 'beat');
   const lo = t.segments[i - 1].start + 2, hi = segEnd(t, i) - 2;
-  if (at < lo || at > hi) return toast('Die Grenze muss zwischen den Nachbarliedern liegen');
-  const old = t.segments[i].start;
-  if (hasBeats(t)) {
-    const k = bsearch(t.beats, old - 0.03) + 1;
-    t.ones = t.ones.filter((j) => j !== k);
-  }
-  t.segments[i].start = Math.round(at * 1000) / 1000;
-  addOneAt(t, at);
-  afterBeatEdit();
-  renderAll();
+  if (at < lo || at > hi) return toast('Erst die Musik an die Stelle schieben, wo das Lied beginnt');
+  edit(`${segName(t, i)} beginnt jetzt bei ${fmt(at, true)}`, () => {
+    const old = t.segments[i].start;
+    if (hasBeats(t)) {
+      const k = bsearch(t.beats, old - 0.03) + 1;
+      t.ones = t.ones.filter((j) => j !== k);
+    }
+    t.segments[i].start = Math.round(at * 1000) / 1000;
+    addOneAt(t, at);
+    afterBeatEdit();
+    renderAll();
+  }, t);
 }
 
 /* ---------- Rendering ---------- */
@@ -1408,7 +1710,7 @@ function renderTracks() {
   const list = visibleTracks();
   list.forEach((t, i) => {
     const g = group(t.groupId);
-    const li = el('li', { draggable: true });
+    const li = el('li', { draggable: !isTouch });
     li.dataset.id = t.id;
     if (t.id === selectedId) li.classList.add('selected');
     if (t.id === currentId) li.classList.add('playing');
@@ -1417,12 +1719,13 @@ function renderTracks() {
     stripe.style.background = t.color || g?.color || '#4a4a58';
     const title = el('span', { className: 'title' },
       el('span', { className: 't1', textContent: (t.id === currentId && !audio.paused ? '▶ ' : '') + t.name }),
-      el('span', { className: 't2', textContent: [t.artist, g?.name, tempoText(t), t.markers.length ? `◆${t.markers.length}` : null].filter(Boolean).join(' · ') }));
+      el('span', { className: 't2', textContent: [t.artist, g?.name, tempoText(t), t.markers.length ? `${t.markers.length} Marker` : null].filter(Boolean).join(' · ') }));
     title.title = t.name;
 
-    const playB = el('button', { className: 'row-btn', textContent: '▶', title: 'Abspielen' });
-    playB.onclick = (e) => { e.stopPropagation(); load(t.id, true); };
-    const editB = el('button', { className: 'row-btn', textContent: '✎', title: 'Titel, Gruppe bearbeiten' });
+    const playing = t.id === currentId && !audio.paused;
+    const playB = el('button', { className: 'row-btn play', textContent: playing ? '⏸' : '▶', title: playing ? 'Pause' : 'Abspielen' });
+    playB.onclick = (e) => { e.stopPropagation(); if (t.id === currentId) toggle(); else load(t.id, true); };
+    const editB = el('button', { className: 'row-btn', textContent: '✎', title: 'Titel bearbeiten' });
     editB.onclick = (e) => { e.stopPropagation(); openTrackDialog(t); };
 
     li.append(stripe, el('span', { className: 'num', textContent: i + 1 }), title,
@@ -1446,32 +1749,57 @@ function renderTracks() {
     };
     ol.append(li);
   });
-  $('dropHint').style.display = state.tracks.length ? 'none' : '';
+  // Filter sichtbar machen, damit keine Titel „verschwinden“
+  const fb = $('filterBar');
+  const q = $('search').value.trim();
+  if (filterGroup !== null || q) {
+    const what = [filterGroup !== null ? `Gruppe „${filterGroup === '' ? 'Ohne Gruppe' : group(filterGroup)?.name}“` : null, q ? `Suche „${q}“` : null].filter(Boolean).join(', ');
+    fb.hidden = false;
+    fb.replaceChildren(el('span', { textContent: `Nur ${what}: ${list.length} von ${state.tracks.length} Titeln` }));
+    const all = el('button', { className: 'btn small', textContent: 'Alle zeigen' });
+    all.onclick = () => { filterGroup = null; $('search').value = ''; renderGroups(); renderTracks(); };
+    fb.append(all);
+  } else fb.hidden = true;
+  const hint = $('dropHint');
+  hint.hidden = list.length > 0;
+  hint.textContent = state.tracks.length ? 'Keine Titel in dieser Auswahl.' : 'Noch keine Titel. Oben „+ Titel“ antippen.';
+  $('emptyState').hidden = state.tracks.length > 0;
 }
 
 async function removeTrack(id) {
   const t = track(id);
-  if (!t || !confirm(`„${t.name}“ entfernen?`)) return false;
+  if (!t) return false;
+  const ok = await ask('Titel löschen?', `<p><b>${esc(t.name)}</b> wird aus der App gelöscht – mit Audiodatei, ${t.markers.length} Marker(n), Liedern und Takt-Korrekturen.</p><p class="sub">Das lässt sich nicht rückgängig machen. Die Originaldatei auf dem Handy bleibt erhalten.</p>`, 'Endgültig löschen', true);
+  if (!ok) return false;
   if (id === currentId) { audio.pause(); audio.removeAttribute('src'); currentId = null; }
+  if (selectedId === id) selectedId = null;
+  if (lastPlayedId === id) lastPlayedId = null;
   state.tracks = state.tracks.filter((x) => x.id !== id);
   if (urlCache.has(id)) { URL.revokeObjectURL(urlCache.get(id)); urlCache.delete(id); }
   hiCache.delete(id);
   await delFile(id);
   save();
   renderAll();
+  toast('Titel gelöscht');
   return true;
 }
 
 function renderNow() {
   const t = current();
   const g = group(t?.groupId);
-  $('nowTitle').textContent = t ? t.name : 'Kein Titel geladen';
-  $('nowSub').textContent = t ? [t.artist, g?.name].filter(Boolean).join(' · ') || '–' : '–';
-  $('nowColor').style.background = g?.color || '#4a4a58';
+  $('nowTitle').textContent = t ? t.name : (state.tracks.length ? 'Titel in der Liste antippen' : 'Kein Titel geladen');
+  $('nowSub').textContent = t ? [t.artist, g?.name, '✎ antippen zum Bearbeiten'].filter(Boolean).join(' · ') : '';
+  $('nowColor').style.background = t?.color || g?.color || '#4a4a58';
   $('timeDur').textContent = fmt(t?.duration || 0);
   const eight = state.settings.jumpEight && hasBeats(t);
-  $('backBtn').textContent = eight ? '−8' : '-5s';
-  $('fwdBtn').textContent = eight ? '+8' : '+5s';
+  $('backBtn').textContent = eight ? '−1 Achter' : '−5 s';
+  $('fwdBtn').textContent = eight ? '+1 Achter' : '+5 s';
+  $('autoNextBtn').classList.toggle('on', !!state.autoNext);
+  $('loopBtn').classList.toggle('on', loop);
+  $('miniTitle').textContent = t ? t.name : '';
+  $('fadeBtn').hidden = isIOS;
+  $('iosVolHint').hidden = !isIOS;
+  $('volume').closest('label').hidden = isIOS;
 }
 
 function renderCues() {
@@ -1488,7 +1816,7 @@ function renderTempo() {
   const inp = $('bpmInput');
   if (document.activeElement !== inp) inp.value = bpm ?? '';
   const multi = t?.segments?.length > 1;
-  $('tempoSeg').textContent = multi ? segName(t, i) : '';
+  $('tempoSeg').textContent = multi ? `– ${segName(t, i)}` : '';
   $('tempoSeg').style.color = multi ? segColor(t, sg) : '';
   $('countBox').classList.toggle('off', !bpm);
   for (const seg of ['countModeSeg', 'snapSeg']) {
@@ -1498,6 +1826,14 @@ function renderTempo() {
   renderNow();
 }
 
+// nur die Markierung des aktuellen Lieds umschalten (Eingabefelder nicht neu aufbauen)
+function markCurrentSong() {
+  const t = current();
+  if (!t?.segments) return;
+  const curI = segIndexAt(t, viewTime());
+  [...$('songList').children].forEach((li, i) => li.classList.toggle('cur', i === curI));
+}
+
 function renderSongs() {
   const ul = $('songList');
   ul.replaceChildren();
@@ -1505,30 +1841,35 @@ function renderSongs() {
   if (!t?.segments) return;
   const curI = segIndexAt(t, viewTime());
   t.segments.forEach((sg, i) => {
-    const color = el('button', { className: 'mcolor', title: 'Farbe des Lieds' });
+    const color = el('button', { className: 'mcolor', title: 'Farbe des Lieds ändern' });
     color.style.background = segColor(t, sg);
     color.onclick = async () => {
       const c = await pickColor(sg.color, sg.labelId);
       if (!c) return;
-      sg.color = c.color;
-      sg.labelId = c.labelId;
-      colorizeSegments(t);
-      save();
-      renderSongs();
-      draw();
+      edit(`Farbe von ${segName(t, i)} geändert`, () => {
+        sg.color = c.color;
+        sg.labelId = c.labelId;
+        colorizeSegments(t);
+        save();
+        renderSongs();
+        draw();
+      }, t);
     };
     const lab = colorLabel(sg.labelId);
-    const name = el('input', { type: 'text', value: sg.name, placeholder: lab?.name || `Lied ${i + 1}`, maxLength: 40 });
+    const name = el('input', { type: 'text', value: sg.name, placeholder: lab?.name || `Lied ${i + 1} – Name eintippen`, maxLength: 40 });
     name.oninput = () => { sg.name = name.value; save(); draw(); };
-    const startB = el('button', { className: 'mmini time', textContent: fmt(sg.start), title: 'Zum Liedanfang springen' });
-    startB.onclick = () => { seek(sg.start); if (state.settings.markerPlay) play(); };
-    const here = el('button', { className: 'mmini', textContent: '⇤', title: 'Liedanfang auf die aktuelle Stelle legen', disabled: i === 0 });
-    here.onclick = () => setSongStart(i);
+    const startB = el('button', { className: 'mini-text', textContent: `▶ ab ${fmt(sg.start)}`, title: 'Ab Liedanfang abspielen' });
+    startB.onclick = () => { seek(sg.start); play(); };
     const sb = segBpm(t, i);
-    const bpm = el('span', { className: 'song-bpm', textContent: sb ? `${sb}` : '–', title: 'BPM' });
-    const del = el('button', { className: 'mmini del', textContent: '✕', title: 'Mit dem Lied davor zusammenführen', disabled: i === 0 });
+    const meta = el('div', { className: 'song-meta' }, startB,
+      el('span', { textContent: [lab ? lab.name : null, sb ? `${sb} BPM` : null].filter(Boolean).join(' · ') }));
+    const here = el('button', { className: 'mini-text', textContent: 'Anfang hierher', title: 'Liedanfang auf die aktuelle Stelle legen', disabled: i === 0 });
+    here.onclick = () => setSongStart(i);
+    const del = el('button', { className: 'mini-text', textContent: 'Mit vorigem verbinden', title: 'Dieses und das vorige Lied sind eins', disabled: i === 0 });
     del.onclick = () => mergeSong(i);
-    const li = el('li', { className: i === curI ? 'cur' : '' }, color, name, startB, here, bpm, del);
+    const li = el('li', { className: i === curI ? 'cur' : '' }, color,
+      el('div', { className: 'song-main' }, name, meta),
+      el('div', { className: 'song-btns' }, here, del));
     li.style.setProperty('--c', segColor(t, sg));
     ul.append(li);
   });
@@ -1538,50 +1879,23 @@ function renderMarkers() {
   const ul = $('markerList');
   ul.replaceChildren();
   const t = current();
+  $('addMarkerBtn').textContent = isTouch ? '+ Marker hier' : '+ Marker hier (M)';
   if (!t || !t.markers.length) {
-    ul.append(el('li', { className: 'empty', textContent: 'Noch keine Marker – z. B. „Einsatz Garde“, „Hebefigur“, „Tusch“.' }));
+    ul.append(el('li', { className: 'empty', textContent: t ? 'Noch keine Marker. „+ Marker hier“ setzt einen an der aktuellen Stelle – z. B. „Einsatz Garde“, „Hebefigur“.' : '' }));
     return;
   }
   t.markers.forEach((m, i) => {
     const c = countAt(t, m.time + 0.001);
     const cue = el('button', { className: 'mcue', title: 'Ab hier abspielen' },
       el('span', { className: 'mn', textContent: i + 1 }),
-      el('span', { textContent: fmt(m.time, true) }),
-      c?.count ? el('span', { className: 'mc', textContent: `·${c.count}` }) : null);
+      el('span', { className: 'ml', textContent: m.label || `Marker ${i + 1}` }),
+      el('span', { className: 'mt', textContent: `${fmt(m.time)}${c?.count ? ` · ${c.count}` : ''}` }));
     cue.style.background = m.color;
     cue.onclick = () => cueMarker(m);
-    const label = el('input', { type: 'text', value: m.label, placeholder: 'Beschriftung…', maxLength: 40 });
-    label.oninput = () => { m.label = label.value; save(); draw(); };
-    const color = el('button', { className: 'mcolor', title: 'Farbe' });
-    color.style.background = m.color;
-    color.onclick = async () => {
-      const c = await pickColor(m.color);
-      if (c) { m.color = c.color; save(); renderMarkers(); draw(); }
-    };
-    const inB = el('button', { className: 'mmini', textContent: 'In', title: 'Als Cue-In (Start) setzen' });
-    inB.onclick = () => setCue('in', m.time);
-    const outB = el('button', { className: 'mmini', textContent: 'Out', title: 'Als Cue-Out (Ende) setzen' });
-    outB.onclick = () => setCue('out', m.time);
-    const del = el('button', { className: 'mmini del', textContent: '✕', title: 'Marker löschen' });
-    del.onclick = () => removeMarker(m.id);
-    ul.append(el('li', {}, cue, label, color, inB, outB, del));
+    const ed = el('button', { className: 'medit', textContent: '✎', title: 'Name, Farbe, löschen' });
+    ed.onclick = () => openMarkerDialog(m);
+    ul.append(el('li', {}, cue, ed));
   });
-}
-
-function renderHistory() {
-  const ul = $('historyList');
-  ul.replaceChildren();
-  if (!history.length) return ul.append(el('li', { textContent: 'Noch nichts gespielt' }));
-  for (const h of history) {
-    const t = track(h.id);
-    if (!t) continue;
-    const li = el('li', {
-      textContent: `${h.at.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}  ${t.name}`,
-      title: 'Nochmal abspielen',
-    });
-    li.onclick = () => load(t.id, true);
-    ul.append(li);
-  }
 }
 
 function renderAll() {
@@ -1592,7 +1906,6 @@ function renderAll() {
   renderTempo();
   renderSongs();
   renderMarkers();
-  renderHistory();
   draw();
 }
 
@@ -1673,16 +1986,17 @@ function openGroupDialog(g) {
   let color = g?.color || PALETTE[state.groups.length % PALETTE.length];
   $('groupDlgTitle').textContent = isNew ? 'Neue Gruppe' : 'Gruppe bearbeiten';
   $('groupDlgName').value = g?.name || '';
-  $('groupDlgDelete').style.display = isNew ? 'none' : '';
+  $('groupDlgDelete').parentElement.hidden = isNew;
   const paint = () => swatches($('groupDlgColors'), color, (c) => { color = c; paint(); });
   paint();
-  $('groupDlgDelete').onclick = () => {
-    if (!confirm(`Gruppe „${g.name}“ löschen? Die Titel bleiben erhalten.`)) return;
+  $('groupDlgDelete').onclick = async () => {
+    dlg.close();
+    const n = state.tracks.filter((t) => t.groupId === g.id).length;
+    if (!(await ask('Gruppe löschen?', `<p>Gruppe <b>${esc(g.name)}</b> löschen? ${n ? `Die ${n} Titel darin bleiben erhalten und stehen danach unter „Ohne Gruppe“.` : ''}</p>`, 'Löschen', true))) return;
     state.groups = state.groups.filter((x) => x.id !== g.id);
     state.tracks.forEach((t) => { if (t.groupId === g.id) t.groupId = ''; });
     if (filterGroup === g.id) filterGroup = null;
     save();
-    dlg.close();
     renderAll();
   };
   dlg.onclose = () => {
@@ -1730,16 +2044,89 @@ function openTrackDialog(t) {
   };
   paint();
   paintColor();
-  $('trackDlgDelete').onclick = async () => { if (await removeTrack(t.id)) dlg.close(); };
+  const move = (dir) => {
+    const i = state.tracks.indexOf(t), j = i + dir;
+    if (j < 0 || j >= state.tracks.length) return toast(dir < 0 ? 'Steht schon ganz oben' : 'Steht schon ganz unten');
+    [state.tracks[i], state.tracks[j]] = [state.tracks[j], state.tracks[i]];
+    save();
+    renderTracks();
+    toast(`Jetzt Platz ${j + 1} von ${state.tracks.length}`, 1500);
+  };
+  $('trackDlgUp').onclick = () => move(-1);
+  $('trackDlgDown').onclick = () => move(1);
+  $('trackDlgDelete').onclick = async () => { dlg.close(); await removeTrack(t.id); };
+  $('trackDlgReplace').onchange = async (e) => {
+    const f = e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    dlg.close();
+    await replaceAudio(t, f);
+  };
   dlg.onclose = () => {
     if (dlg.returnValue !== 'save') return;
-    t.name = $('trackDlgName').value.trim() || t.name;
-    t.artist = $('trackDlgArtist').value.trim();
-    t.groupId = groupId;
-    t.color = color;
-    t.labelId = labelId;
+    edit('Titel geändert', () => {
+      t.name = $('trackDlgName').value.trim() || t.name;
+      t.artist = $('trackDlgArtist').value.trim();
+      t.groupId = groupId;
+      t.color = color;
+      t.labelId = labelId;
+      save();
+      renderAll();
+    }, t);
+  };
+  dlg.returnValue = '';
+  dlg.showModal();
+}
+
+// Audiodatei austauschen, Marker/Takt/Lieder bleiben
+async function replaceAudio(t, file) {
+  try {
+    toast('Lade neue Audiodatei …', 30000);
+    const info = await analyseBlob(file, t.id, '');
+    if (Math.abs(info.duration - t.duration) > 2) {
+      const ok = await ask('Andere Länge', `<p>Die neue Datei ist ${fmt(info.duration)} lang, die alte ${fmt(t.duration)}. Marker und Takt passen dann eventuell nicht mehr.</p>`, 'Trotzdem ersetzen');
+      if (!ok) return toast('Abgebrochen');
+    }
+    await putFile(t.id, file);
+    await putHi(t.id, info.hi);
+    hiCache.set(t.id, info.hi);
+    if (urlCache.has(t.id)) { URL.revokeObjectURL(urlCache.get(t.id)); urlCache.delete(t.id); }
+    t.duration = info.duration;
+    t.peaks = info.peaks;
+    t.fileName = file.name || t.fileName;
+    if (!t.beats?.length) { t.segments = toSegments(info.segments, t.segments || [], t.duration); t.beats = info.beats; t.ones = info.ones; }
     save();
+    if (currentId === t.id) { currentId = null; await load(t.id, false); }
     renderAll();
+    toast('Audiodatei ersetzt – Marker und Takt sind erhalten');
+  } catch (e) {
+    console.warn(e);
+    toast('Die Datei konnte nicht gelesen werden');
+  }
+}
+
+function openMarkerDialog(m) {
+  const t = current();
+  if (!t) return;
+  const dlg = $('markerDlg');
+  const i = t.markers.indexOf(m);
+  let color = m.color;
+  $('markerDlgTitle').textContent = `Marker ${i + 1} bei ${fmt(m.time, true)}`;
+  $('markerDlgName').value = m.label || '';
+  const paint = () => swatches($('markerDlgColors'), color, (c) => { color = c; paint(); });
+  paint();
+  $('markerDlgIn').onclick = () => { dlg.close(); setCue('in', m.time); };
+  $('markerDlgOut').onclick = () => { dlg.close(); setCue('out', m.time); };
+  $('markerDlgDelete').onclick = () => { dlg.close(); removeMarker(m.id); };
+  dlg.onclose = () => {
+    if (dlg.returnValue !== 'save') return;
+    edit('Marker geändert', () => {
+      m.label = $('markerDlgName').value.trim();
+      m.color = color;
+      save();
+      renderMarkers();
+      draw();
+    }, t);
   };
   dlg.returnValue = '';
   dlg.showModal();
@@ -1750,7 +2137,7 @@ function openSettings() {
   $('setScrubAudio').checked = s.scrubAudio;
   $('setMarkerPlay').checked = s.markerPlay;
   $('setJumpEight').checked = s.jumpEight;
-  $('setCountVol').value = s.countVolume;
+  $('setWaveLock').checked = !!s.waveLock;
   $('setCountOffset').value = s.countOffsetMs;
   $('setCountOffsetVal').textContent = `${s.countOffsetMs} ms`;
   renderVoiceSelects();
@@ -1759,18 +2146,20 @@ function openSettings() {
   $('setKeepLevel').value = s.keepLevel;
   $('setScreenOn').checked = s.screenOn;
   $('iosHint').hidden = !isIOS;
+  $('appVersion').textContent = APP_VERSION;
+  $('lastBackup').textContent = state.lastBackup ? `Letzte Sicherung: ${new Date(state.lastBackup).toLocaleString('de-DE')}` : 'Noch nie gesichert.';
   updateBatteryRow();
   $('settingsDlg').showModal();
 }
 for (const [id, key, prop] of [
   ['setScrubAudio', 'scrubAudio', 'checked'], ['setMarkerPlay', 'markerPlay', 'checked'],
-  ['setJumpEight', 'jumpEight', 'checked'], ['setCountVol', 'countVolume', 'value'],
+  ['setJumpEight', 'jumpEight', 'checked'], ['setWaveLock', 'waveLock', 'checked'],
   ['setCountOffset', 'countOffsetMs', 'value'],
 ]) {
   $(id).addEventListener('input', (e) => {
     state.settings[key] = prop === 'checked' ? e.target.checked : +e.target.value;
     $('setCountOffsetVal').textContent = `${state.settings.countOffsetMs} ms`;
-    $('countVol').value = state.settings.countVolume;
+    $('zoom').parentElement.classList.toggle('locked', !!state.settings.waveLock);
     save();
     renderNow();
   });
@@ -1831,6 +2220,7 @@ function drawLabels(g, items, w, top) {
 const markerText = (m, i) => `${i + 1}${m.label ? ' ' + m.label : ''}`;
 
 let waveLayout = { top: 0 };
+// Schmaler Streifen: ganzes Stück mit Liedfarben, Markern und dem Ausschnitt der großen Leiste
 function drawOverview() {
   const { g, w, h } = prepCanvas(wave);
   const t = current();
@@ -1841,70 +2231,45 @@ function drawOverview() {
   const cur = viewTime();
   const segs = t.segments || [{ start: 0 }];
   const multi = segs.length > 1;
-
-  const items = t.markers.map((m, i) => ({ x: Math.round(x(m.time)), text: markerText(m, i), color: m.color }));
-  const lanes = t.markers.length ? layoutLabels(g, items, 3) : 0;
-  const top = lanes * LANE_H + 2;
-  const STRIP = multi ? 12 : 0;
-  waveLayout = { top, items };
-
-  const barW = 2, gap = 1;
-  const bars = Math.floor(w / (barW + gap));
-  const bottom = h - STRIP;
-  const mid = top + (bottom - top) * 0.66;
-  const up = mid - top - 1, down = bottom - mid - 1;
+  const BAND = 6, TOP = 8;
+  const mid = TOP + (h - TOP - BAND) / 2, amp = (h - TOP - BAND) / 2 - 1;
   const px = x(cur), inX = x(cueIn(t)), outX = x(cueOut(t));
   let si = 0;
-  for (let i = 0; i < bars; i++) {
-    const bx = i * (barW + gap);
+  for (let bx = 0; bx < w; bx += 2) {
     const sec = (bx / w) * dur;
     while (si + 1 < segs.length && segs[si + 1].start <= sec) si++;
-    const col = segColor(t, segs[si]);
-    const a = Math.floor((i / bars) * t.peaks.length);
-    const b = Math.max(a + 1, Math.floor(((i + 1) / bars) * t.peaks.length));
+    const a = Math.floor((bx / w) * t.peaks.length);
+    const b = Math.max(a + 1, Math.floor(((bx + 2) / w) * t.peaks.length));
     let p = 0;
     for (let j = a; j < b; j++) p = Math.max(p, t.peaks[j] || 0);
-    p = Math.max(0.03, p);
-    const outside = bx < inX || bx > outX;
+    p = Math.max(0.05, p);
     const played = bx < px;
-    g.fillStyle = played || multi ? col : unplayed;
-    g.globalAlpha = (outside ? 0.3 : 1) * (played ? 1 : multi ? 0.38 : 1);
-    g.fillRect(bx, mid - p * up, barW, p * up);
-    g.globalAlpha *= 0.45;
-    g.fillRect(bx, mid + 1, barW, p * down);
+    g.fillStyle = played || multi ? segColor(t, segs[si]) : unplayed;
+    g.globalAlpha = (bx < inX || bx > outX ? 0.3 : 1) * (played ? 1 : multi ? 0.4 : 1);
+    g.fillRect(bx, mid - p * amp, 1.5, p * amp * 2);
+    // Farbband der Lieder
+    g.globalAlpha = 1;
+    if (multi) { g.fillStyle = segColor(t, segs[si]); g.fillRect(bx, h - BAND + 1, 2, BAND - 1); }
   }
   g.globalAlpha = 1;
-  // Lieder-Leiste mit Namen
-  if (multi) {
-    g.font = '600 10px system-ui, sans-serif';
-    g.textBaseline = 'middle';
-    segs.forEach((sg, i) => {
-      const a = x(sg.start), b = x(segEnd(t, i));
-      g.fillStyle = segColor(t, sg);
-      g.fillRect(a, bottom + 1, Math.max(1, b - a - 1), STRIP - 1);
-      g.fillStyle = 'rgba(255,255,255,.55)';
-      if (i > 0) g.fillRect(a, top, 1, bottom - top);
-      const label = segName(t, i);
-      if (b - a > 26) {
-        g.save();
-        g.beginPath(); g.rect(a, bottom, b - a - 2, STRIP); g.clip();
-        g.fillStyle = '#111';
-        g.fillText(label, a + 3, bottom + STRIP / 2 + 0.5);
-        g.restore();
-      }
-    });
+  // Ausschnitt der großen Leiste
+  const span = state.settings.zoom;
+  g.strokeStyle = 'rgba(255,255,255,.55)';
+  g.lineWidth = 1;
+  g.strokeRect(Math.max(0.5, x(cur - span / 2)), TOP - 1.5, Math.max(4, x(span)), h - TOP - BAND + 2);
+  // Marker als Dreiecke oben
+  waveLayout = { items: t.markers.map((m) => ({ x: x(m.time), m })) };
+  for (const it of waveLayout.items) {
+    g.fillStyle = it.m.color;
+    g.beginPath();
+    g.moveTo(it.x - 5, 0); g.lineTo(it.x + 5, 0); g.lineTo(it.x, TOP);
+    g.fill();
   }
   g.fillStyle = css('--accent-2');
-  if (t.cueIn > 0) g.fillRect(inX, top, 1, bottom - top);
-  if (t.cueOut != null) g.fillRect(outX - 1, top, 1, bottom - top);
-  for (const it of items) {
-    g.fillStyle = it.color;
-    g.fillRect(it.x, top, 2, bottom - top);
-    g.fillRect(it.x, it.lane * LANE_H, 2, top);
-  }
-  drawLabels(g, items, w, 0);
+  if (t.cueIn > 0) g.fillRect(inX, TOP, 1, h - TOP);
+  if (t.cueOut != null) g.fillRect(outX - 1, TOP, 1, h - TOP);
   g.fillStyle = '#fff';
-  g.fillRect(px, top - 2, 1.5, h - top + 2);
+  g.fillRect(px - 1, 0, 2, h);
 }
 
 let zoomLayout = {};
@@ -2017,11 +2382,12 @@ function drawCount() {
   const c = countAt(t, viewTime());
   const multi = t?.segments?.length > 1;
   const box = $('countBox');
-  box.style.borderColor = multi ? segColor(t, t.segments[c.seg]) : '';
+  box.style.borderColor = multi && c ? segColor(t, t.segments[c.seg]) : '';
   if (!c?.count) {
     num.textContent = '–';
-    eight.textContent = t ? (multi ? segName(t, c?.seg || 0) : 'kein Takt') : '';
-    lastCountShown = null;
+    eight.textContent = t ? (multi && c ? segName(t, c.seg) : 'kein Takt') : '';
+    $('miniCount').textContent = '';
+    if (lastCountShown !== null) { lastCountShown = null; renderTempo(); markCurrentSong(); }
     return;
   }
   const key = `${c.seg}:${c.k}`;
@@ -2029,10 +2395,12 @@ function drawCount() {
   const segChanged = !lastCountShown || lastCountShown.split(':')[0] !== String(c.seg);
   lastCountShown = key;
   num.textContent = c.count;
-  eight.textContent = (c.eight >= 1 ? `Achter ${c.eight}` : 'Vorlauf') + (multi ? ` · ${c.seg + 1}` : '');
+  const e = c.eight >= 1 ? `Achter ${c.eight}` : 'Vorlauf';
+  eight.textContent = multi ? `${e} · Lied ${c.seg + 1}` : e;
+  $('miniCount').textContent = `${c.count} · ${e}`;
   box.classList.toggle('one', c.count === 1);
   if (!audio.paused) { box.classList.remove('pulse'); void box.offsetWidth; box.classList.add('pulse'); }
-  if (segChanged) { renderTempo(); renderSongs(); }
+  if (segChanged) { renderTempo(); markCurrentSong(); }
 }
 
 function draw() {
@@ -2060,75 +2428,79 @@ function hitMarker(items, x, tol = 14) {
   return best;
 }
 
-// Übersicht: tippen = springen, ziehen = schieben, doppelt tippen = Marker
-let ov = null, lastTap = { at: 0, x: -99 };
-wave.addEventListener('pointerdown', (e) => {
-  const t = current();
-  if (!t || e.button === 2) return;
-  wave.setPointerCapture(e.pointerId);
-  ov = { x0: e.clientX, moved: false };
-});
-wave.addEventListener('pointermove', (e) => {
-  if (!ov) return;
-  const t = current();
-  const r = wave.getBoundingClientRect();
-  if (!ov.moved && Math.abs(e.clientX - ov.x0) > 6) { ov.moved = true; scrubStart(); }
-  if (ov.moved) scrubTo(clamp((e.clientX - r.left) / r.width, 0, 1) * t.duration);
-});
-wave.addEventListener('pointerup', (e) => {
-  if (!ov) return;
-  const t = current();
-  const r = wave.getBoundingClientRect();
-  const x = e.clientX - r.left;
-  const y = e.clientY - r.top;
-  if (ov.moved) { ov = null; return scrubEnd(); }
-  ov = null;
-  const now = performance.now();
-  const dbl = now - lastTap.at < 350 && Math.abs(x - lastTap.x) < 30;
-  lastTap = { at: now, x };
-  const hit = hitMarker(waveLayout.items, x, y < waveLayout.top ? 30 : 10);
-  if (dbl && !hit) { lastTap.at = 0; return addMarker((x / r.width) * t.duration); }
-  if (hit) {
-    const m = t.markers[waveLayout.items.indexOf(hit)];
-    return cueMarker(m);
-  }
-  seek(snap((x / r.width) * t.duration));
-});
-wave.addEventListener('pointercancel', () => { if (ov?.moved) scrubEnd(false); ov = null; });
-wave.addEventListener('contextmenu', (e) => {
-  const r = wave.getBoundingClientRect();
-  const hit = hitMarker(waveLayout.items, e.clientX - r.left, 10);
-  if (hit) { e.preventDefault(); removeMarker(current().markers[waveLayout.items.indexOf(hit)].id); }
+/* Fingerbedienung: senkrecht wischen = Seite scrollen (nichts passiert),
+ * waagerecht ziehen = in der Musik schieben, kurz tippen = springen.
+ * „Musik-Leiste sperren“ (⚙) schaltet beides für Auftritte ab. */
+function gesture(canvas, { onScrubStart, onScrubMove, onTap }) {
+  let g = null;
+  canvas.addEventListener('pointerdown', (e) => {
+    if (!current() || e.button === 2) return;
+    g = { x0: e.clientX, y0: e.clientY, t: performance.now(), mode: null, id: e.pointerId };
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!g || e.pointerId !== g.id) return;
+    const dx = e.clientX - g.x0, dy = e.clientY - g.y0;
+    if (!g.mode) {
+      if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) g.mode = 'scroll';
+      else if (Math.abs(dx) > 10 && Math.abs(dx) > 2 * Math.abs(dy)) {
+        if (state.settings.waveLock) { g.mode = 'locked'; toast('Musik-Leiste ist gesperrt (⚙ → Bedienung)'); return; }
+        g.mode = 'scrub';
+        canvas.setPointerCapture(e.pointerId);
+        onScrubStart(e);
+      }
+    }
+    if (g.mode === 'scrub') { e.preventDefault(); onScrubMove(e, dx); }
+  });
+  const end = (e, cancel) => {
+    if (!g || e.pointerId !== g.id) return;
+    const was = g;
+    g = null;
+    if (was.mode === 'scrub') return scrubEnd(!cancel);
+    if (cancel || was.mode) return;
+    const dx = e.clientX - was.x0, dy = e.clientY - was.y0;
+    if (Math.abs(dx) < 8 && Math.abs(dy) < 8 && performance.now() - was.t < 500) {
+      if (state.settings.waveLock) return toast('Musik-Leiste ist gesperrt (⚙ → Bedienung)');
+      onTap(e);
+    }
+  };
+  canvas.addEventListener('pointerup', (e) => end(e, false));
+  canvas.addEventListener('pointercancel', (e) => end(e, true));
+}
+
+// Schmaler Streifen: tippen = an die Stelle springen, ziehen = schnell durchs Stück
+gesture(wave, {
+  onScrubStart: () => scrubStart(),
+  onScrubMove: (e) => {
+    const r = wave.getBoundingClientRect();
+    scrubTo(clamp((e.clientX - r.left) / r.width, 0, 1) * current().duration);
+  },
+  onTap: (e) => {
+    const t = current();
+    const r = wave.getBoundingClientRect();
+    const x = e.clientX - r.left;
+    const hit = hitMarker(waveLayout.items, x, 12);
+    if (hit && e.clientY - r.top < 16) return cueMarker(hit.m);
+    seek(snap((x / r.width) * t.duration));
+  },
 });
 
-// Detailansicht: Musik mit dem Finger schieben, tippen = springen
-let zm = null;
-zoom.addEventListener('pointerdown', (e) => {
-  if (!current() || e.button === 2) return;
-  zoom.setPointerCapture(e.pointerId);
-  zm = { x0: e.clientX, t0: audio.currentTime, moved: false };
+// Große Leiste: Musik mit dem Finger schieben, tippen = springen
+let zm0 = 0;
+gesture(zoom, {
+  onScrubStart: () => { zm0 = audio.currentTime; scrubStart(); },
+  onScrubMove: (e, dx) => scrubTo(zm0 - dx / zoomLayout.pxPerSec),
+  onTap: (e) => {
+    const r = zoom.getBoundingClientRect();
+    const x = e.clientX - r.left;
+    const hit = hitMarker(zoomLayout.items, x, 14);
+    if (hit) return cueMarker(hit.m);
+    seek(snap(zoomLayout.start + x / zoomLayout.pxPerSec));
+  },
 });
-zoom.addEventListener('pointermove', (e) => {
-  if (!zm) return;
-  if (!zm.moved && Math.abs(e.clientX - zm.x0) > 5) { zm.moved = true; scrubStart(); }
-  if (zm.moved) scrubTo(zm.t0 - (e.clientX - zm.x0) / zoomLayout.pxPerSec);
-});
-zoom.addEventListener('pointerup', (e) => {
-  if (!zm) return;
-  const moved = zm.moved;
-  zm = null;
-  if (moved) return scrubEnd();
-  const r = zoom.getBoundingClientRect();
-  const x = e.clientX - r.left;
-  const hit = hitMarker(zoomLayout.items, x, 12);
-  if (hit) return cueMarker(hit.m);
-  seek(snap(zoomLayout.start + x / zoomLayout.pxPerSec));
-});
-zoom.addEventListener('pointercancel', () => { if (zm?.moved) scrubEnd(false); zm = null; });
 zoom.addEventListener('wheel', (e) => {
-  if (!current()) return;
+  if (!current() || state.settings.waveLock || Math.abs(e.deltaX) < Math.abs(e.deltaY)) return;
   e.preventDefault();
-  seek(audio.currentTime + (e.deltaY + e.deltaX) / zoomLayout.pxPerSec * 0.5);
+  seek(audio.currentTime + e.deltaX / zoomLayout.pxPerSec * 0.5);
 }, { passive: false });
 
 function setZoom(dir) {
@@ -2144,14 +2516,23 @@ const isNative = () => !!window.Capacitor?.isNativePlatform?.();
 async function exportSet() {
   const data = {
     app: 'narrhalla-player',
-    version: 2,
+    version: 3,
+    appVersion: APP_VERSION,
     exported: new Date().toISOString(),
     groups: state.groups,
+    colorLabels: state.colorLabels,
     settings: state.settings,
     tracks: state.tracks.map(({ peaks, id, ...rest }) => rest),
   };
-  const json = JSON.stringify(data, null, 2);
-  const name = `narrhalla-setliste-${new Date().toISOString().slice(0, 10)}.json`;
+  const json = JSON.stringify(data);
+  const name = `narrhalla-sicherung-${new Date().toISOString().slice(0, 10)}.json`;
+  const done = () => {
+    state.lastBackup = Date.now();
+    save();
+    hideBanner('backup');
+    hideBanner('persist');
+    if ($('lastBackup')) $('lastBackup').textContent = `Letzte Sicherung: ${new Date(state.lastBackup).toLocaleString('de-DE')}`;
+  };
   if (isNative()) {
     try {
       const cap = window.Capacitor;
@@ -2159,82 +2540,120 @@ async function exportSet() {
         path: name, data: json, directory: 'CACHE', encoding: 'utf8', recursive: true,
       });
       await cap.nativePromise('Share', 'share', {
-        title: 'Narrhalla Setliste',
-        dialogTitle: 'Setliste speichern oder senden',
+        title: 'Narrhalla Sicherung',
+        dialogTitle: 'Sicherung speichern – z. B. in Drive oder per Mail an dich',
         files: [uri],
       });
+      done();
+      toast('Sicherung erstellt');
     } catch (e) {
-      if (!/cancel/i.test(e?.message || '')) toast('Export fehlgeschlagen: ' + (e?.message || e));
+      if (!/cancel/i.test(e?.message || '')) toast('Sichern fehlgeschlagen: ' + (e?.message || e), 5000);
     }
     return;
   }
   const blob = new Blob([json], { type: 'application/json' });
   const file = new File([blob], name, { type: 'application/json' });
   if (navigator.canShare?.({ files: [file] }) && /Android|iPhone|iPad/i.test(navigator.userAgent)) {
-    try { await navigator.share({ files: [file], title: 'Narrhalla Setliste' }); return; } catch (e) { if (e.name === 'AbortError') return; }
+    try { await navigator.share({ files: [file], title: 'Narrhalla Sicherung' }); done(); return; } catch (e) { if (e.name === 'AbortError') return; }
   }
   const a = el('a', { href: URL.createObjectURL(blob), download: name });
   document.body.append(a);
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-  toast('Setliste gespeichert: ' + name);
+  done();
+  toast('Sicherung gespeichert: ' + name, 4000);
 }
 
 async function importSet(file) {
+  let data;
   try {
-    const data = JSON.parse(await file.text());
-    if (data.app !== 'narrhalla-player') throw new Error('Das ist keine Narrhalla-Setliste');
-    for (const g of data.groups || []) {
-      const have = group(g.id);
-      if (have) Object.assign(have, g);
-      else state.groups.push(g);
-    }
-    let hit = 0;
-    const used = new Set();
-    const findMatch = (src) => {
-      const free = state.tracks.filter((x) => !used.has(x.id));
-      return free.find((x) => x.name === src.name)
-        || free.find((x) => src.fileName && x.fileName === src.fileName)
-        || free.find((x) => Math.abs((x.duration || 0) - (src.duration || -9)) < 0.3);
-    };
-    const order = [];
-    for (const src of data.tracks || []) {
-      const t = findMatch(src);
-      if (!t) continue;
-      used.add(t.id);
-      order.push(t.id);
-      hit++;
-      t.name = src.name || t.name;
-      t.artist = src.artist ?? t.artist;
-      t.groupId = src.groupId || '';
-      t.cueIn = src.cueIn || 0;
-      t.cueOut = src.cueOut ?? null;
-      if (src.segments) t.segments = src.segments.map((x) => ({ ...x, id: uid() }));
-      if (src.beats) { t.beats = src.beats; t.ones = src.ones || [0]; }
-      else if (t.segments) migrateTrack(t, src);
-      if (src.color !== undefined) t.color = src.color;
-      t.markers = (src.markers || []).map((m) => ({ ...m, id: uid() }));
-    }
-    const pos = (t) => { const i = order.indexOf(t.id); return i < 0 ? order.length : i; };
-    state.tracks = state.tracks.map((t, i) => [t, i]).sort((a, b) => pos(a[0]) - pos(b[0]) || a[1] - b[1]).map((x) => x[0]);
-    save();
-    renderAll();
-    const missing = (data.tracks || []).length - hit;
-    toast(`${hit} Titel übernommen${missing ? ` – ${missing} fehlen (erst die Audiodateien laden)` : ''}`, 4000);
+    data = JSON.parse(await file.text());
   } catch (e) {
-    toast('Import fehlgeschlagen: ' + e.message, 4000);
+    return toast('Das ist keine Sicherungsdatei des Narrhalla Players (.json)', 5000);
   }
+  if (data?.app !== 'narrhalla-player') return toast('Das ist keine Sicherungsdatei des Narrhalla Players', 5000);
+  // Zuordnung vorschlagen: Name, Dateiname – Länge nur als Vorschlag mit Kennzeichnung
+  const used = new Set();
+  const pairs = [];
+  for (const src of data.tracks || []) {
+    const free = state.tracks.filter((x) => !used.has(x.id));
+    let t = free.find((x) => x.name === src.name) || free.find((x) => src.fileName && x.fileName === src.fileName);
+    let byLength = false;
+    if (!t) {
+      t = free.find((x) => Math.abs((x.duration || 0) - (src.duration || -9)) < 0.3);
+      byLength = !!t;
+    }
+    if (t) { used.add(t.id); pairs.push({ src, t, byLength }); }
+  }
+  const missing = (data.tracks || []).length - pairs.length;
+  const list = pairs.map((p) => `<li>${esc(p.src.name)}${p.src.name !== p.t.name ? ` → <b>${esc(p.t.name)}</b>` : ''}${p.byLength ? ' <span class="sub">(nur gleiche Länge – bitte prüfen)</span>' : ''}${p.t.markers?.length ? ` <span class="sub">– ${p.t.markers.length} vorhandene Marker werden ersetzt</span>` : ''}</li>`).join('');
+  const ok = await ask('Sicherung laden?',
+    `<p>Aus der Sicherung vom ${data.exported ? new Date(data.exported).toLocaleDateString('de-DE') : '?'}:</p>
+     ${pairs.length ? `<ul>${list}</ul>` : '<p>Kein Titel passt zu den geladenen Audiodateien.</p>'}
+     ${missing ? `<p class="sub">${missing} Titel der Sicherung fehlen hier – erst deren Audiodateien laden, dann die Sicherung nochmal laden.</p>` : ''}
+     <p class="sub">Gruppen und Farben mit Bezeichnung werden ergänzt.</p>`,
+    pairs.length ? 'Übernehmen' : 'Nur Gruppen übernehmen');
+  if (!ok) return;
+  for (const g of data.groups || []) {
+    const have = group(g.id);
+    if (have) Object.assign(have, g);
+    else state.groups.push(g);
+  }
+  for (const l of data.colorLabels || []) {
+    const have = state.colorLabels.find((x) => x.id === l.id);
+    if (have) Object.assign(have, l);
+    else state.colorLabels.push(l);
+  }
+  const order = [];
+  for (const { src, t } of pairs) {
+    snapshot(t, 'Sicherung geladen');
+    order.push(t.id);
+    t.name = src.name || t.name;
+    t.artist = src.artist ?? t.artist;
+    t.groupId = src.groupId || '';
+    t.cueIn = src.cueIn || 0;
+    t.cueOut = src.cueOut ?? null;
+    if (src.segments) t.segments = src.segments.map((x) => ({ ...x, id: uid() }));
+    if (src.beats) { t.beats = src.beats; t.ones = src.ones || [0]; }
+    else if (t.segments) migrateTrack(t, src);
+    if (src.color !== undefined) t.color = src.color;
+    if (src.labelId !== undefined) t.labelId = src.labelId;
+    t.markers = (src.markers || []).map((m) => ({ ...m, id: uid() }));
+  }
+  const pos = (t) => { const i = order.indexOf(t.id); return i < 0 ? order.length : i; };
+  state.tracks = state.tracks.map((t, i) => [t, i]).sort((a, b) => pos(a[0]) - pos(b[0]) || a[1] - b[1]).map((x) => x[0]);
+  save();
+  renderAll();
+  toast(`${pairs.length} Titel übernommen${missing ? ` – ${missing} fehlen noch` : ''}`, 5000);
 }
 
 /* ---------- Events ---------- */
 $('fileInput').onchange = (e) => { addFiles(e.target.files); e.target.value = ''; };
-$('importInput').onchange = (e) => { if (e.target.files[0]) importSet(e.target.files[0]); e.target.value = ''; };
-$('exportBtn').onclick = exportSet;
+$('emptyFileInput').onchange = (e) => { addFiles(e.target.files); e.target.value = ''; };
+$('importInput').onchange = (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) { $('settingsDlg').close(); importSet(f); } };
+$('exportBtn').onclick = () => { $('settingsDlg').close(); exportSet(); };
 $('helpBtn').onclick = () => $('helpDlg').showModal();
 $('settingsBtn').onclick = openSettings;
 $('addGroupBtn').onclick = () => openGroupDialog(null);
-$('nowTitle').onclick = () => current() && openTrackDialog(current());
+$('nowTitleBtn').onclick = () => current() && openTrackDialog(current());
+$('autoNextBtn').onclick = () => {
+  state.autoNext = !state.autoNext;
+  renderNow();
+  toast(state.autoNext ? 'Nach dem Titel startet automatisch der nächste' : 'Nach dem Titel wird angehalten');
+};
+$('miniPlay').onclick = toggle;
+$('miniStop').onclick = stop;
+$('miniReplay').onclick = replay;
+$('miniInfo').onclick = () => $('playBtn').scrollIntoView({ behavior: 'smooth', block: 'center' });
+// Mini-Steuerung zeigen, sobald die großen Knöpfe aus dem Bild sind
+if ('IntersectionObserver' in window) {
+  new IntersectionObserver(([en]) => {
+    const show = !en.isIntersecting && !!current() && matchMedia('(max-width: 1000px)').matches;
+    $('miniBar').hidden = !show;
+    document.body.classList.toggle('has-mini', show);
+  }).observe(document.querySelector('.transport'));
+}
 
 $('playBtn').onclick = toggle;
 $('stopBtn').onclick = stop;
@@ -2273,33 +2692,43 @@ function setCountMode(v) {
   resetCountSchedule();
   renderTempo();
 }
-$('setKeepAlive').onchange = (e) => { state.settings.keepAlive = e.target.checked; save(); updateKeepAlive(); };
+$('setKeepAlive').onchange = (e) => { state.settings.keepAlive = e.target.checked; save(); keepAliveTouch(); checkWarnings(); };
 $('setKeepLevel').onchange = (e) => { state.settings.keepLevel = e.target.value; save(); updateKeepAlive(); };
 $('setScreenOn').onchange = (e) => { state.settings.screenOn = e.target.checked; save(); updateScreenOn(); };
 $('batteryBtn').onclick = async () => {
-  try { await window.Capacitor.nativePromise('KeepAlive', 'openBatterySettings', {}); } catch (e) { toast('Bitte in den Android-Einstellungen bei der App „Akku: Nicht eingeschränkt“ wählen', 4000); }
+  try { await native('openBatterySettings'); } catch (e) { toast('Einstellungen → Apps → Narrhalla Player → Akku → „Nicht eingeschränkt“', 6000); }
 };
 // Browser erlauben Ton erst nach der ersten Berührung
 const firstTouch = () => {
   window.removeEventListener('pointerdown', firstTouch, true);
   window.removeEventListener('keydown', firstTouch, true);
   ctx();
-  updateKeepAlive();
 };
 window.addEventListener('pointerdown', firstTouch, true);
 window.addEventListener('keydown', firstTouch, true);
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible') return;
   if (audioCtx?.state === 'suspended') audioCtx.resume();
-  if (state.settings.keepAlive && keepEl?.paused) keepEl.play().catch(() => {});
+  if (keepActive() && keepEl?.paused) keepEl.play().catch(() => {});
   if (state.settings.screenOn) updateScreenOn();
-  if (isNative()) updateBatteryRow();
+  checkWarnings();
 });
+window.addEventListener('pagehide', saveNow);
+// Android-App: Tasten in der Benachrichtigung, am Sperrbildschirm und an der Bluetooth-Box
+function onRemoteAction(a) {
+  if (a === 'play') play();
+  else if (a === 'pause') pause();
+  else if (a === 'stop') stop();
+  else if (a === 'next') step(1);
+  else if (a === 'replay') replay();
+}
+if (isNative()) {
+  try { window.Capacitor.nativeCallback('KeepAlive', 'addListener', { eventName: 'action' }, (r) => r?.action && onRemoteAction(r.action)); } catch (e) { console.warn(e); }
+}
 if ('mediaSession' in navigator) {
   const h = { play: () => play(), pause: () => pause(), stop: () => stop(), nexttrack: () => step(1), previoustrack: () => step(-1) };
   for (const [k, fn] of Object.entries(h)) { try { navigator.mediaSession.setActionHandler(k, fn); } catch (e) { /* nicht unterstützt */ } }
 }
-$('voiceSel').onchange = (e) => { setVoice(e.target.value); if (state.settings.countMode !== 'voice') setCountMode('voice'); };
 $('setVoice').onchange = (e) => setVoice(e.target.value);
 $('countVol').oninput = (e) => { state.settings.countVolume = +e.target.value; save(); };
 $('testVoiceBtn').onclick = testVoice;
@@ -2322,6 +2751,7 @@ $('snapSeg').onclick = (e) => {
 function toggleLoop() {
   loop = !loop;
   $('loopBtn').classList.toggle('on', loop);
+  toast(loop ? 'Schleife an: der Titel wiederholt sich' : 'Schleife aus');
 }
 
 $('volume').oninput = (e) => {
@@ -2329,7 +2759,6 @@ $('volume').oninput = (e) => {
   if (!fading) setVol(state.volume);
   save();
 };
-$('autoNext').onchange = (e) => { state.autoNext = e.target.checked; save(); };
 $('search').oninput = renderTracks;
 
 const tracksEl = document.querySelector('.tracks');
@@ -2345,6 +2774,7 @@ window.addEventListener('drop', (e) => {
 window.addEventListener('resize', draw);
 
 window.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.target.matches('input[type=text], input[type=search], textarea')) { e.preventDefault(); return undo(); }
   if (e.target.matches('input:not([type=range]):not([type=checkbox]), select, textarea') || e.ctrlKey || e.metaKey || e.altKey) return;
   if (document.querySelector('dialog[open]')) return;
   const k = e.key.toLowerCase();
@@ -2433,8 +2863,10 @@ function migrateTrack(t, src = t) {
   migrate();
   if (!ZOOMS.includes(state.settings.zoom)) state.settings.zoom = 8;
   $('volume').value = state.volume;
-  $('autoNext').checked = state.autoNext;
+  state.autoNext = false; // nie versehentlich vom letzten Mal übernehmen
   audio.volume = state.volume;
+  $('zoom').parentElement.classList.toggle('locked', !!state.settings.waveLock);
+  document.getElementById('keyHelp').hidden = isTouch;
   state.colorLabels ??= [];
   if (!VOICES.some((v) => v.id === state.settings.voice)) state.settings.voice = 'de-frau';
   renderVoiceSelects();
@@ -2443,7 +2875,17 @@ function migrateTrack(t, src = t) {
   if (state.tracks.length) load(state.tracks[0].id, false);
   requestAnimationFrame(frame);
   if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !isNative()) {
-    navigator.serviceWorker.register('sw.js').catch((e) => console.warn('Service Worker', e));
+    navigator.serviceWorker.register('sw.js').then((reg) => {
+      // neue Version bereit → Hinweis
+      reg.addEventListener('updatefound', () => {
+        const nw = reg.installing;
+        nw?.addEventListener('statechange', () => {
+          if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+            showBanner('update', 'Eine neue Version der App ist da.', 'Jetzt neu laden', () => location.reload(), 'info');
+          }
+        });
+      });
+    }).catch((e) => console.warn('Service Worker', e));
   }
-  navigator.storage?.persist?.();
+  (navigator.storage?.persist?.() || Promise.resolve()).finally(() => checkWarnings());
 })();

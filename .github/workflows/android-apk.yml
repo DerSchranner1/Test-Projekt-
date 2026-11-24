@@ -58,9 +58,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete apk-latest --cleanup-tag --yes || true
-          gh release create apk-latest narrhalla-player.apk \
-            --target "$GITHUB_SHA" \
-            --title "Narrhalla Player – Android (Build ${{ github.run_number }})" \
-            --notes "Automatisch gebaute APK. Neue Versionen lassen sich über die alte installieren. Auf dem Handy herunterladen und installieren; dazu muss „Installation aus unbekannten Quellen“ für den Browser erlaubt sein." \
-            --prerelease
+          NOTES="Automatisch gebaute APK (Build ${{ github.run_number }}). Neue Versionen lassen sich über die alte installieren – Titel, Marker und Einstellungen bleiben erhalten."
+          if gh release view apk-latest >/dev/null 2>&1; then
+            # Datei austauschen statt Release zu löschen: der Link bleibt durchgehend gültig
+            gh release upload apk-latest narrhalla-player.apk --clobber
+            gh release edit apk-latest --title "Narrhalla Player – Android (Build ${{ github.run_number }})" --notes "$NOTES" --prerelease
+          else
+            gh release create apk-latest narrhalla-player.apk --target "$GITHUB_SHA" \
+              --title "Narrhalla Player – Android (Build ${{ github.run_number }})" --notes "$NOTES" --prerelease
+          fi

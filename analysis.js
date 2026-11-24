@@ -518,13 +518,24 @@ function NarrhallaAnalysis(root) {
 
   // Für den Hintergrund-Thread (Web Worker): derselbe Code als Text
   const workerSource = () => `(${NarrhallaAnalysis.toString()})(self);
+const bufs = (F) => [F.env.buffer, F.flt.buffer, F.onL.buffer, F.rms.buffer, F.chroma.buffer, F.bands.buffer];
 self.onmessage = (e) => {
-  const { id, mono, sr } = e.data;
+  const { id, op, mono, sr, F, start, end, bpm } = e.data;
+  const A = self.Analysis;
   try {
-    const r = self.Analysis.analyse(mono, sr, { onProgress: (p) => self.postMessage({ id, progress: p }) });
-    const F = r.F;
-    const transfer = [F.env.buffer, F.flt.buffer, F.onL.buffer, F.rms.buffer, F.chroma.buffer, F.bands.buffer];
-    self.postMessage({ id, result: r }, transfer);
+    if (op === 'analyse') {
+      const r = A.analyse(mono, sr, { onProgress: (p) => self.postMessage({ id, progress: p }) });
+      self.postMessage({ id, result: r }, bufs(r.F));
+    } else if (op === 'features') {
+      const G = A.features(mono, sr, (p) => self.postMessage({ id, progress: p }));
+      self.postMessage({ id, result: { F: G } }, bufs(G));
+    } else if (op === 'songs') {
+      const r = A.songsFromFeatures(F);
+      self.postMessage({ id, result: { ...r, F } }, bufs(F));
+    } else if (op === 'range') {
+      const r = A.analyseRange(F, start, end, bpm || null);
+      self.postMessage({ id, result: { ...r, F } }, bufs(F));
+    }
   } catch (err) {
     self.postMessage({ id, error: String(err && err.message || err) });
   }
