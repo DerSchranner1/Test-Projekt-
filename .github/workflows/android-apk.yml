@@ -27,6 +27,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+          cache: gradle
 
       - name: Web-App in Android-Projekt verpacken
         run: |
@@ -37,7 +38,8 @@ jobs:
 
       - name: APK bauen
         working-directory: android
-        run: ./gradlew assembleRelease --no-daemon
+        # bei vorübergehenden Serverfehlern (z. B. 429) einmal neu versuchen
+        run: ./gradlew assembleRelease --no-daemon || (sleep 60 && ./gradlew assembleRelease --no-daemon)
 
       - name: APK benennen
         run: cp android/app/build/outputs/apk/release/app-release.apk narrhalla-player.apk
