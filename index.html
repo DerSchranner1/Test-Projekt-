@@ -17,8 +17,7 @@
 <body>
   <header class="topbar">
     <div class="brand"><span class="logo">🎭</span> <span class="brand-name">Narrhalla Player</span>
-      <span id="kaInd" class="ka-ind" title="Bluetooth wird wach gehalten" hidden><span class="ka-dot"></span>BT wach</span>
-      <button id="noticeChip" class="notice-chip" title="Hinweise" hidden>⚠ <span id="noticeCount"></span></button></div>
+      <span id="kaInd" class="ka-ind" title="Bluetooth wird wach gehalten" hidden><span class="ka-dot"></span>BT wach</span></div>
     <div class="top-actions">
       <label class="btn" title="Audiodateien laden">
         + Titel
@@ -46,8 +45,8 @@
 
       <div class="now">
         <div id="nowColor" class="now-color"></div>
-        <button id="nowTitleBtn" class="now-text" title="Titel bearbeiten">
-          <span id="nowTitle" class="now-title">Kein Titel geladen</span>
+        <button id="nowTitleBtn" class="now-text" title="Anderen Titel wählen">
+          <span class="now-title"><span id="nowTitle">Kein Titel geladen</span> <span class="chev">▾</span></span>
           <span id="nowSub" class="now-group">–</span>
         </button>
         <div id="countBox" class="count-box" title="Zählzeit 1–8">
@@ -71,21 +70,16 @@
       </div>
 
       <div class="transport">
-        <button id="prevBtn" class="tbtn" title="Vorheriger Titel in der Liste">⏮</button>
-        <button id="backBtn" class="tbtn small-text" title="Zurück">−1 Achter</button>
-        <button id="playBtn" class="tbtn big" title="Abspielen / Pause">▶</button>
-        <button id="stopBtn" class="tbtn" title="Stopp – zurück an den Anfang">■</button>
-        <button id="fwdBtn" class="tbtn small-text" title="Vor">+1 Achter</button>
-        <button id="nextBtn" class="tbtn" title="Nächster Titel in der Liste">⏭</button>
+        <button id="replayBtn" class="tbtn" title="Nochmal von vorn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg><span class="cap">Von vorn</span></button>
+        <button id="backBtn" class="tbtn" title="Einen Achter zurück"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6 8.5 6V6l-8.5 6z"/></svg><span class="cap" id="backCap">−1 Achter</span></button>
+        <button id="playBtn" class="tbtn big" title="Abspielen / Pause"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></button>
+        <button id="fwdBtn" class="tbtn" title="Einen Achter vor"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg><span class="cap" id="fwdCap">+1 Achter</span></button>
+        <button id="stopBtn" class="tbtn" title="Stopp – zurück an den Anfang"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h12v12H6z"/></svg><span class="cap">Stopp</span></button>
       </div>
 
       <div class="actions">
-        <button id="replayBtn" class="abtn" title="Nochmal von vorn">⟲ Von vorn</button>
-        <button id="replayMarkerBtn" class="abtn" title="Ab dem letzten Marker nochmal">⟲ Ab Marker</button>
-        <button id="fadeBtn" class="abtn" title="Langsam leiser und Stopp">Ausblenden</button>
-        <button id="loopBtn" class="abtn" title="Immer wieder von vorn">🔁 Schleife</button>
-        <button id="replayLastBtn" class="abtn" title="Den Titel davor nochmal">⏪ Voriger Titel</button>
-        <button id="autoNextBtn" class="abtn" title="Nach dem Titel automatisch den nächsten">⏭ Automatisch weiter</button>
+        <button id="replayMarkerBtn" class="abtn" title="Ab dem letzten Marker vor der aktuellen Stelle nochmal"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.4 6 14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg> Ab Marker nochmal</button>
+        <button id="fadeBtn" class="abtn" title="Die Musik wird in 3 Sekunden leiser und stoppt dann"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z"/></svg> Sanft stoppen</button>
       </div>
 
       <div class="count-row">
@@ -107,7 +101,11 @@
       </div>
 
       <details id="editDetails" class="edit-details">
-        <summary>✎ Bearbeiten: Takt, Lieder, Start/Ende, Lautstärke</summary>
+        <summary>✎ Bearbeiten: Titel, Takt, Lieder, Start/Ende, Lautstärke</summary>
+
+        <div class="edit-block">
+          <button id="editTrackBtn" class="btn ghost">✎ Titel: Name, Gruppe, Farbe, Reihenfolge …</button>
+        </div>
 
         <div class="edit-block">
           <h3>Zählung und Tempo <b id="tempoSeg"></b></h3>
@@ -166,6 +164,14 @@
       </details>
     </section>
 
+    <div id="library" class="library">
+    <div class="lib-head">
+      <h2>Titel wählen</h2>
+      <div class="row-inline">
+        <label class="btn small">+ Titel<input id="libFileInput" type="file" accept="audio/*" multiple hidden></label>
+        <button id="libClose" class="btn ghost small" title="Schließen">✕</button>
+      </div>
+    </div>
     <!-- Gruppen -->
     <aside class="sidebar">
       <div class="section-head">
@@ -186,13 +192,14 @@
         Noch keine Titel.<br>„+ Titel“ antippen oder Dateien hierher ziehen.
       </div>
     </section>
+    </div>
   </main>
 
   <!-- Mini-Steuerung unten am Handy, wenn der Player weggescrollt ist -->
   <div id="miniBar" class="mini-bar" hidden>
-    <button id="miniPlay" class="mini-btn play">▶</button>
-    <button id="miniStop" class="mini-btn">■</button>
-    <button id="miniReplay" class="mini-btn">⟲</button>
+    <button id="miniPlay" class="mini-btn play" title="Abspielen / Pause"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></button>
+    <button id="miniStop" class="mini-btn" title="Stopp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h12v12H6z"/></svg></button>
+    <button id="miniReplay" class="mini-btn" title="Von vorn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg></button>
     <button id="miniInfo" class="mini-info">
       <span id="miniTitle"></span>
       <span id="miniCount" class="mini-count"></span>
@@ -382,13 +389,14 @@
     <form method="dialog" class="dlg">
       <h2>Kurzanleitung</h2>
       <div class="help">
-        <p><b>Abspielen:</b> In der Liste auf ▶ beim Titel tippen. Der große Knopf ist Abspielen/Pause, ■ stoppt und springt an den Anfang.</p>
+        <p><b>Titel wählen:</b> oben auf den Titelnamen tippen – dort sind alle Titel und Gruppen. ✎ beim Titel zum Bearbeiten.</p>
+        <p><b>Abspielen:</b> Der große Knopf ist Abspielen/Pause, „Stopp“ springt an den Anfang zurück. „Sanft stoppen“ macht die Musik in 3 Sekunden leiser und hält dann an.</p>
         <p><b>Musik-Leiste:</b> Die große Wellenform mit dem Finger nach links/rechts schieben – wie eine Platte. Antippen springt an die Stelle. Die Zahlen oben sind die Zählzeiten 1–8. Der schmale Streifen darunter zeigt das ganze Stück.</p>
-        <p><b>Nochmal:</b> „Von vorn“, „Ab Marker“ (ab dem letzten Marker vor der aktuellen Stelle) oder „Voriger Titel“.</p>
+        <p><b>Nochmal:</b> „Von vorn“ oder „Ab Marker nochmal“ (ab dem letzten Marker vor der aktuellen Stelle).</p>
         <p><b>Marker:</b> „+ Marker hier“ setzt einen Marker an der aktuellen Stelle. Den farbigen Marker antippen startet genau dort. ✎ daneben: Name, Farbe, löschen.</p>
         <p><b>Mitzählen:</b> Stimme oder Klick zählt 1–8 mit. Stimmt die 1 nicht: „Bearbeiten“ → an die richtige Stelle schieben → „Hier ist die 1“.</p>
         <p><b>Rückgängig:</b> Nach jeder Änderung erscheint unten kurz „Rückgängig“.</p>
-        <p><b>Training mit Bluetooth-Box:</b> ⚙ → „Bluetooth-Verbindung wach halten“ (ist an). Steht oben ein gelbes ⚠, antippen und „Beheben“ wählen.</p>
+        <p><b>Training mit Bluetooth-Box:</b> ⚙ → „Bluetooth-Verbindung wach halten“ (ist an). Steht oben eine gelbe Zeile, „Beheben“ antippen.</p>
         <p><b>Sichern:</b> ⚙ → „Jetzt sichern“. Ohne Sicherung sind Marker und Korrekturen weg, wenn das Handy kaputtgeht oder die App gelöscht wird.</p>
       </div>
       <div id="keyHelp" class="help-keys">

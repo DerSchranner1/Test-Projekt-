@@ -285,49 +285,67 @@ function NarrhallaAnalysis(root) {
       if ((r < 0.75 || r > 1.25) && i - starts[starts.length - 1] >= 8) starts.push(i);
     }
     const chromaAt = (t0, t1) => normalize(meanVec(F.chroma, 12, Math.round(t0 * CFPS), Math.round(t1 * CFPS)));
-    let maxOn = 1e-9;
+    const n = beats.length;
+    const tb = (k) => (k < 0 ? beats[0] + k * med : k >= n ? beats[n - 1] + (k - n + 1) * med : beats[k]);
     const bass = beats.map((t) => {
       const i = Math.round(t * FPS);
-      const v = Math.max(F.onL[i] || 0, F.onL[i + 1] || 0, F.onL[i - 1] || 0, F.onL[i + 2] || 0);
-      maxOn = Math.max(maxOn, v);
-      return v;
+      return Math.max(F.onL[i] || 0, F.onL[i + 1] || 0, F.onL[i - 1] || 0, F.onL[i + 2] || 0);
     });
-    const change = beats.map((t, k) => {
-      if (k === 0) return 0;
-      const prev = chromaAt(beats[k - 1], t);
-      const next = chromaAt(t, beats[k + 1] ?? t + med);
-      return 1 - cos(prev, next);
-    });
+    // Harmoniewechsel: Klang der w Schläge davor gegen die w Schläge danach
+    const change = (w) => beats.map((t, k) => (k < 1 ? 0 : 1 - cos(chromaAt(tb(k - w), t), chromaAt(t, tb(k + w)))));
+    const ch1 = change(1), ch2 = change(2), ch4 = change(4), ch8 = change(8);
     const strength = beats.map((t) => {
       const i = Math.round(t * FPS);
       return Math.max(F.env[i] || 0, F.env[i + 1] || 0, F.env[i - 1] || 0) + (F.onL[i] || 0);
     });
+    const zs = (arr, s, e) => {
+      let m = 0, q = 0;
+      for (let k = s; k < e; k++) m += arr[k];
+      m /= e - s;
+      for (let k = s; k < e; k++) q += (arr[k] - m) ** 2;
+      const sd = Math.sqrt(q / (e - s)) || 1;
+      return (k) => (arr[k] - m) / sd;
+    };
+    // Bewertung, wie gut „Schlag s+j ist eine 1“ passt
+    const score = (s, e) => {
+      const zb = zs(bass, s, e), z1 = zs(ch1, s, e), z2 = zs(ch2, s, e), z4 = zs(ch4, s, e), z8 = zs(ch8, s, e);
+      // Stufe 1: Taktanfang (alle 4 Schläge) – Bass-Einsatz und Harmoniewechsel
+      const s4 = [0, 0, 0, 0], c4 = [0, 0, 0, 0];
+      for (let k = s; k < e; k++) { const j = (k - s) % 4; s4[j] += zb(k) + z1(k) + z2(k) + z4(k); c4[j]++; }
+      for (let j = 0; j < 4; j++) s4[j] /= c4[j] || 1;
+      // Stufe 2: welcher der beiden Takte im Achter – größere Wechsel alle 8 Schläge
+      const s8 = new Float32Array(8), c8 = new Float32Array(8);
+      for (let k = s; k < e; k++) { const j = (k - s) % 8; s8[j] += z1(k) + z4(k) + z8(k) + 0.5 * zb(k); c8[j]++; }
+      for (let j = 0; j < 8; j++) s8[j] /= c8[j] || 1;
+      return { s4, s8 };
+    };
     const ones = [];
     starts.forEach((s, si) => {
-      const e = si + 1 < starts.length ? starts[si + 1] : beats.length;
+      const e = si + 1 < starts.length ? starts[si + 1] : n;
       const len = e - s;
       // nach einer vermuteten Schnittstelle: im Zweifel einfach weiterzählen
       const prev = ones[ones.length - 1];
       const jc = si > 0 ? mod(prev - s, 8) : null; // wo die 1 läge, wenn weitergezählt wird
       if (len < 16) { if (si === 0) ones.push(s); return; }
-      const acc = new Float32Array(8);
-      for (let k = s; k < e; k++) acc[(k - s) % 8] += bass[k] / maxOn + 2 * change[k];
-      const total = acc.reduce((p, q) => p + q, 0) || 1;
-      // erster kräftiger Schlag des Abschnitts – geschnittene Teile beginnen fast immer auf einer 1
+      const { s4, s8 } = score(s, e);
+      // erster kräftiger Schlag – geschnittene Teile beginnen oft auf einer 1 (nur als leichter Hinweis)
       const medS = median(strength.slice(s, e));
       let first = s;
       while (first < Math.min(e, s + 8) && strength[first] < 0.6 * medS) first++;
       if (first >= s + 8) first = s;
       const fj = (first - s) % 8;
-      let bj = 0, bs = -Infinity;
-      for (let j = 0; j < 8; j++) {
-        const sc = acc[j] / total + (j === fj ? 0.1 : 0) + (j === (fj + 4) % 8 ? 0.02 : 0);
-        if (sc > bs) { bs = sc; bj = j; }
-      }
+      // bei kurzen Liedern sind die Messwerte unsicher – dann zählt der Liedanfang mehr
+      const bias = len < 48 ? 2 : 0.12;
+      let j4 = 0;
+      for (let j = 1; j < 4; j++) if (s4[j] + (j === fj % 4 ? bias : 0) > s4[j4] + (j4 === fj % 4 ? bias : 0)) j4 = j;
+      const a1 = j4, a2 = j4 + 4;
+      const v = (j) => s8[j] + (j === fj ? bias : 0);
+      const bj = v(a1) >= v(a2) ? a1 : a2;
       if (si > 0) {
-        // nur neu anfangen, wenn Bass und Harmonie deutlich eine andere 1 zeigen und der Abschnitt lang ist
-        const margin = acc[bj] / total - acc[jc] / total;
-        if (bj === jc || len < 32 || margin < 0.08) return;
+        // nur neu anfangen, wenn die Musik deutlich eine andere 1 zeigt und der Abschnitt lang ist
+        const sameBar = jc % 4 === bj % 4;
+        const margin = sameBar ? s8[bj] - s8[jc] : s4[bj % 4] - s4[jc % 4];
+        if (bj === jc || len < 32 || margin < 0.35) return;
       }
       ones.push(s + bj);
     });

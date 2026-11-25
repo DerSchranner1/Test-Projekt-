@@ -6,7 +6,7 @@
 
 const $ = (id) => document.getElementById(id);
 const STATE_KEY = 'narrhalla.state.v1';
-const APP_VERSION = '0.9.2';
+const APP_VERSION = '0.9.3';
 const PEAK_COUNT = 600;   // Punkte der Übersichts-Wellenform
 const HI_RATE = 100;      // Punkte pro Sekunde der Detail-Wellenform
 const PALETTE = [
@@ -232,6 +232,9 @@ function ctx() {
 // Lautstärke über einen GainNode, weil iOS audio.volume ignoriert.
 // iPhone/iPad: Web Audio pausiert beim Sperren – dann die Musik direkt ausgeben
 const isTouch = matchMedia('(pointer: coarse)').matches;
+const svg = (d) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
+const ICON_PLAY = svg('M8 5v14l11-7z');
+const ICON_PAUSE = svg('M6 19h4V5H6v14zm8-14v14h4V5h-4z');
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 function ensureGraph() {
   try {
@@ -396,7 +399,7 @@ function hideBanner(id) {
 }
 function snoozed(id) {
   const u = state.snoozed?.[id];
-  return u === 'never' || (typeof u === 'number' && Date.now() < u);
+  return typeof u === 'number' && Date.now() < u;
 }
 function snooze(id, until) {
   state.snoozed = { ...(state.snoozed || {}), [id]: until };
@@ -410,7 +413,7 @@ function renderBanners() {
   const box = $('banners');
   box.replaceChildren();
   const active = activeNotices();
-  // Notfälle als Leiste
+  // Notfälle als volle Leiste
   for (const [, b] of active.filter(([, b]) => b.kind === 'error')) {
     const row = el('div', { className: 'banner' }, el('span', { className: 'msg', textContent: '⚠ ' + b.msg }));
     if (b.action) {
@@ -420,13 +423,23 @@ function renderBanners() {
     }
     box.append(row);
   }
-  // alles andere nur als kleines Symbol oben
-  const rest = active.filter(([, b]) => b.kind !== 'error');
-  const chip = $('noticeChip');
-  chip.hidden = !rest.length;
-  chip.classList.toggle('info', rest.every(([, b]) => b.kind === 'info'));
-  $('noticeCount').textContent = rest.length;
-  chip.title = rest.map(([, b]) => b.msg).join('\n');
+  // sonst: eine dünne Zeile mit dem wichtigsten Hinweis – die App bleibt ganz normal nutzbar
+  const rest = active.filter(([, b]) => b.kind !== 'error').sort((x, y) => (x[1].kind === 'info') - (y[1].kind === 'info'));
+  if (!rest.length) { if ($('noticeDlg').open) renderNoticeList(); return; }
+  const [id, top] = rest[0];
+  const line = el('div', { className: 'notice-line' + (top.kind === 'info' ? ' info' : '') });
+  const msg = el('button', { className: 'nl-msg', textContent: (top.kind === 'info' ? 'ℹ ' : '⚠ ') + top.msg + (rest.length > 1 ? `  (+${rest.length - 1})` : ''), title: 'Alle Hinweise' });
+  msg.onclick = openNotices;
+  line.append(msg);
+  if (top.action) {
+    const fix = el('button', { className: 'nl-btn fix', textContent: top.actionLabel });
+    fix.onclick = top.action;
+    line.append(fix);
+  }
+  const later = el('button', { className: 'nl-btn', textContent: 'Später', title: '3 Tage nicht mehr anzeigen' });
+  later.onclick = () => snooze(id, Date.now() + 3 * 864e5);
+  line.append(later);
+  box.append(line);
   if ($('noticeDlg').open) renderNoticeList();
 }
 function renderNoticeList() {
@@ -446,9 +459,7 @@ function renderNoticeList() {
     }
     const later = el('button', { type: 'button', className: 'btn ghost small', textContent: 'Später' });
     later.onclick = () => snooze(id, Date.now() + 3 * 864e5);
-    const never = el('button', { type: 'button', className: 'btn ghost small', textContent: 'Nicht mehr erinnern' });
-    never.onclick = () => snooze(id, 'never');
-    btns.append(later, never);
+    btns.append(later);
     ul.append(el('li', { className: 'notice-item' + (b.kind === 'info' ? ' info' : '') }, el('p', { textContent: b.msg }), btns));
   }
 }
@@ -1137,8 +1148,9 @@ audio.addEventListener('pause', syncPlayBtn);
 audio.addEventListener('seeked', resetCountSchedule);
 
 function syncPlayBtn() {
-  $('playBtn').textContent = audio.paused ? '▶' : '⏸';
-  $('miniPlay').textContent = audio.paused ? '▶' : '⏸';
+  const icon = audio.paused ? ICON_PLAY : ICON_PAUSE;
+  $('playBtn').innerHTML = icon;
+  $('miniPlay').innerHTML = icon;
   if (audio.paused) keepAliveTouch();
   updateMediaSession();
   if (!audio.paused && state.settings.keepAlive && keepEl?.paused) keepEl.play().catch(() => {});
@@ -1401,50 +1413,110 @@ async function ensureScrubBuffer() {
   }
 }
 
+/* Schieben mit Ton wie bei einer Platte: die Musik läuft so schnell und in die Richtung,
+ * in die der Finger zieht – vorwärts wie rückwärts. Hält der Finger still, ist Ruhe. */
+let scrubVoice = null;   // {src, gain, dir, rate, pos0, t0}
+let scrubSlice = null;   // {start, end, fwd, rev}
+let scrubTick = null;
+
 function scrubStart() {
   const t = current();
   if (!t) return false;
-  scrub = { pos: audio.currentTime, wasPlaying: !audio.paused, lastPos: audio.currentTime, lastAt: performance.now() };
+  scrub = { pos: audio.currentTime, wasPlaying: !audio.paused, lastPos: audio.currentTime, lastAt: performance.now(), vel: 0 };
   if (scrub.wasPlaying) audio.pause();
   if (state.settings.scrubAudio) { ensureGraph(); ensureScrubBuffer(); }
+  clearInterval(scrubTick);
+  // Finger steht still → langsam ausklingen lassen
+  scrubTick = setInterval(() => {
+    if (!scrub) return;
+    if (performance.now() - scrub.lastAt > 50) { scrub.vel *= 0.5; scrubSound(); }
+  }, 30);
   return true;
 }
 
 function scrubTo(pos) {
   const t = current();
   if (!scrub || !t) return;
-  scrub.pos = clamp(pos, 0, t.duration - 0.01);
   const now = performance.now();
-  if (state.settings.scrubAudio && scrubBuf && scrubBufFor === t.id && now - lastGrain > 35) {
-    const speed = Math.abs(scrub.pos - scrub.lastPos) / Math.max(0.001, (now - scrub.lastAt) / 1000);
-    lastGrain = now;
-    scrub.lastPos = scrub.pos;
-    scrub.lastAt = now;
-    if (speed > 0.05) grain(scrub.pos, clamp(speed, 0.4, 2.5));
-  }
+  const p = clamp(pos, 0, t.duration - 0.01);
+  const dt = Math.max(0.004, (now - scrub.lastAt) / 1000);
+  const v = (p - scrub.lastPos) / dt;
+  scrub.vel = 0.55 * scrub.vel + 0.45 * v;
+  scrub.pos = p;
+  scrub.lastPos = p;
+  scrub.lastAt = now;
+  scrubSound();
   draw();
 }
 
-function grain(pos, rate) {
-  const c = ctx();
-  const src = c.createBufferSource();
-  src.buffer = scrubBuf;
-  src.playbackRate.value = rate;
-  const e = c.createGain();
-  const now = c.currentTime;
-  e.gain.setValueAtTime(0, now);
-  e.gain.linearRampToValueAtTime(state.volume, now + 0.006);
-  e.gain.setValueAtTime(state.volume, now + 0.06);
-  e.gain.linearRampToValueAtTime(0, now + 0.08);
-  src.connect(e).connect(c.destination);
-  src.start(now, pos, 0.09);
+function scrubSlices(pos) {
+  if (scrubSlice && pos > scrubSlice.start + 1 && pos < scrubSlice.end - 1) return scrubSlice;
+  const sr = scrubBuf.sampleRate;
+  const start = Math.max(0, pos - 8), end = Math.min(scrubBuf.duration, pos + 8);
+  const a = Math.floor(start * sr), b = Math.floor(end * sr);
+  const data = scrubBuf.getChannelData(0).subarray(a, b);
+  const fwd = ctx().createBuffer(1, data.length, sr);
+  fwd.copyToChannel(data, 0);
+  const revData = new Float32Array(data.length);
+  for (let i = 0; i < data.length; i++) revData[i] = data[data.length - 1 - i];
+  const rev = ctx().createBuffer(1, data.length, sr);
+  rev.copyToChannel(revData, 0);
+  scrubSlice = { start, end, fwd, rev, buf: scrubBuf };
+  return scrubSlice;
 }
 
-function scrubEnd(doSnap = true) {
+function scrubVoiceStop(fade = 0.03) {
+  if (!scrubVoice) return;
+  const c = audioCtx, v = scrubVoice;
+  scrubVoice = null;
+  v.gain.gain.cancelScheduledValues(c.currentTime);
+  v.gain.gain.setValueAtTime(v.gain.gain.value, c.currentTime);
+  v.gain.gain.linearRampToValueAtTime(0, c.currentTime + fade);
+  try { v.src.stop(c.currentTime + fade + 0.01); } catch (e) { /* schon gestoppt */ }
+}
+
+function scrubSound() {
+  const t = current();
+  if (!scrub || !state.settings.scrubAudio || !scrubBuf || scrubBufFor !== t?.id) return;
+  const c = ctx();
+  const speed = Math.abs(scrub.vel);
+  if (speed < 0.12) return scrubVoiceStop(0.05);
+  const dir = scrub.vel > 0 ? 1 : -1;
+  const rate = clamp(speed, 0.3, 3);
+  if (scrubSlice && scrubSlice.buf !== scrubBuf) scrubSlice = null;
+  const sl = scrubSlices(scrub.pos);
+  const now = c.currentTime;
+  const v = scrubVoice;
+  const heard = v ? v.pos0 + v.dir * (now - v.t0) * v.rate : null;
+  if (!v || v.dir !== dir || v.slice !== sl || Math.abs(heard - scrub.pos) > 0.08) {
+    // neu ansetzen (kurz überblenden)
+    scrubVoiceStop(0.015);
+    const src = c.createBufferSource();
+    src.buffer = dir > 0 ? sl.fwd : sl.rev;
+    src.playbackRate.value = rate;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(state.volume * 0.9, now + 0.015);
+    src.connect(g).connect(c.destination);
+    const off = dir > 0 ? scrub.pos - sl.start : sl.end - scrub.pos;
+    src.start(now, clamp(off, 0, sl.end - sl.start - 0.01));
+    scrubVoice = { src, gain: g, dir, rate, pos0: scrub.pos, t0: now, slice: sl };
+  } else if (Math.abs(rate - v.rate) > 0.04) {
+    // Tempo dem Finger nachführen
+    v.pos0 = heard;
+    v.t0 = now;
+    v.rate = rate;
+    v.src.playbackRate.setTargetAtTime(rate, now, 0.02);
+  }
+}
+
+function scrubEnd() {
   if (!scrub) return;
   const { pos, wasPlaying } = scrub;
   scrub = null;
-  seek(doSnap ? snap(pos) : pos);
+  clearInterval(scrubTick);
+  scrubVoiceStop(0.04);
+  seek(pos);
   if (wasPlaying) play();
 }
 
@@ -1807,14 +1879,14 @@ function renderTracks() {
 
     const playing = t.id === currentId && !audio.paused;
     const playB = el('button', { className: 'row-btn play', textContent: playing ? '⏸' : '▶', title: playing ? 'Pause' : 'Abspielen' });
-    playB.onclick = (e) => { e.stopPropagation(); if (t.id === currentId) toggle(); else load(t.id, true); };
+    playB.onclick = (e) => { e.stopPropagation(); if (t.id === currentId) toggle(); else { load(t.id, true); closeLibrary(); } };
     const editB = el('button', { className: 'row-btn', textContent: '✎', title: 'Titel bearbeiten' });
     editB.onclick = (e) => { e.stopPropagation(); openTrackDialog(t); };
 
     li.append(stripe, el('span', { className: 'num', textContent: i + 1 }), title,
       el('span', { className: 'meta', textContent: fmt(cueOut(t) - cueIn(t)) }), playB, editB);
 
-    li.onclick = () => { selectedId = t.id; renderTracks(); };
+    li.onclick = () => { selectedId = t.id; if (t.id !== currentId) { load(t.id, false); closeLibrary(); } };
     li.ondblclick = () => load(t.id, true);
 
     li.ondragstart = (e) => { dragId = t.id; li.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; };
@@ -1871,14 +1943,12 @@ function renderNow() {
   const t = current();
   const g = group(t?.groupId);
   $('nowTitle').textContent = t ? t.name : (state.tracks.length ? 'Titel in der Liste antippen' : 'Kein Titel geladen');
-  $('nowSub').textContent = t ? [t.artist, g?.name, '✎ antippen zum Bearbeiten'].filter(Boolean).join(' · ') : '';
+  $('nowSub').textContent = t ? [t.artist, g?.name].filter(Boolean).join(' · ') || 'antippen: anderen Titel wählen' : '';
   $('nowColor').style.background = t?.color || g?.color || '#4a4a58';
   $('timeDur').textContent = fmt(t?.duration || 0);
   const eight = state.settings.jumpEight && hasBeats(t);
-  $('backBtn').textContent = eight ? '−1 Achter' : '−5 s';
-  $('fwdBtn').textContent = eight ? '+1 Achter' : '+5 s';
-  $('autoNextBtn').classList.toggle('on', !!state.autoNext);
-  $('loopBtn').classList.toggle('on', loop);
+  $('backCap').textContent = eight ? '−1 Achter' : '−5 s';
+  $('fwdCap').textContent = eight ? '+1 Achter' : '+5 s';
   $('miniTitle').textContent = t ? t.name : '';
   $('fadeBtn').hidden = isIOS;
   $('iosVolHint').hidden = !isIOS;
@@ -2565,7 +2635,7 @@ function gesture(canvas, { onScrubStart, onScrubMove, onTap }) {
     if (!g || e.pointerId !== g.id) return;
     const was = g;
     g = null;
-    if (was.mode === 'scrub') return scrubEnd(!cancel);
+    if (was.mode === 'scrub') return scrubEnd();
     if (cancel || was.mode) return;
     const dx = e.clientX - was.x0, dy = e.clientY - was.y0;
     if (Math.abs(dx) < 8 && Math.abs(dy) < 8 && performance.now() - was.t < 500) {
@@ -2745,15 +2815,26 @@ $('emptyFileInput').onchange = (e) => { addFiles(e.target.files); e.target.value
 $('importInput').onchange = (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) { $('settingsDlg').close(); importSet(f); } };
 $('exportBtn').onclick = () => { $('settingsDlg').close(); exportSet(); };
 $('helpBtn').onclick = () => $('helpDlg').showModal();
-$('noticeChip').onclick = openNotices;
 $('settingsBtn').onclick = openSettings;
 $('addGroupBtn').onclick = () => openGroupDialog(null);
-$('nowTitleBtn').onclick = () => current() && openTrackDialog(current());
-$('autoNextBtn').onclick = () => {
-  state.autoNext = !state.autoNext;
-  renderNow();
-  toast(state.autoNext ? 'Nach dem Titel startet automatisch der nächste' : 'Nach dem Titel wird angehalten');
-};
+// Titel oben antippen = anderen Titel wählen
+const isPhone = () => matchMedia('(max-width: 1000px)').matches;
+function openLibrary() {
+  if (!isPhone()) { $('search').focus(); return; }
+  document.body.classList.add('lib-open');
+  history.pushState({ lib: true }, '');
+  document.querySelector('.track-list li.playing')?.scrollIntoView({ block: 'center' });
+}
+function closeLibrary(fromHistory = false) {
+  if (!document.body.classList.contains('lib-open')) return;
+  document.body.classList.remove('lib-open');
+  if (!fromHistory && history.state?.lib) history.back();
+}
+window.addEventListener('popstate', () => closeLibrary(true));
+$('nowTitleBtn').onclick = openLibrary;
+$('libClose').onclick = () => closeLibrary();
+$('libFileInput').onchange = (e) => { addFiles(e.target.files); e.target.value = ''; };
+$('editTrackBtn').onclick = () => current() ? openTrackDialog(current()) : toast('Erst einen Titel wählen');
 $('miniPlay').onclick = toggle;
 $('miniStop').onclick = stop;
 $('miniReplay').onclick = replay;
@@ -2771,13 +2852,9 @@ $('playBtn').onclick = toggle;
 $('stopBtn').onclick = stop;
 $('replayBtn').onclick = replay;
 $('replayMarkerBtn').onclick = replayFromMarker;
-$('replayLastBtn').onclick = replayLast;
-$('prevBtn').onclick = () => step(-1);
-$('nextBtn').onclick = () => step(1);
 $('backBtn').onclick = () => jump(-1);
 $('fwdBtn').onclick = () => jump(1);
 $('fadeBtn').onclick = () => fadeOut();
-$('loopBtn').onclick = toggleLoop;
 $('addMarkerBtn').onclick = () => addMarker();
 $('cueInBtn').onclick = () => setCue('in');
 $('cueOutBtn').onclick = () => setCue('out');
@@ -2862,7 +2939,6 @@ $('snapSeg').onclick = (e) => {
 
 function toggleLoop() {
   loop = !loop;
-  $('loopBtn').classList.toggle('on', loop);
   toast(loop ? 'Schleife an: der Titel wiederholt sich' : 'Schleife aus');
 }
 

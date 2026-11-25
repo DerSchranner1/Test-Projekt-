@@ -5,30 +5,32 @@
 | Was | Wie |
 |---|---|
 | Titel laden | oben **+ Titel** |
-| Titel abspielen | in der Liste auf **▶** beim Titel |
+| Titel wechseln | oben auf den **Titelnamen ▾** tippen → Titel antippen |
 | Abspielen / Pause | großer oranger Knopf |
-| Stopp (zurück an den Anfang) | ■ |
-| Nochmal | **⟲ Von vorn**, **⟲ Ab Marker** (letzter Marker vor der aktuellen Stelle), **⏪ Voriger Titel** |
+| Stopp (zurück an den Anfang) | **Stopp** |
+| Nochmal | **Von vorn** oder **Ab Marker nochmal** (letzter Marker vor der aktuellen Stelle) |
 | Springen | **−1 Achter / +1 Achter**, oder in die Musik-Leiste tippen |
 | In der Musik schieben | große Wellenform mit dem Finger nach links/rechts ziehen |
-| Sanft aufhören | **Ausblenden** |
+| Sanft aufhören | **Sanft stoppen** – in 3 Sekunden leiser, dann Stopp |
 | Mitzählen 1–8 | **Mitzählen**: Aus / Stimme / Klick, daneben die Lautstärke |
 | Marker setzen | **+ Marker hier**; farbigen Marker antippen = startet genau dort |
 | Rückgängig | erscheint nach jeder Änderung unten kurz – antippen |
 
-Scrollt man am Handy nach unten, bleibt unten eine kleine Leiste mit ▶/⏸, ■ und ⟲.
+Scrollt man am Handy nach unten, bleibt unten eine kleine Leiste mit Abspielen/Pause, Stopp und Von vorn.
+Im Querformat steht die Musik-Leiste links und die Knöpfe rechts.
 
 ## 1. Einrichten (einmalig, zu Hause)
 
 1. **+ Titel** antippen und die Musik auswählen. Die App liest Titelnamen, erkennt die einzelnen Lieder
    in einem Zusammenschnitt, das Tempo und die „1“.
-2. Bei jedem Titel **✎**: Namen prüfen, **Gruppe** wählen (Show, Garde, Elfer – eigene über **+ Gruppe**),
+2. Oben auf den Titelnamen tippen → bei jedem Titel **✎**: Namen prüfen, **Gruppe** wählen (Show, Garde, Elfer – eigene über **+ Gruppe**),
    bei Bedarf eigene Farbe, **▲/▼** für die Reihenfolge.
 3. ⚙ → **Jetzt sichern**. Das ist deine Sicherung, falls das Handy kaputtgeht.
 
 ## 2. Die Musik-Leiste
 
-- Oben die **große Wellenform**: mit dem Finger waagerecht ziehen verschiebt die Musik – wie eine Platte.
+- Oben die **große Wellenform**: mit dem Finger waagerecht ziehen verschiebt die Musik – wie eine Platte, mit Ton
+  (schnell gezogen klingt es schnell, rückwärts gezogen rückwärts).
   Tippen springt an die Stelle. Senkrecht wischen scrollt nur die Seite. Die Zahlen oben sind die Zählzeiten 1–8,
   die gelbe Linie ist jeweils die „1“. Mit **−/+** zoomst du.
 - Darunter der **schmale Streifen**: das ganze Stück mit den Farben der Lieder und den Markern (Dreiecke).
@@ -65,9 +67,8 @@ Alles lässt sich mit **Rückgängig** zurücknehmen.
   und das Handy trennt nicht – auch gesperrt. Oben steht dann „● BT wach“.
 - **Android-App:** Es erscheint die Benachrichtigung „Narrhalla Player“ mit Tasten für Von vorn / Pause / Stopp.
   Auch die Tasten an der Box oder am Kopfhörer funktionieren.
-- **Gelbes ⚠ oben neben dem Namen?** Antippen → **Beheben**. Typisch: Akku-Optimierung ist an oder Benachrichtigungen
-  sind aus – dann kann Android die App im Training beenden. Mit **Später** ist 3 Tage Ruhe, mit **Nicht mehr erinnern**
-  für immer. Die App lässt sich dabei ganz normal weiter benutzen.
+- **Gelbe Zeile oben?** **Beheben** antippen. Typisch: Akku-Optimierung ist an oder Benachrichtigungen sind aus – dann
+  kann Android die App im Training beenden. **Später** gibt 3 Tage Ruhe. Die App lässt sich dabei ganz normal benutzen.
 - Schaltet die Box trotzdem ab: **Stärke** auf „etwas stärker“.
 - **iPhone/iPad:** Musik läuft gesperrt weiter. Lautstärke über die Gerätetasten; Ausblenden und Mitzählen
   gehen nur bei entsperrtem Bildschirm. Die App unbedingt über Teilen → **Zum Home-Bildschirm** installieren.
