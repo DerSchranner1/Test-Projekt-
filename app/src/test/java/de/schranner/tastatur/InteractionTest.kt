@@ -295,10 +295,23 @@ class InteractionTest {
         for (i in 1..12) list.dispatchTouchEvent(ev(android.view.MotionEvent.ACTION_MOVE, y0 - i * list.height * 0.06f, i * 16L))
         list.dispatchTouchEvent(ev(android.view.MotionEvent.ACTION_UP, y0 - 12 * list.height * 0.06f, 13 * 16L))
         h.settle()
-        println("Emoji-Liste: Zeile $before -> ${list.firstVisiblePosition}, schneller Bildlauf: ${list.isFastScrollEnabled}")
+        println("Emoji-Liste: Zeile $before -> ${list.firstVisiblePosition}")
         assertTrue(list.firstVisiblePosition > before)
-        assertTrue(list.isFastScrollEnabled)
+        assertFalse(list.isFastScrollEnabled)
         assertEquals("nichts eingefügt", "", h.text)
+        // Das Emoji ganz rechts lässt sich antippen
+        val row = (0 until list.childCount).map { list.getChildAt(it) }.first { it is android.widget.LinearLayout } as android.widget.LinearLayout
+        val last = row.getChildAt(row.childCount - 1) as android.widget.TextView
+        val loc = IntArray(2); last.getLocationInWindow(loc)
+        val lx = loc[0] + last.width / 2f
+        val ly = loc[1] + last.height / 2f
+        val rootView = list.rootView
+        val t1 = t0 + 1000
+        rootView.dispatchTouchEvent(android.view.MotionEvent.obtain(t1, t1, android.view.MotionEvent.ACTION_DOWN, lx, ly, 0))
+        rootView.dispatchTouchEvent(android.view.MotionEvent.obtain(t1, t1 + 40, android.view.MotionEvent.ACTION_UP, lx, ly, 0))
+        h.settle()
+        println("Rechtes Emoji angetippt: ${last.text} -> „${h.text}“")
+        assertEquals(last.text.toString(), h.text)
     }
 
     @Test fun copiedTextIsOfferedForPasting() {

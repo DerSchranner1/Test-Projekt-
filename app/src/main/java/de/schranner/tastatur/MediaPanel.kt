@@ -543,10 +543,9 @@ class MediaPanel(
             setPadding(0, 0, 0, dp(4f))
             clipToPadding = false
             adapter = emojiAdapter
-            // Schneller Bildlauf: am rechten Rand ziehen springt durch alle Emojis
-            isVerticalScrollBarEnabled = true
-            isFastScrollEnabled = true
-            isFastScrollAlwaysVisible = false
+            // Nur Wischen: kein Schnell-Bildlauf-Griff am Rand (der würde die rechten Emojis verdecken)
+            isVerticalScrollBarEnabled = false
+            isFastScrollEnabled = false
             // Beim Blättern die passende Gruppe in der unteren Leiste hervorheben
             setOnScrollListener(object : android.widget.AbsListView.OnScrollListener {
                 override fun onScrollStateChanged(view: android.widget.AbsListView?, state: Int) {}
