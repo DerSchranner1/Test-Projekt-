@@ -248,6 +248,8 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         selecting = false
         haptics.strength = prefs.vibration
         keyboard.haptics = haptics
+        // „Bairisch verstehen“ umgeschaltet? Dann das passende Wörterbuch nehmen
+        EngineHolder.get(this).let { e -> if (e !== engine) { engine = e; decoder = GestureDecoder(e) } }
         // Datenschutz: nicht lernen, wenn abgeschaltet oder die App darum bittet (z. B. Inkognito-Fenster)
         val incognito = info.imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING != 0
         engine.learning = prefs.learnFromTyping && !incognito

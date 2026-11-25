@@ -144,6 +144,8 @@ class SettingsActivity : Activity() {
         // ---- Tippen
         card("Tippen")
         switch("Wischen zum Schreiben", prefs.gestureTyping) { prefs.gestureTyping = it }
+        switch("Bairisch verstehen", prefs.bavarian) { prefs.bavarian = it }
+        hint("Kennt „i hob“, „des is ned“, „griaß di“, „pfiat di“ und über 40.000 bairische Wörter: keine roten Markierungen, passende Vorschläge, und die Treffhilfe rechnet mit Bairisch. Deutsch und Englisch gehen weiterhin.")
         switch("Autokorrektur", prefs.autocorrect) { prefs.autocorrect = it }
         hint("Aus: Tippfehler werden nur rot markiert. An: eindeutige Fehler werden ersetzt, ⌫ macht es rückgängig.")
         switch("Tippfehler rot markieren", prefs.markTypos) { prefs.markTypos = it }

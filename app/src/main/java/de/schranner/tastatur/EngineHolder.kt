@@ -10,11 +10,14 @@ object EngineHolder {
     private var engine: SuggestionEngine? = null
     private var dir: String? = null
 
+    /** Liefert das Wörterbuch; wurde Bairisch in den Einstellungen umgeschaltet, wird es neu geladen. */
     @Synchronized
     fun get(context: Context): SuggestionEngine {
         val app = context.applicationContext
         val path = app.filesDir.absolutePath
-        engine?.let { if (dir == path) return it }
-        return SuggestionEngine(app).also { it.loadAsync(); engine = it; dir = path }
+        val dialect = Prefs(app).bavarian
+        engine?.let { if (dir == path && it.dialect == dialect) return it }
+        engine?.save()
+        return SuggestionEngine(app, dialect).also { it.loadAsync(); engine = it; dir = path }
     }
 }

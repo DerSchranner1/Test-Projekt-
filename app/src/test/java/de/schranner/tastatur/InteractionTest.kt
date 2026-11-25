@@ -253,6 +253,20 @@ class InteractionTest {
         assertTrue("${h2.suggestions()}", "🍻" in h2.suggestions())
     }
 
+    @Test fun bavarianIsNotMarkedAsTypo() {
+        val h = KeyboardHarness { it.bavarian = true; it.autocorrect = true; it.markTypos = true }
+        h.type("griass di oida i hob des ned gwusst ")
+        println("Bairisch getippt: „${h.text}“, Vorschläge danach: ${h.suggestions()}")
+        // Autocorrect an: trotzdem bleibt alles so, wie getippt
+        assertEquals("Griass di oida i hob des ned gwusst ", h.text)
+        val spans = h.edit.text.getSpans(0, h.edit.text.length, android.text.style.SuggestionSpan::class.java)
+        assertEquals("rote Markierungen: ${spans.size}", 0, spans.size)
+        h.type("pfiat")
+        h.space()
+        println("Nach „pfiat“: ${h.suggestions()}")
+        assertTrue("${h.suggestions()}", h.suggestions().any { it == "di" })
+    }
+
     @Test fun emojiReplacesTheWord() {
         // Standard: „Geige“ wird zu 🎻
         val h = KeyboardHarness { it.emojiSuggestions = true; it.emojiReplacesWord = true; it.learnFromTyping = false }

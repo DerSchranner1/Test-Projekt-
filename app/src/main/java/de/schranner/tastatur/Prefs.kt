@@ -35,6 +35,11 @@ class Prefs(context: Context) {
         get() = sp.getBoolean(KEY_EMOJI_SUGG, true)
         set(v) = sp.edit().putBoolean(KEY_EMOJI_SUGG, v).apply()
 
+    /** Bairisch mitverstehen (Wörter, Vorschläge, Treffhilfe). */
+    var bavarian: Boolean
+        get() = sp.getBoolean(KEY_BAVARIAN, true)
+        set(v) = sp.edit().putBoolean(KEY_BAVARIAN, v).apply()
+
     /** Emoji-Vorschlag ersetzt das Wort („Geige“ -> 🎻) statt es dahinter zu setzen. */
     var emojiReplacesWord: Boolean
         get() = sp.getBoolean(KEY_EMOJI_REPLACE, true)
@@ -137,6 +142,7 @@ class Prefs(context: Context) {
         const val KEY_MARK_TYPOS = "mark_typos"
         const val KEY_EMOJI_SUGG = "emoji_suggestions"
         const val KEY_EMOJI_REPLACE = "emoji_replaces_word"
+        const val KEY_BAVARIAN = "bavarian"
         const val KEY_SIZE = "key_size"
         const val KEY_BOTTOM_PAD = "bottom_pad"
         const val KEY_LAYOUT = "layout"

@@ -1,0 +1,676 @@
+# Bairische Alltagswörter und Wendungen (für Chat und Nachrichten).
+# Zeile mit einem Wort: Wort [Häufigkeit 1-5]   (5 = sehr häufig, Standard 3)
+# Zeile mit „> “: typische Wortfolge, daraus werden Vorhersagen gebaut.
+
+# Fürwörter
+i 5
+mi 5
+mia 5
+mir 4
+di 5
+dir 4
+eam 4
+eahm 3
+ihm 2
+ea 3
+se 4
+ees 3
+es 3
+eich 4
+eana 4
+ins 3
+uns 3
+mei 5
+dei 4
+sei 3
+meina 3
+deina 3
+seina 3
+meim 3
+deim 3
+
+# sein, haben, werden
+is 5
+bin 5
+bist 5
+san 5
+sand 3
+sads 3
+seids 3
+warst 3
+war 4
+wor 4
+warn 3
+worn 3
+gwen 4
+gwesn 4
+hob 5
+hab 5
+hosd 4
+host 4
+hast 4
+hod 5
+hot 4
+hods 4
+ham 5
+hom 4
+hamma 4
+homma 4
+hobts 3
+habts 3
+ghabt 3
+ghobt 3
+wead 3
+wird 3
+wern 3
+wean 3
+wuan 3
+woarn 3
+wordn 3
+
+# Verben
+kimm 4
+kimmst 4
+kimmt 4
+kemma 4
+kumm 3
+kummst 3
+geh 5
+gehst 4
+gehd 4
+gemma 5
+gehma 4
+gangen 3
+ganga 3
+mog 5
+mogst 4
+mogsd 3
+mag 4
+magst 4
+megn 3
+wui 4
+wuist 4
+wuin 3
+ko 4
+kon 4
+kost 3
+kannst 4
+konnst 4
+konn 3
+kennan 3
+muas 4
+muasst 4
+muaßt 3
+miass 3
+miassn 4
+miaßn 3
+derf 3
+deaf 3
+derfst 3
+sog 4
+sag 4
+sogst 3
+sogt 3
+gsogt 4
+gsagt 4
+mocha 3
+mochst 4
+mocht 3
+gmocht 4
+gmacht 4
+mach 4
+machst 4
+duad 3
+duat 3
+dua 3
+deama 3
+glaab 3
+glaub 4
+glaubst 4
+moan 4
+moanst 4
+moant 3
+woas 5
+woaß 5
+woast 4
+woaßt 4
+wois 3
+hoaßt 3
+hoast 3
+schaug 4
+schau 4
+schaugst 3
+schaust 3
+gschaut 3
+gseng 3
+gsehn 3
+siehgst 3
+red 3
+redst 3
+gredt 3
+trink 3
+dringa 3
+dring 3
+iss 3
+essn 3
+gessn 3
+schlof 3
+schlofa 3
+gschlofa 3
+arwat 3
+arbat 3
+orbat 3
+arbatn 3
+fohr 3
+fohrn 3
+gfohrn 4
+loss 3
+lass 4
+lossn 3
+gib 4
+gibs 3
+griag 3
+griagst 3
+kriag 3
+kriagst 3
+gfrei 4
+gfreit 4
+gfreid 3
+bassd 3
+basst 5
+passt 5
+hoid 4
+hoit 4
+holt 3
+schee 5
+scheen 3
+gspannt 3
+gspürt 3
+gwunna 3
+gwonna 3
+verlorn 3
+gmerkt 3
+gwart 3
+gwartet 3
+gfunden 3
+gfundn 3
+ghört 3
+gheat 3
+ghead 3
+gnua 4
+gnug 3
+gfallt 4
+gfoit 4
+gfallt's 3
+pack 4
+packma 3
+packmas 3
+
+# kleine Wörter
+ned 5
+net 5
+nedda 3
+nimma 4
+nimmer 3
+nix 5
+nixe 2
+koa 4
+koan 4
+koane 3
+koana 3
+a 5
+oa 4
+oan 4
+oana 4
+oane 4
+oans 4
+des 5
+dees 3
+dos 4
+de 4
+dea 4
+dem 4
+dera 3
+da 5
+do 5
+dort 3
+duat 3
+hiaz 3
+iatz 4
+jetz 5
+jetzt 4
+jetzad 4
+jetzat 3
+etz 4
+etza 3
+glei 5
+boid 4
+heid 5
+heit 4
+heia 3
+moang 4
+morgn 4
+gestan 4
+gestad 3
+nacha 3
+nachad 4
+nachat 3
+donn 4
+dann 4
+scho 5
+schon 4
+aa 5
+aah 2
+no 5
+nu 4
+grod 4
+grad 4
+ois 5
+olles 4
+oiss 3
+oiwei 4
+oiwai 3
+oiweil 3
+imma 4
+nia 4
+niamois 3
+nie 3
+amoi 4
+oamoi 3
+zwoamoi 3
+moi 4
+vui 5
+vei 3
+vej 3
+weng 4
+wengal 3
+wengerl 3
+bissl 5
+bissal 4
+bisserl 3
+gscheid 5
+gscheit 5
+guad 5
+guat 4
+recht 3
+bläd 3
+bläid 3
+deppad 4
+damisch 3
+narrisch 4
+zwida 4
+grantig 4
+gmiatlich 4
+griabig 3
+zünftig 3
+fesch 3
+sauba 3
+saugut 3
+saublöd 3
+sakrisch 3
+fei 5
+gell 5
+gö 3
+gej 3
+gä 3
+ha 3
+jo 5
+joa 4
+ja 4
+na 5
+naa 4
+nana 3
+freili 5
+eh 5
+geh 5
+mei 5
+ui 3
+oiso 4
+also 4
+sowieso 4
+eigentli 3
+eigntli 3
+wirkli 3
+gwiss 3
+eh 4
+vielleicht 3
+wos 5
+wer 4
+wea 3
+wia 5
+wie 4
+wo 4
+wann 4
+warum 4
+wieso 4
+wiaso 3
+weil 4
+wei 4
+wenn 4
+wann 3
+owa 4
+aba 4
+oba 3
+oda 4
+mit 4
+mid 4
+midm 3
+vo 4
+vom 4
+vom 3
+zu 4
+zua 4
+zan 3
+zum 3
+af 3
+auf 4
+aufm 3
+iwa 4
+iba 3
+unta 3
+hint 3
+hintn 3
+vorn 3
+drauß 3
+draußn 4
+drin 3
+drinna 3
+dobn 3
+drobn 3
+drunt 3
+drunta 3
+umadum 3
+umanand 3
+umanander 3
+dahoam 5
+hoam 5
+hoamat 3
+umsunst 3
+ummasunst 3
+glabt 2
+
+# Grüße und Ausrufe
+servus 5
+servas 3
+griaß 5
+griass 4
+griassdi 3
+mass 3
+griaßdi 3
+grias 3
+pfiat 5
+pfiade 3
+pfiati 3
+mahlzeit 3
+prost 4
+prosit 3
+oida 5
+oide 3
+habedere 3
+seawas 3
+zefix 4
+kruzifix 4
+kruzitürken 3
+sakra 4
+sakradi 3
+herrgott 4
+himmi 3
+hümmi 3
+sapperlot 3
+mei 4
+jessas 3
+jessasmaria 2
+obacht 4
+fix 3
+basta 3
+
+# Leute und Sachen (Hauptwörter)
+schmarrn 5
+schmarn 4
+gschmarri 3
+glump 4
+graffl 3
+krampf 3
+gaudi 5
+gaude 2
+bua 4
+buam 4
+bub 3
+madl 4
+madln 3
+dirndl 3
+diandl 3
+mama 4
+papa 4
+mam 3
+babba 3
+oma 4
+opa 4
+spezl 4
+spezln 3
+haberer 3
+hawara 3
+depp 4
+deppn 3
+hammel 3
+rindviech 3
+viech 3
+gschwerl 2
+gspusi 3
+schatzi 4
+hasi 3
+bussi 5
+busserl 4
+
+# Essen, Trinken, Alltag
+brotzeit 5
+brezn 5
+brezl 3
+breze 3
+semmel 4
+semme 3
+semmeln 3
+weißwurscht 4
+woaßwurscht 3
+wurscht 4
+leberkas 4
+leberkaas 3
+obatzda 4
+kas 3
+knödl 3
+knedl 3
+schweinsbratn 4
+bratn 3
+radi 3
+radler 4
+russ 3
+maß 4
+mass 4
+hoibe 4
+halbe 3
+weißbier 4
+woaßbier 3
+helles 4
+bier 4
+spezi 4
+wiesn 4
+dult 3
+biergartn 3
+biergarten 4
+wirtshaus 4
+wirt 3
+stammtisch 3
+lederhosn 4
+tracht 3
+gwand 3
+haxn 3
+schädl 3
+ranzn 3
+goschn 3
+gosch 3
+arbat 3
+gschäft 3
+gschäftl 3
+radl 3
+bulldog 3
+feierabnd 3
+wocha 3
+sunnda 3
+samstog 3
+freidog 3
+mittog 3
+nomittog 3
+obnd 3
+nacht 3
+dog 3
+doog 3
+joar 3
+johr 3
+minga 4
+boarn 3
+boarisch 4
+bairisch 4
+bayrisch 4
+östareich 2
+
+# Wendungen
+> griaß di
+> griass di
+> griass eich
+> griass god
+> griaß eich
+> griaß god
+> griaß di god
+> pfiat di
+> pfiat eich
+> pfiat di god
+> servus oida
+> servus mitanand
+> guad nacht
+> guadn moang
+> bis moang
+> bis boid
+> bis glei
+> bis spada
+> wia gehts da
+> wia gehts dir
+> wia gehts eich
+> wos mochst
+> wos machst
+> wos is
+> wos is los
+> wos is des
+> wos host gsogt
+> geht scho
+> passt scho
+> basst scho
+> des passt
+> des basst
+> des is
+> des is a schmarrn
+> des is guad
+> des is ned
+> des woas i ned
+> des gibts ned
+> des hob i ned gwusst
+> des war
+> des wor
+> i bin
+> i bin dahoam
+> i bin glei do
+> i hob
+> i hob koa zeit
+> i hob di gern
+> i hob di gean
+> i hab di gern
+> i mog
+> i mog di
+> i mog ned
+> i woas
+> i woas ned
+> i woaß ned
+> i kimm
+> i kimm glei
+> i kimm boid
+> i ko ned
+> i kon ned
+> i muas
+> i muas no
+> i wui
+> i wui ned
+> i glaab
+> i moan
+> i gfrei mi
+> i gfrei mi scho
+> gfreit mi
+> mi gfreit
+> mia san
+> mia san mia
+> mia gehts guad
+> mir is
+> mir is wurscht
+> is mir wurscht
+> is scho recht
+> is ned so schlimm
+> ned schlecht
+> ned so
+> ja mei
+> ah geh
+> a so
+> a so a
+> so a schmarrn
+> so a krampf
+> a bissl
+> a bissal
+> a weng
+> a so a gaudi
+> a hoibe
+> a mass
+> a maß
+> a brezn
+> a brotzeit
+> a weißwurscht
+> pack mas
+> pack ma
+> gemma
+> gemma hoam
+> schau ma moi
+> schaug ma moi
+> schau ma mal
+> kimmst du
+> kimmst mit
+> host du
+> host zeit
+> hosd zeit
+> bist du
+> bist dahoam
+> bist scho do
+> hob i
+> hab i
+> bin i
+> kon i
+> ko i
+> muas i
+> mog i
+> wui i
+> do is
+> do bin i
+> etz is
+> jetz is
+> jetz gehts
+> oida wos
+> fei guad
+> fei schee
+> gell du
+> freili
+> eh scho
+> eh klar
+> sauba
+> ois guade
+> ois guad
+> ois klar
+> olles guade
+> vui gaudi
+> vui spaß
+> zefix nomoi
+> himmi herrgott

@@ -24,11 +24,14 @@ class SuggestionEngine(
     private val openNgramsEn: (() -> java.io.InputStream)? = null,
     /** Öffnet weitere Daten nach Namen: „valid.bloom“ (gültige Wortformen), „grammar_de.tsv“ (Verben). */
     private val openExtra: ((String) -> java.io.InputStream)? = null,
+    /** Bairisch mitverstehen („i hob“, „des is ned“, „griaß di“): eigene Wörter und Wortfolgen. */
+    val dialect: Boolean = false,
 ) {
-    constructor(context: Context) : this(
+    constructor(context: Context, dialect: Boolean = false) : this(
         { context.assets.open("words.tsv") }, context.filesDir,
         { context.assets.open("ngrams.tsv") }, { context.assets.open("ngrams_en.tsv") },
         { name -> context.assets.open(name) },
+        dialect,
     )
 
     /**
@@ -193,6 +196,9 @@ class SuggestionEngine(
 
     private fun loadNgrams() {
         openNgrams?.let { ngrams = readNgrams(it, 180_000) }
+        if (dialect) openExtra?.let { open ->
+            try { ngrams = mergeDialect(ngrams, readNgrams({ open("ngrams_bar.tsv") }, 10_000)) } catch (_: Exception) { }
+        }
         openNgramsEn?.let { ngramsEn = readNgrams(it, 100_000) }
         fullyLoaded = true
     }
@@ -201,6 +207,34 @@ class SuggestionEngine(
 
     /** Wörterbuch UND Wortfolgen geladen? */
     fun isFullyLoaded() = fullyLoaded
+
+    /**
+     * Bairische Wortfolgen zu den hochdeutschen dazunehmen. Wo es beide gibt („des“, „i“),
+     * bekommen die bairischen Folgewörter ein Drittel des Gewichts.
+     */
+    private fun mergeDialect(base: Map<String, Followers>, bar: Map<String, Followers>): Map<String, Followers> {
+        val out = HashMap(base)
+        for ((key, b) in bar) {
+            val d = base[key]
+            if (d == null) { out[key] = b; continue }
+            val scale = d.total * DIALECT_SHARE / b.total
+            val sum = LinkedHashMap<String, Pair<Int, String?>>()
+            for (i in d.words.indices) sum[d.words[i]] = d.counts[i] to d.cased[i]
+            for (i in b.words.indices) {
+                val add = maxOf(1, (b.counts[i] * scale).toInt())
+                val old = sum[b.words[i]]
+                sum[b.words[i]] = ((old?.first ?: 0) + add) to (old?.second ?: b.cased[i])
+            }
+            val sorted = sum.entries.sortedByDescending { it.value.first }
+            out[key] = Followers(
+                d.total + (b.total * scale).toInt(),
+                Array(sorted.size) { sorted[it].key },
+                IntArray(sorted.size) { sorted[it].value.first },
+                Array(sorted.size) { sorted[it].value.second },
+            )
+        }
+        return out
+    }
 
     private fun readNgrams(open: () -> java.io.InputStream, capacity: Int): Map<String, Followers> {
         val map = HashMap<String, Followers>(capacity)
@@ -256,6 +290,26 @@ class SuggestionEngine(
         if (bigramFile.exists()) bigramFile.forEachLine { line ->
             val p = line.split('\t')
             if (p.size >= 3) bigrams.getOrPut(p[0]) { HashMap() }[p[1]] = p[2].toIntOrNull() ?: 1
+        }
+        if (dialect) openExtra?.let { open ->
+            try {
+                open("bairisch.tsv").bufferedReader(Charsets.UTF_8).useLines { lines ->
+                    for (line in lines) {
+                        val t = line.indexOf('\t')
+                        if (t <= 0) continue
+                        val w = line.substring(0, t)
+                        val score = line.substring(t + 1).toFloatOrNull() ?: continue
+                        val low = w.lowercase()
+                        knownBad.remove(low)
+                        val e = dict[low]
+                        when {
+                            e == null -> dict[low] = Entry(low, w, score, 0f, null)
+                            // Bairisch häufiger als im Hochdeutschen („ned“, „des“, „i“): bairische Schreibweise
+                            e.scoreDe < score -> dict[low] = Entry(e.low, w, score, e.scoreEn, e.wordEn)
+                        }
+                    }
+                }
+            } catch (_: Exception) { }
         }
         rebuildIndex()
         computeFirstLetters()
@@ -783,6 +837,8 @@ class SuggestionEngine(
         private const val CONTEXT_MISS = -0.5f
         /** Ohne Hinweise aus dem Text wird überwiegend Deutsch angenommen. */
         private const val PRIOR_EN = 0.03f
+        /** Gewicht der bairischen Wortfolgen gegenüber den hochdeutschen. */
+        const val DIALECT_SHARE = 0.5f
         private const val FLOOR_SCORE = 150f
         private const val LN10 = 2.3026f
 

@@ -5,6 +5,7 @@ Eine dunkle, schlichte Android-Tastatur für Deutsch und Englisch. Sie bringt Ti
 ## Was sie kann
 
 **Tippen**
+- **Bairisch:** „i hob“, „des is ned“, „griaß di“, „pfiat di“ und über 40.000 bairische Wörter werden nicht als Fehler markiert, vorgeschlagen und bei der Treffhilfe mitgerechnet (abschaltbar). Hochdeutsch und Englisch gehen weiterhin.
 - **Deutsch und Englisch gleichzeitig:** Die Tastatur erkennt an den letzten Wörtern, in welcher Sprache du schreibst, und schlägt passend vor.
 - **Wortvorhersagen auf dem Handy, ohne Internet:** 115.000 Wörter und Wortfolgen aus rund 4 Millionen Sätzen. Nach „Vielen“ kommt „Dank“, nach „how are“ kommt „you“. Großschreibung und ß stimmen im Zusammenhang („Guten Morgen“, „beim Essen“, „WhatsApp“). Die Tastatur lernt deine eigenen Wörter dazu.
 - **Unsichtbare Treffhilfe (wie beim iPhone):** Buchstaben, die als nächstes wahrscheinlich sind, haben eine größere Trefferfläche. Die Tasten sehen gleich aus, und die Mitte einer Taste trifft immer diese Taste. Die Stärke ist per Regler einstellbar.
@@ -85,8 +86,9 @@ Die Wortdaten in `app/src/main/assets/` entstehen mit den Skripten in `tools/`:
 1. `build_wordlist.py` erzeugt `words.tsv` (Wort, Häufigkeit Deutsch, Häufigkeit Englisch).
 2. `build_ngrams.py` erzeugt `ngrams.tsv` (deutsche Wortfolgen) und korrigiert Schreibweisen.
 3. `build_ngrams_en.py` erzeugt `ngrams_en.tsv` (englische Wortfolgen).
-4. `build_emoji.py` erzeugt `emoji.tsv` und `emoji_words.tsv`.
-5. `build_spell.py` erzeugt `valid.bloom` (gültige Wortformen) und `grammar_de.tsv` (Verbformen).
+4. `build_bairisch.py` erzeugt `bairisch.tsv` und `ngrams_bar.tsv` aus `tools/bairisch_basis.txt` und der bairischen Wikipedia.
+5. `build_emoji.py` erzeugt `emoji.tsv` und `emoji_words.tsv`.
+6. `build_spell.py` erzeugt `valid.bloom` (gültige Wortformen) und `grammar_de.tsv` (Verbformen).
 
 Das Offline-Diktat wird aus `app/src/main/cpp/` gebaut und braucht NDK 28.2.13676358 und CMake 3.22.1.
 
@@ -94,6 +96,7 @@ Das Offline-Diktat wird aus `app/src/main/cpp/` gebaut und braucht NDK 28.2.1367
 
 - Worthäufigkeiten: [wordfreq](https://github.com/rspeer/wordfreq), Daten unter CC BY-SA 4.0
 - Deutsche Rechtschreibung und Großschreibung: igerman98 / hunspell-de-de (GPL-2+)
+- Bairisch: eigene Grundliste und Häufigkeiten aus der [bairischen Wikipedia](https://bar.wikipedia.org) (CC BY-SA 4.0)
 - Wortfolgen: [Tatoeba](https://tatoeba.org) (CC BY 2.0 FR) und [Mozilla Common Voice](https://github.com/common-voice/common-voice) (CC0)
 - Eingebaute animierte Emojis: verkleinert aus Noto Animated Emoji (CC BY 4.0)
 - Emojis: Reihenfolge und Gruppen aus [googlefonts/emoji-metadata](https://github.com/googlefonts/emoji-metadata) (Apache 2.0), Suchwörter aus Unicode CLDR (Unicode-Lizenz), animierte Emojis von [Noto Animated Emoji](https://googlefonts.github.io/noto-emoji-animation/) (CC BY 4.0)
