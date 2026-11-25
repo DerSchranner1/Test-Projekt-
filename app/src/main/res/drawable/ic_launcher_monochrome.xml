@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Einfarbige Version für „Designfarben“ (Android 13+) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:strokeColor="#FF000000" android:strokeWidth="4"
+        android:pathData="M42,32h24a9,9 0 0 1 9,9v22a9,9 0 0 1 -9,9h-24a9,9 0 0 1 -9,-9v-22a9,9 0 0 1 9,-9z" />
+    <path android:strokeColor="#FF000000" android:strokeWidth="6"
+        android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:pathData="M45,42V62M59,42L46.5,52.5M50,49.5L60,62" />
+    <path android:fillColor="#FF000000"
+        android:pathData="M68,36Q68,40 72,40Q68,40 68,44Q68,40 64,40Q68,40 68,36Z" />
+</vector>

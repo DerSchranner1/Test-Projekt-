@@ -53,12 +53,12 @@ class SettingsActivity : Activity() {
     private var giphyOk: Boolean? = null
     private var haptics: Haptics? = null
 
-    private val bg = Color.parseColor("#17181A")
-    private val cardColor = Color.parseColor("#232427")
-    private val textColor = Color.parseColor("#E8EAED")
-    private val dim = Color.parseColor("#A0A4A9")
-    private val accent = Color.parseColor("#A8C8FB")
-    private val accentText = Color.parseColor("#062E6F")
+    private val bg = Color.parseColor("#0E1316")
+    private val cardColor = Color.parseColor("#1A2226")
+    private val textColor = Color.parseColor("#E6ECEE")
+    private val dim = Color.parseColor("#A3B0B6")
+    private val accent = Color.parseColor("#5FD3C4")
+    private val accentText = Color.parseColor("#00312C")
     private val good = Color.parseColor("#81C995")
     private val bad = Color.parseColor("#F28B82")
 
@@ -102,13 +102,28 @@ class SettingsActivity : Activity() {
         anchors.clear()
         card = null
 
-        page.addView(TextView(this).apply {
+        // Kopf: Logo und Name
+        val head = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(4f), 0, 0, dp(12f))
+        }
+        head.addView(android.widget.ImageView(this).apply {
+            setImageDrawable(getDrawable(R.mipmap.ic_launcher))
+            clipToOutline = true
+            outlineProvider = object : android.view.ViewOutlineProvider() {
+                override fun getOutline(v: View, o: android.graphics.Outline) {
+                    o.setRoundRect(0, 0, v.width, v.height, v.width * 0.28f)
+                }
+            }
+        }, LinearLayout.LayoutParams(dp(44f), dp(44f)).apply { rightMargin = dp(12f) })
+        head.addView(TextView(this).apply {
             text = "KlarTastatur"
             setTextColor(textColor)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 28f)
             setTypeface(null, Typeface.BOLD)
-            setPadding(dp(4f), 0, 0, dp(12f))
         })
+        page.addView(head)
 
         // ---- Einrichten
         val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
@@ -279,6 +294,7 @@ class SettingsActivity : Activity() {
         switch("Animierte Emojis aus dem Netz laden", prefs.onlineAnimated) { prefs.onlineAnimated = it }
         button("Gelernte Wörter löschen") {
             EngineHolder.get(this).clearUserData()
+            EmojiData.forgetLearned(this)
             getSharedPreferences("settings", MODE_PRIVATE).edit()
                 .putLong("user_data_cleared", System.currentTimeMillis()).apply()
             Toast.makeText(this, "Gelernte Wörter gelöscht", Toast.LENGTH_SHORT).show()
@@ -499,7 +515,7 @@ class SettingsActivity : Activity() {
                 android.content.res.ColorStateList.valueOf(Color.parseColor("#55FFFFFF")),
                 GradientDrawable().apply {
                     cornerRadius = dp(24f).toFloat()
-                    if (primary) setColor(accent) else { setColor(Color.TRANSPARENT); setStroke(dp(1f), Color.parseColor("#5F6368")) }
+                    if (primary) setColor(accent) else { setColor(Color.TRANSPARENT); setStroke(dp(1f), Color.parseColor("#4A5960")) }
                 }, null,
             )
             setOnClickListener { onClick() }

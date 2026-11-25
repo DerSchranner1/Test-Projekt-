@@ -227,6 +227,55 @@ class InteractionTest {
         assertEquals("Hi 🍕🍕", h.text)
     }
 
+    @Test fun emojiSuggestionsFollowTheText() {
+        val h = KeyboardHarness { it.learnFromTyping = true; it.emojiSuggestions = true }
+        h.type("gute nacht")
+        println("Beim Tippen: ${h.suggestions()}")
+        assertTrue("${h.suggestions()}", "😴" in h.suggestions())
+        h.space()
+        println("Nach dem Wort: ${h.suggestions()}")
+        h.pick("😴")
+        assertEquals("Gute nacht 😴 ", h.text)
+        // Smiley aus Zeichen wird angeboten und ersetzt
+        h.type("super ")
+        h.tap(KeyType.SYMBOLS)
+        h.tap(":"); h.tap(")")
+        h.space()
+        println("Smiley: ${h.suggestions()}")
+        h.pick("🙂")
+        assertEquals("Gute nacht 😴 super 🙂 ", h.text)
+        // Was man selbst nach einem Wort benutzt, wird gelernt
+        val h2 = KeyboardHarness { it.learnFromTyping = true; it.emojiSuggestions = true }
+        h2.type("feierabend ")
+        h2.service.commitEmoji("🍻")
+        h2.type(" morgen wieder feierabend")
+        println("Gelernt: ${h2.suggestions()}")
+        assertTrue("${h2.suggestions()}", "🍻" in h2.suggestions())
+    }
+
+    @Test fun emojiListScrollsWithTheFinger() {
+        val h = KeyboardHarness()
+        h.tap(KeyType.EMOJI)
+        h.attachToWindow()
+        val list = ReflectionHelpers.getField<android.widget.ListView>(h.field<MediaPanel>("mediaPanel"), "emojiList")
+        assertTrue(list.height > 0)
+        val before = list.firstVisiblePosition
+        println("Liste: h=${list.height} kinder=${list.childCount} zeilen=${list.count} letzte=${list.lastVisiblePosition} parent=${(list.parent as View).height} panel=${h.field<MediaPanel>("mediaPanel").height}")
+        // Finger auf ein Emoji setzen und nach oben ziehen
+        val t0 = android.os.SystemClock.uptimeMillis()
+        val x = list.width / 2f
+        val y0 = list.height * 0.8f
+        fun ev(a: Int, y: Float, dt: Long) = android.view.MotionEvent.obtain(t0, t0 + dt, a, x, y, 0)
+        list.dispatchTouchEvent(ev(android.view.MotionEvent.ACTION_DOWN, y0, 0))
+        for (i in 1..12) list.dispatchTouchEvent(ev(android.view.MotionEvent.ACTION_MOVE, y0 - i * list.height * 0.06f, i * 16L))
+        list.dispatchTouchEvent(ev(android.view.MotionEvent.ACTION_UP, y0 - 12 * list.height * 0.06f, 13 * 16L))
+        h.settle()
+        println("Emoji-Liste: Zeile $before -> ${list.firstVisiblePosition}, schneller Bildlauf: ${list.isFastScrollEnabled}")
+        assertTrue(list.firstVisiblePosition > before)
+        assertTrue(list.isFastScrollEnabled)
+        assertEquals("nichts eingefügt", "", h.text)
+    }
+
     @Test fun copiedTextIsOfferedForPasting() {
         val h = KeyboardHarness()
         h.type("code ")

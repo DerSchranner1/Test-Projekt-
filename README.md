@@ -1,6 +1,6 @@
 # KlarTastatur
 
-Eine dunkle, schlichte Android-Tastatur für Deutsch und Englisch. Sie bringt Tippen, Wischen, Diktieren, Emojis, GIFs und die Zwischenablage zusammen. Aussehen und Maße orientieren sich an einer kompakt eingestellten Gboard.
+Eine dunkle, schlichte Android-Tastatur für Deutsch und Englisch. Sie bringt Tippen, Wischen, Diktieren, Emojis, GIFs und die Zwischenablage zusammen. Die Maße orientieren sich an einer kompakt eingestellten Gboard, das Aussehen ist eigen: Petrol-Schwarz mit türkisem Akzent.
 
 ## Was sie kann
 
@@ -13,9 +13,10 @@ Eine dunkle, schlichte Android-Tastatur für Deutsch und Englisch. Sie bringt Ti
 - **Layouts:** QWERTZ (Umlaute per langem Druck auf a, o, u, s), QWERTZ mit Ä Ö Ü, QWERTY. Eine eigene ß-Taste und die Zahlenreihe sind zuschaltbar.
 
 **Emojis, GIFs und Sticker**
+- **Text zu Emoji, ohne Internet:** Passende Emojis erscheinen in der Vorschlagsleiste, auch für Wendungen („Gute Nacht“ → 😴, „Alles Gute zum Geburtstag“ → 🎂), gebeugte und zusammengesetzte Wörter („gefeiert“ → 🥳, „Lieblingspizza“ → 🍕) und Smileys aus Zeichen („:)“ → 🙂). Die Tastatur merkt sich, welches Emoji du nach einem Wort benutzt. Langer Druck auf das Emoji zeigt weitere passende.
 - **Alle Emojis** in den Gruppen und der Reihenfolge von Gboard. Suche auf Deutsch und Englisch, Hauttöne per langem Druck (die Wahl wird gemerkt). Emojis, die das Handy nicht darstellen kann, werden ausgeblendet.
-- **Animierte Emojis** funktionieren ohne Einrichtung und werden als GIF gesendet.
-- **GIFs aus Filmen und Memes** kommen von GIPHY und brauchen einen kostenlosen Schlüssel. Dazu eigene Sticker aus der Galerie und Emoji-Sticker.
+- **Animierte Emojis:** Die 60 beliebtesten stecken in der App, bewegen sich schon in der Übersicht und werden ohne Internet als GIF gesendet. Weitere werden nach Zustimmung geladen.
+- **GIFs aus Filmen und Memes** kommen von GIPHY und brauchen einen kostenlosen Schlüssel. Mit Schlüssel werden die Trend-GIFs beim Öffnen des Emoji-Bereichs schon vorgeladen. Dazu eigene Sticker aus der Galerie und Emoji-Sticker.
 
 **Werkzeugleiste** (bei leerem Feld sichtbar, sonst über das Kachel-Symbol oben links)
 - **Zwischenablage:** Verlauf mit Anheften. Passwörter werden nicht gespeichert.
@@ -94,6 +95,7 @@ Das Offline-Diktat wird aus `app/src/main/cpp/` gebaut und braucht NDK 28.2.1367
 - Worthäufigkeiten: [wordfreq](https://github.com/rspeer/wordfreq), Daten unter CC BY-SA 4.0
 - Deutsche Rechtschreibung und Großschreibung: igerman98 / hunspell-de-de (GPL-2+)
 - Wortfolgen: [Tatoeba](https://tatoeba.org) (CC BY 2.0 FR) und [Mozilla Common Voice](https://github.com/common-voice/common-voice) (CC0)
+- Eingebaute animierte Emojis: verkleinert aus Noto Animated Emoji (CC BY 4.0)
 - Emojis: Reihenfolge und Gruppen aus [googlefonts/emoji-metadata](https://github.com/googlefonts/emoji-metadata) (Apache 2.0), Suchwörter aus Unicode CLDR (Unicode-Lizenz), animierte Emojis von [Noto Animated Emoji](https://googlefonts.github.io/noto-emoji-animation/) (CC BY 4.0)
 - Offline-Diktat: [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (MIT), Modelle von OpenAI Whisper (MIT)
 - Englische Rechtschreibung: hunspell-en-us / SCOWL

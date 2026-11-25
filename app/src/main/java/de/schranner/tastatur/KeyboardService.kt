@@ -62,7 +62,9 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         class Word(val word: String, label: String = word) : Sugg(label)
         class Correction(val target: String, val replacement: String) : Sugg(replacement)
         class AddWord(val word: String) : Sugg(word)
-        class Emoji(val emoji: String) : Sugg(emoji)
+        class Emoji(val emoji: String, val word: String? = null) : Sugg(emoji)
+        /** Smiley aus Zeichen („:)“) durch ein echtes Emoji ersetzen. */
+        class EmojiReplace(val emoticon: String, val emoji: String) : Sugg(emoji)
         class Paste(val text: String) : Sugg(ClipboardStore.smartLabel(text))
     }
 
@@ -78,6 +80,8 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     private val main = Handler(Looper.getMainLooper())
     private val worker = Executors.newSingleThreadExecutor()
     private var suggestToken = 0
+    /** Selbst benutzte Emojis nach Wörtern („pizza“ -> 🍕🤤). */
+    private var emojiLearned: Map<String, String> = emptyMap()
 
     // Views
     private lateinit var keyboard: KeyboardView
@@ -278,9 +282,11 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         // In den Einstellungen wurde „Gelernte Wörter löschen“ gedrückt?
         if (getSharedPreferences("settings", MODE_PRIVATE).getLong("user_data_cleared", 0L) > engineCreatedAt) {
             engine.clearUserData()
+            EmojiData.forgetLearned(this)
             engineCreatedAt = System.currentTimeMillis()
         }
         voice.vocabulary = engine.topUserWords(60)
+        emojiLearned = EmojiData.learned(this)
         clip.capture()
         showPanel(Panel.KEYBOARD)
         updateAutoShift()
@@ -685,16 +691,23 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
             return
         }
         if (typed.isEmpty() && target == null) {
-            val ctx = contextBefore()
+            val before = currentInputConnection?.getTextBeforeCursor(CONTEXT_CHARS, 0)?.toString() ?: ""
+            val ctx = contextBefore(before)
             engine.setRecentWords(ctx.recent)
             worker.execute {
                 val preds = engine.predictNext(ctx.prev, ctx.start, ctx.prev2)
+                val emo = emojiAfter(before)
                 main.post {
                     if (token != suggestToken) return@post
                     val items = mutableListOf<Sugg>()
                     if (clipText != null) items += Sugg.Paste(clipText)
                     items += preds.map { Sugg.Word(it) }
-                    show(items)
+                    when (emo) {
+                        is Sugg.EmojiReplace -> if (items.size >= 2) items.add(1, emo) else items += emo
+                        is Sugg.Emoji -> if (items.size >= 3) items[2] = emo else items += emo
+                        else -> {}
+                    }
+                    show(items.take(3))
                 }
             }
             return
@@ -721,8 +734,9 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
                     rest.firstOrNull { it != best }?.let { items += Sugg.Word(it) }
                 }
                 if (prefs.emojiSuggestions) {
-                    EmojiData.suggestionFor(typed)?.let { e ->
-                        if (items.size >= 3) items[2] = Sugg.Emoji(e) else items += Sugg.Emoji(e)
+                    val ws = listOfNotNull(prev2?.takeIf { it != SuggestionEngine.START }, prev, typed)
+                    EmojiData.predict(ws, emojiLearned, 1).firstOrNull()?.let { e ->
+                        if (items.size >= 3) items[2] = Sugg.Emoji(e, typed) else items += Sugg.Emoji(e, typed)
                     }
                 }
             } else if (target != null && fix != null) {
@@ -735,6 +749,34 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
             }
             main.post { if (token == suggestToken) show(items, centerFirst = typed.isEmpty() && target != null) }
         }
+    }
+
+    /**
+     * Emoji-Vorschlag nach einem fertigen Wort: „Gute Nacht “ -> 😴, „:) “ -> 🙂.
+     * Läuft komplett auf dem Handy.
+     */
+    private fun emojiAfter(before: String): Sugg? {
+        if (!prefs.emojiSuggestions || before.isBlank()) return null
+        EmojiData.emoticonAtEnd(before)?.let { (k, v) -> return Sugg.EmojiReplace(k, v) }
+        val t = before.trimEnd()
+        // Steht schon ein Emoji da, nichts mehr vorschlagen
+        val last = t.codePointBefore(t.length)
+        if (!Character.isLetterOrDigit(last) && t.last() !in ".!?") return null
+        val words = TextContext.parse(t).recent
+        if (words.isEmpty()) return null
+        val e = EmojiData.predict(words, emojiLearned, 1).firstOrNull() ?: return null
+        return Sugg.Emoji(e, words.last())
+    }
+
+    /** Merkt sich, welches Emoji du nach einem Wort benutzt (nur auf dem Handy, nicht im Inkognito-Modus). */
+    private fun learnEmojiAfterWord(e: String) {
+        if (!engine.learning) return
+        val before = currentInputConnection?.getTextBeforeCursor(40, 0)?.toString() ?: return
+        val m = Regex("(\\p{L}{2,})\\s*$").find(before) ?: return
+        val w = m.groupValues[1]
+        if (EmojiData.lookupWord(w) == e && emojiLearned[w.lowercase()] == null) return
+        EmojiData.learn(this, w, e)
+        emojiLearned = emojiLearned + (w.lowercase() to e)
     }
 
     private fun recentClip(): String? {
@@ -756,6 +798,8 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
             tv.text = s?.label ?: ""
             // Unbekanntes Wort: rot unterkringelt (sichtbar auch in Apps, die im Text nichts markieren)
             (tv as? SquiggleTextView)?.squiggle = s is Sugg.AddWord
+            // Emojis etwas größer, damit man sie gut erkennt
+            tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, if (s is Sugg.Emoji || s is Sugg.EmojiReplace) 23f else 16f)
             tv.setTypeface(null, if (i == 1 && s is Sugg.Word) Typeface.BOLD else Typeface.NORMAL)
             tv.setTextColor(
                 when (s) {
@@ -809,12 +853,23 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
             }
             is Sugg.Emoji -> {
                 commitWord()
+                learnEmojiAfterWord(s.emoji)
                 val before = ic.getTextBeforeCursor(1, 0)?.toString() ?: ""
                 val prefix = if (before.isNotEmpty() && !before.last().isWhitespace()) " " else ""
                 ic.commitText(prefix + s.emoji + " ", 1)
                 addRecentEmoji(s.emoji)
                 lastAutoSpace = true
                 correctionTarget = null
+            }
+            is Sugg.EmojiReplace -> {
+                val before = ic.getTextBeforeCursor(s.emoticon.length + 4, 0)?.toString() ?: ""
+                val trailing = before.length - before.trimEnd(' ').length
+                ic.beginBatchEdit()
+                ic.deleteSurroundingText(s.emoticon.length + trailing, 0)
+                ic.commitText(s.emoji + " ", 1)
+                ic.endBatchEdit()
+                addRecentEmoji(s.emoji)
+                lastAutoSpace = true
             }
             is Sugg.Paste -> {
                 commitWord()
@@ -1056,7 +1111,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     private fun buildBar(): View {
         val frame = FrameLayout(this)
         suggRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        suggRow.addView(iconButton(R.drawable.ic_apps) { toolbarForced = true; updateBar() },
+        suggRow.addView(iconButton(R.drawable.ic_logo) { toolbarForced = true; updateBar() },
             LinearLayout.LayoutParams(dp(46f), ViewGroup.LayoutParams.MATCH_PARENT))
         for (i in 0..2) {
             val tv = SquiggleTextView(this, theme.typo).apply {
@@ -1070,6 +1125,15 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
                 setOnClickListener { pickSuggestion(i) }
                 setOnLongClickListener {
                     val s = shown[i]
+                    if (s is Sugg.Emoji || s is Sugg.EmojiReplace) {
+                        // Mehr passende Emojis: Suche mit dem Wort öffnen
+                        val w = (s as? Sugg.Emoji)?.word ?: ""
+                        haptics.play(Haptics.Kind.POPUP)
+                        startSearch(MediaPanel.Tab.EMOJI)
+                        searchQuery.append(w.lowercase())
+                        updateSearchUi()
+                        return@setOnLongClickListener true
+                    }
                     if (s is Sugg.Word && composing.isNotEmpty() && s.word == composing.toString()) {
                         engine.addWord(s.word)
                         Toast.makeText(this@KeyboardService, "„${s.word}“ ins Wörterbuch aufgenommen", Toast.LENGTH_SHORT).show()
@@ -1222,6 +1286,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
                 val v = mediaPanel ?: MediaPanel(this, theme, giphy, stickers, this).also { mediaPanel = it }
                 attach(v)
                 v.refreshRecents()
+                v.prefetch()
             }
             Panel.CLIPBOARD -> {
                 clip.capture()
@@ -1517,6 +1582,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
 
     override fun commitEmoji(e: String) {
         commitWord()
+        learnEmojiAfterWord(e)
         currentInputConnection?.commitText(e, 1)
         addRecentEmoji(e)
     }
@@ -1581,6 +1647,21 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
 
     /** Animiertes Emoji (Noto Animated Emoji von Google, CC BY 4.0) als GIF senden – ohne Schlüssel. */
     override fun commitAnimatedEmoji(e: String) {
+        EmojiData.bundledAsset(e)?.let { asset ->
+            // In der App eingebaut: kein Internet nötig
+            if (!supportsMime("image/gif")) {
+                commitEmoji(e)
+                toast("Diese App nimmt keine animierten Bilder an – Emoji eingefügt")
+                return
+            }
+            val f = File(shareDir(), "klar_" + asset.substringAfter('/'))
+            try {
+                if (!f.exists() || f.length() == 0L) assets.open(asset).use { input -> f.outputStream().use { input.copyTo(it) } }
+            } catch (_: Exception) { commitEmoji(e); return }
+            if (commitImage(MediaProvider.uriFor("share", f.name), "image/gif", "Animiertes Emoji", null)) addRecentEmoji(e)
+            else commitEmoji(e)
+            return
+        }
         if (!prefs.onlineAnimated) {
             // Datenschutz: erst fragen, bevor etwas aus dem Netz geladen wird
             mediaPanel?.askConsent(

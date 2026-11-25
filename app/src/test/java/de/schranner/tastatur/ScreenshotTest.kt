@@ -53,7 +53,10 @@ class ScreenshotTest {
         showPanel(h, 1); h.screenshot("13_emoji")
         val media = org.robolectric.util.ReflectionHelpers.getField<MediaPanel>(h.service, "mediaPanel")
         media.search(MediaPanel.Tab.EMOJI, "katze"); h.settle(); h.screenshot("16_emoji_suche")
-        media.select(MediaPanel.Tab.GIF); h.settle(); h.screenshot("17_gif_ohne_schluessel")
+        media.select(MediaPanel.Tab.GIF); h.settle()
+        // Eingebaute Animationen werden im Hintergrund dekodiert
+        repeat(20) { Thread.sleep(50); h.settle() }
+        h.screenshot("17_gif_ohne_schluessel")
         media.select(MediaPanel.Tab.STICKER); h.settle(); h.screenshot("18_sticker")
     }
 
@@ -64,6 +67,35 @@ class ScreenshotTest {
         h.clickAll { it is android.widget.TextView && it.text.toString() == "🔍" }
         h.type("katze")
         h.screenshot("20_emoji_suche_live")
+    }
+
+    @Test fun emojiSuggestion() {
+        val h = KeyboardHarness { it.emojiSuggestions = true }
+        h.type("alles gute zum geburtstag ")
+        h.screenshot("21_emoji_vorschlag")
+    }
+
+    @Test fun logo() {
+        val ctx = org.robolectric.RuntimeEnvironment.getApplication()
+        val size = 432
+        val bmp = android.graphics.Bitmap.createBitmap(size * 2 + 40, size, android.graphics.Bitmap.Config.ARGB_8888)
+        val c = android.graphics.Canvas(bmp)
+        c.drawColor(android.graphics.Color.parseColor("#202124"))
+        // Wie auf dem Startbildschirm: Hintergrund und Vordergrund, rund maskiert
+        val layer = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+        val lc = android.graphics.Canvas(layer)
+        for (id in listOf(R.drawable.ic_launcher_background, R.drawable.ic_launcher_foreground)) {
+            ctx.getDrawable(id)!!.apply { setBounds(0, 0, size, size); draw(lc) }
+        }
+        val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+        p.shader = android.graphics.BitmapShader(layer, android.graphics.Shader.TileMode.CLAMP, android.graphics.Shader.TileMode.CLAMP)
+        val inset = size * 18f / 108f
+        c.drawCircle(size / 2f, size / 2f, size / 2f - inset, p)
+        c.save(); c.translate(size + 40f, 0f)
+        c.drawRoundRect(inset, inset, size - inset, size - inset, size * 0.12f, size * 0.12f, p)
+        c.restore()
+        val dir = java.io.File("build/screenshots").apply { mkdirs() }
+        java.io.File(dir, "00_logo.png").outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
     }
 
     @Test fun squiggleInStrip() {

@@ -115,6 +115,11 @@ class MediaPanel(
         select(t)
     }
 
+    /** Beim Öffnen: Trend-GIFs schon vorladen, wenn ein GIPHY-Schlüssel eingerichtet ist. */
+    fun prefetch() {
+        if (giphy.hasKey()) ImageLoader.run { giphy.prefetchTrending() }
+    }
+
     fun refreshRecents() {
         // Beim Öffnen: zuletzt verwendete oben, darunter alle Emojis
         if (tab == Tab.EMOJI && emojiQuery == null) showAllEmojis(0)
@@ -225,10 +230,12 @@ class MediaPanel(
         EmojiData.ensureLoaded(context)
         ownItems = emptyList()
         gifItems = emptyList()
-        glyphItems = EmojiData.animated().map { it.text }
+        // Eingebaute Animationen zuerst (ohne Internet sofort da), dann alle weiteren
+        val built = EmojiData.bundledOrder
+        glyphItems = built + EmojiData.animated().map { it.text }.filter { it !in EmojiData.bundled }
         glyphAnimated = true
         attribution.visibility = GONE
-        mediaGrid.numColumns = 6
+        mediaGrid.numColumns = 5
         status.setOnClickListener(null)
         showStatus(hint)
         mediaAdapter.notifyDataSetChanged()
@@ -289,6 +296,14 @@ class MediaPanel(
         status.setOnClickListener(null)
         showStatus("Lädt …")
         val token = ++loadToken
+        giphy.cachedResult(kind, query)?.let { cached ->
+            // Schon vorgeladen: sofort zeigen
+            gifItems = cached
+            showStatus(if (cached.isEmpty()) "Nichts gefunden." else null)
+            mediaAdapter.notifyDataSetChanged()
+            mediaGrid.setSelection(0)
+            return
+        }
         ImageLoader.run {
             val result = try { giphy.search(kind, query) } catch (e: Exception) { null }
             main.post {
@@ -415,9 +430,25 @@ class MediaPanel(
         }
         override fun getItem(position: Int): Any = position
         override fun getItemId(position: Int) = position.toLong()
-        override fun getViewTypeCount() = 2
-        override fun getItemViewType(position: Int) = if (glyphMode()) 0 else 1
+        override fun getViewTypeCount() = 3
+        override fun getItemViewType(position: Int) = when {
+            glyphMode() && glyphAnimated && glyphItems[position] in EmojiData.bundled -> 2
+            glyphMode() -> 0
+            else -> 1
+        }
         override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
+            if (getItemViewType(position) == 2) {
+                // Eingebaute Animation: bewegt sich schon in der Übersicht
+                val iv = (convertView as? ImageView) ?: ImageView(context).apply {
+                    layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(64f))
+                    scaleType = ImageView.ScaleType.FIT_CENTER
+                    setPadding(dp(6f), dp(6f), dp(6f), dp(6f))
+                }
+                val e = glyphItems[position]
+                iv.contentDescription = e
+                EmojiData.bundledAsset(e)?.let { ImageLoader.loadAsset(iv, context, it) }
+                return iv
+            }
             if (glyphMode()) {
                 val tv = (convertView as? TextView) ?: TextView(context).apply {
                     gravity = Gravity.CENTER
@@ -512,6 +543,10 @@ class MediaPanel(
             setPadding(0, 0, 0, dp(4f))
             clipToPadding = false
             adapter = emojiAdapter
+            // Schneller Bildlauf: am rechten Rand ziehen springt durch alle Emojis
+            isVerticalScrollBarEnabled = true
+            isFastScrollEnabled = true
+            isFastScrollAlwaysVisible = false
             // Beim Blättern die passende Gruppe in der unteren Leiste hervorheben
             setOnScrollListener(object : android.widget.AbsListView.OnScrollListener {
                 override fun onScrollStateChanged(view: android.widget.AbsListView?, state: Int) {}

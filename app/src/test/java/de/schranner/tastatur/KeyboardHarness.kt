@@ -134,6 +134,14 @@ class KeyboardHarness(
 
     fun <T> field(name: String): T = ReflectionHelpers.getField(service, name)
 
+    /** Hängt die Tastatur in ein echtes Fenster (nötig z. B. für Bildlauf mit dem Finger). */
+    fun attachToWindow() {
+        val activity = Robolectric.buildActivity(android.app.Activity::class.java).setup().get()
+        (root.parent as? ViewGroup)?.removeView(root)
+        activity.setContentView(root, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        shadowOf(Looper.getMainLooper()).idle()
+    }
+
     fun tap(label: String) = tapKey(key { it.type == KeyType.CHAR && it.label.equals(label, ignoreCase = true) })
     fun tap(type: KeyType) = tapKey(key { it.type == type })
 

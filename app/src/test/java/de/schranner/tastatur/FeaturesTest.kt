@@ -47,6 +47,44 @@ class FeaturesTest {
         assertTrue(wave.alternates.contains("👋🏽"))
     }
 
+    @Test fun textToEmojiWorksOffline() {
+        EmojiData.ensureLoaded(context)
+        val cases = listOf(
+            listOf("Gute", "Nacht") to "😴",
+            listOf("ich", "liebe", "dich") to "❤️",
+            listOf("Alles", "Gute", "zum", "Geburtstag") to "🎂",
+            listOf("wir", "haben", "gefeiert") to "🥳",
+            listOf("meine", "Lieblingspizza") to "🍕",
+            listOf("die", "Geburtstagsfeier") to "🎂",
+            listOf("Hunde") to "🐶",
+            listOf("Sonnenbrille") to "🕶️",
+            listOf("gute", "Besserung") to "🍀",
+            listOf("good", "night") to "😴",
+        )
+        for ((words, want) in cases) {
+            val got = EmojiData.predict(words, limit = 3)
+            println("Text→Emoji ${words.joinToString(" ")} -> $got")
+            assertTrue("${words.joinToString(" ")}: $got", want in got)
+        }
+        // Allerweltswörter bekommen kein Emoji
+        for (w in listOf("ich", "und", "die", "haben", "middle", "seite")) {
+            assertEquals("Kein Emoji für $w", emptyList<String>(), EmojiData.predict(listOf(w)))
+        }
+        // Smileys aus Zeichen
+        assertEquals(":)" to "🙂", EmojiData.emoticonAtEnd("super :) "))
+        assertEquals("<3" to "❤️", EmojiData.emoticonAtEnd("dich <3"))
+        assertEquals(null, EmojiData.emoticonAtEnd("um 12:30"))
+        assertEquals(null, EmojiData.emoticonAtEnd("http://x.de"))
+        // Selbst benutzte Emojis haben Vorrang
+        assertEquals("🤤", EmojiData.predict(listOf("pizza"), mapOf("pizza" to "🤤")).first())
+        // Eingebaute Animationen (ohne Internet)
+        println("Eingebaute animierte Emojis: ${EmojiData.bundledOrder.size}: ${EmojiData.bundledOrder.joinToString("")}")
+        assertTrue(EmojiData.bundledOrder.size >= 50)
+        assertEquals("😂", EmojiData.bundledOrder.first())
+        assertEquals("animated/1f602.gif", EmojiData.bundledAsset("😂"))
+        context.assets.open("animated/2764_fe0f.gif").close()
+    }
+
     // ---------------------------------------------------------------- Rechtschreibprüfung
 
     @Test fun spellCheckerFlagsTyposAndSuggestsFixes() {
@@ -118,10 +156,17 @@ class FeaturesTest {
         val h = KeyboardHarness()
         h.tap(KeyType.EMOJI)
         assertFalse(h.prefs.onlineAnimated)
-        h.service.commitAnimatedEmoji("😀")
+        val online = EmojiData.animated().map { it.text }.first { it !in EmojiData.bundled }
+        h.service.commitAnimatedEmoji(online)
         h.settle()
         // Noch nichts geladen und nichts eingefügt – erst die Zustimmung
         assertEquals("", h.text)
+        assertFalse(h.prefs.onlineAnimated)
+        // Eingebaute Animationen gehen ohne Netz und ohne Nachfrage
+        // (das Testfeld nimmt keine Bilder an, deshalb kommt das Emoji als Zeichen)
+        h.service.commitAnimatedEmoji("😂")
+        h.settle()
+        assertEquals("😂", h.text)
         assertFalse(h.prefs.onlineAnimated)
     }
 

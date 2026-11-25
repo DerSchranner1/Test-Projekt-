@@ -34,8 +34,31 @@ class GiphyClient(private val prefs: Prefs) {
 
     fun hasKey() = prefs.giphyKey.isNotBlank()
 
+    private val results = HashMap<String, Pair<Long, List<Item>>>()
+
+    /** Ergebnis schon im Speicher? (dann ohne Warten anzeigen) */
+    @Synchronized
+    fun cachedResult(kind: String, query: String?): List<Item>? {
+        val r = results["$kind|${query.orEmpty()}"] ?: return null
+        return if (System.currentTimeMillis() - r.first < CACHE_MS) r.second else null
+    }
+
+    /** Trend-GIFs samt Vorschaubildern vorladen (nur mit eigenem GIPHY-Schlüssel). */
+    fun prefetchTrending() {
+        if (!hasKey()) return
+        val items = cachedResult("gifs", null) ?: try { search("gifs", null) } catch (_: Exception) { return }
+        items.take(18).forEach { ImageLoader.prefetch(it.previewUrl) }
+    }
+
     /** @param kind "gifs" oder "stickers"; ohne Suchbegriff: Trends */
     fun search(kind: String, query: String?): List<Item> {
+        cachedResult(kind, query)?.let { return it }
+        val list = fetch(kind, query)
+        synchronized(this) { results["$kind|${query.orEmpty()}"] = System.currentTimeMillis() to list }
+        return list
+    }
+
+    private fun fetch(kind: String, query: String?): List<Item> {
         val key = URLEncoder.encode(prefs.giphyKey, "UTF-8")
         val url = if (query.isNullOrBlank()) {
             "https://api.giphy.com/v1/$kind/trending?api_key=$key&limit=30&rating=pg-13"
@@ -57,6 +80,8 @@ class GiphyClient(private val prefs: Prefs) {
         }
         return out
     }
+
+    companion object { private const val CACHE_MS = 10 * 60_000L }
 }
 
 object Net {
@@ -119,6 +144,29 @@ object ImageLoader {
                 }
             } catch (_: Exception) { }
         }
+    }
+
+    /** Eingebaute Animation (aus der App selbst, ohne Internet). */
+    fun loadAsset(view: ImageView, context: Context, path: String) {
+        view.tag = path
+        view.setImageDrawable(null)
+        pool.execute {
+            try {
+                val d = ImageDecoder.decodeDrawable(ImageDecoder.createSource(context.assets, path))
+                main.post {
+                    if (view.tag == path) {
+                        view.setImageDrawable(d)
+                        (d as? AnimatedImageDrawable)?.start()
+                    }
+                }
+            } catch (_: Exception) { }
+        }
+    }
+
+    /** Im Hintergrund schon mal laden, damit es beim Öffnen sofort da ist. */
+    fun prefetch(url: String) {
+        if (cache.get(url) != null) return
+        pool.execute { try { if (cache.get(url) == null) cache.put(url, Net.get(url)) } catch (_: Exception) { } }
     }
 
     fun cached(url: String): ByteArray? = cache.get(url)
