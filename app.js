@@ -6,7 +6,7 @@
 
 const $ = (id) => document.getElementById(id);
 const STATE_KEY = 'narrhalla.state.v1';
-const APP_VERSION = '0.9.4';
+const APP_VERSION = '0.9.5';
 const PEAK_COUNT = 600;   // Punkte der Übersichts-Wellenform
 const HI_RATE = 100;      // Punkte pro Sekunde der Detail-Wellenform
 const PALETTE = [
@@ -435,8 +435,8 @@ function renderBanners() {
       fix.onclick = top.action;
       line.append(fix);
     }
-    const later = el('button', { className: 'nl-btn', textContent: 'Später', title: '3 Tage nicht mehr anzeigen' });
-    later.onclick = () => snooze(id, Date.now() + 3 * 864e5);
+    const later = el('button', { className: 'nl-btn', textContent: 'Später', title: 'Bis morgen nicht mehr anzeigen' });
+    later.onclick = () => snooze(id, Date.now() + 864e5);
     line.append(later);
     box.append(line);
   }
@@ -458,11 +458,35 @@ function renderNoticeList() {
       btns.append(fix);
     }
     const later = el('button', { type: 'button', className: 'btn ghost small', textContent: 'Später' });
-    later.onclick = () => snooze(id, Date.now() + 3 * 864e5);
+    later.onclick = () => snooze(id, Date.now() + 864e5);
     btns.append(later);
     ul.append(el('li', { className: 'notice-item' + (b.kind === 'info' ? ' info' : '') }, el('p', { textContent: b.msg }), btns));
   }
 }
+// alle Hinweise – auch die mit „Später“ weggedrückten – für die Einstellungen
+function renderSettingsNotices() {
+  const ul = $('setNotices');
+  ul.replaceChildren();
+  const all = [...banners].filter(([, b]) => b.kind !== 'error');
+  if (!all.length) { ul.append(el('li', { className: 'empty', textContent: '✓ Alles in Ordnung.' })); return; }
+  for (const [id, b] of all) {
+    const li = el('li', { className: 'notice-item' + (b.kind === 'info' ? ' info' : '') }, el('p', { textContent: b.msg + (snoozed(id) ? ' (ausgeblendet bis morgen)' : '') }));
+    const btns = el('div', { className: 'row-inline' });
+    if (b.action) {
+      const fix = el('button', { type: 'button', className: 'btn small', textContent: b.actionLabel });
+      fix.onclick = () => { $('settingsDlg').close(); b.action(); };
+      btns.append(fix);
+    }
+    if (snoozed(id)) {
+      const show = el('button', { type: 'button', className: 'btn ghost small', textContent: 'Wieder oben anzeigen' });
+      show.onclick = () => { delete state.snoozed[id]; save(); renderBanners(); renderSettingsNotices(); };
+      btns.append(show);
+    }
+    li.append(btns);
+    ul.append(li);
+  }
+}
+
 function openNotices() {
   renderNoticeList();
   $('noticeDlg').showModal();
@@ -2325,6 +2349,8 @@ function openSettings() {
   $('appVersion').textContent = APP_VERSION;
   $('lastBackup').textContent = state.lastBackup ? `Letzte Sicherung: ${new Date(state.lastBackup).toLocaleString('de-DE')}` : 'Noch nie gesichert.';
   updateBatteryRow();
+  checkWarnings().then(renderSettingsNotices);
+  renderSettingsNotices();
   $('settingsDlg').showModal();
 }
 for (const [id, key, prop] of [
@@ -2937,6 +2963,22 @@ function onRemoteAction(a) {
 }
 if (isNative()) {
   try { window.Capacitor.nativeCallback('KeepAlive', 'addListener', { eventName: 'action' }, (r) => r?.action && onRemoteAction(r.action)); } catch (e) { console.warn(e); }
+  // Android-Zurück: erst offenes Fenster schließen, dann Titelauswahl, dann „Bearbeiten“ zuklappen.
+  // Auf dem Hauptbildschirm zweimal Zurück = App in den Hintergrund (Musik läuft weiter), nie hart beenden.
+  let lastBack = 0;
+  const onBack = () => {
+    const open = [...document.querySelectorAll('dialog[open]')];
+    if (open.length) { open[open.length - 1].close(); return; }
+    if (document.body.classList.contains('lib-open')) { closeLibrary(); return; }
+    if ($('editDetails').open) { $('editDetails').open = false; window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    if (Date.now() - lastBack < 2500) {
+      window.Capacitor.nativePromise('App', 'minimizeApp', {}).catch(() => {});
+      return;
+    }
+    lastBack = Date.now();
+    toast(audio.paused ? 'Nochmal „Zurück“ legt die App in den Hintergrund' : 'Nochmal „Zurück“ legt die App in den Hintergrund – die Musik läuft weiter', 2500);
+  };
+  try { window.Capacitor.nativeCallback('App', 'addListener', { eventName: 'backButton' }, onBack); } catch (e) { console.warn('Zurück-Taste', e); }
 }
 if ('mediaSession' in navigator) {
   const h = { play: () => play(), pause: () => pause(), stop: () => stop(), nexttrack: () => step(1), previoustrack: () => step(-1) };
@@ -3099,5 +3141,7 @@ function migrateTrack(t, src = t) {
       });
     }).catch((e) => console.warn('Service Worker', e));
   }
-  (navigator.storage?.persist?.() || Promise.resolve()).finally(() => checkWarnings());
+  checkWarnings();
+  // „Speicher dauerhaft“ anfragen – in manchen WebViews antwortet das nie, darum nicht darauf warten
+  try { navigator.storage?.persist?.()?.then(() => checkWarnings()).catch(() => {}); } catch (e) { /* egal */ }
 })();

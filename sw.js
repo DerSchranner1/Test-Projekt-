@@ -1,7 +1,7 @@
 /* Service Worker: macht die App offline nutzbar.
  * Erst aus dem Netz laden (damit Updates sofort und vollständig ankommen),
  * ohne Netz aus dem Zwischenspeicher. Bei Änderungen die Versionsnummer erhöhen. */
-const CACHE = 'narrhalla-v10';
+const CACHE = 'narrhalla-v11';
 const FILES = ['./', 'index.html', 'style.css', 'app.js', 'analysis.js', 'manifest.webmanifest',
   'voices/de-frau.js', 'voices/de-frau2.js', 'voices/de-mann.js', 'voices/en-frau.js', 'voices/en-mann.js',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
