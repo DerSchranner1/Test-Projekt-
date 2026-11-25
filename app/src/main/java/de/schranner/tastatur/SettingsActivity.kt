@@ -149,6 +149,11 @@ class SettingsActivity : Activity() {
         switch("Tippfehler rot markieren", prefs.markTypos) { prefs.markTypos = it }
         switch("Zahlenreihe", prefs.numberRow) { prefs.numberRow = it }
         switch("Eigene ß-Taste", prefs.eszettKey) { prefs.eszettKey = it }
+        switch("Emoji-Vorschläge", prefs.emojiSuggestions) { prefs.emojiSuggestions = it; build() }
+        if (prefs.emojiSuggestions) {
+            switch("Emoji ersetzt das Wort", prefs.emojiReplacesWord) { prefs.emojiReplacesWord = it }
+            hint("An: „Geige“ wird zu 🎻. Aus: „Geige 🎻“. Bei Wendungen wie „Gute Nacht 😴“ bleibt der Text immer stehen.")
+        }
         label("Layout")
         val group = RadioGroup(this)
         val current = KeyLayout.of(prefs.layout)

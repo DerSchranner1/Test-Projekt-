@@ -62,7 +62,8 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         class Word(val word: String, label: String = word) : Sugg(label)
         class Correction(val target: String, val replacement: String) : Sugg(replacement)
         class AddWord(val word: String) : Sugg(word)
-        class Emoji(val emoji: String, val word: String? = null) : Sugg(emoji)
+        /** @param replace darf das Wort ersetzen (Emoji steht für genau dieses Wort, nicht für eine Wendung) */
+        class Emoji(val emoji: String, val word: String? = null, val replace: Boolean = false) : Sugg(emoji)
         /** Smiley aus Zeichen („:)“) durch ein echtes Emoji ersetzen. */
         class EmojiReplace(val emoticon: String, val emoji: String) : Sugg(emoji)
         class Paste(val text: String) : Sugg(ClipboardStore.smartLabel(text))
@@ -736,7 +737,8 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
                 if (prefs.emojiSuggestions) {
                     val ws = listOfNotNull(prev2?.takeIf { it != SuggestionEngine.START }, prev, typed)
                     EmojiData.predict(ws, emojiLearned, 1).firstOrNull()?.let { e ->
-                        if (items.size >= 3) items[2] = Sugg.Emoji(e, typed) else items += Sugg.Emoji(e, typed)
+                        val emo = Sugg.Emoji(e, typed, emojiStandsFor(typed, e))
+                        if (items.size >= 3) items[2] = emo else items += emo
                     }
                 }
             } else if (target != null && fix != null) {
@@ -765,8 +767,37 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         val words = TextContext.parse(t).recent
         if (words.isEmpty()) return null
         val e = EmojiData.predict(words, emojiLearned, 1).firstOrNull() ?: return null
-        return Sugg.Emoji(e, words.last())
+        // Ersetzen nur direkt nach dem Wort (nicht nach einem Satzzeichen)
+        val w = words.last()
+        return Sugg.Emoji(e, w, Character.isLetterOrDigit(last) && emojiStandsFor(w, e))
     }
+
+    /** „Geige“ -> 🎻: das Wort (gerade getippt oder direkt davor) durch das Emoji ersetzen. */
+    private fun replaceWordWithEmoji(word: String, emoji: String): Boolean {
+        val ic = currentInputConnection ?: return false
+        if (composing.isNotEmpty()) {
+            if (!composing.toString().equals(word, ignoreCase = true)) return false
+            if (engine.learning) { EmojiData.learn(this, word, emoji); emojiLearned = emojiLearned + (word.lowercase() to emoji) }
+            composing.setLength(0)
+            ic.commitText("$emoji ", 1)   // ersetzt den unterstrichenen Wortteil
+            return true
+        }
+        val before = ic.getTextBeforeCursor(word.length + 4, 0)?.toString() ?: return false
+        val trimmed = before.trimEnd(' ')
+        if (!trimmed.endsWith(word)) return false
+        val start = trimmed.length - word.length
+        if (start > 0 && Character.isLetterOrDigit(trimmed[start - 1])) return false
+        if (engine.learning) { EmojiData.learn(this, word, emoji); emojiLearned = emojiLearned + (word.lowercase() to emoji) }
+        ic.beginBatchEdit()
+        ic.deleteSurroundingText(before.length - start, 0)
+        ic.commitText("$emoji ", 1)
+        ic.endBatchEdit()
+        return true
+    }
+
+    /** Steht dieses Emoji für genau dieses Wort (und nicht für eine ganze Wendung)? */
+    private fun emojiStandsFor(word: String, e: String): Boolean =
+        emojiLearned[word.lowercase()] == e || EmojiData.lookupWord(word) == e
 
     /** Merkt sich, welches Emoji du nach einem Wort benutzt (nur auf dem Handy, nicht im Inkognito-Modus). */
     private fun learnEmojiAfterWord(e: String) {
@@ -852,6 +883,15 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
                 Toast.makeText(this, "„${s.word}“ ins Wörterbuch aufgenommen", Toast.LENGTH_SHORT).show()
             }
             is Sugg.Emoji -> {
+                if (s.replace && prefs.emojiReplacesWord && s.word != null && replaceWordWithEmoji(s.word, s.emoji)) {
+                    addRecentEmoji(s.emoji)
+                    lastAutoSpace = true
+                    correctionTarget = null
+                    if (keyboard.shift == ShiftState.ON) keyboard.shift = ShiftState.OFF
+                    updateAutoShift()
+                    refreshSuggestions()
+                    return
+                }
                 commitWord()
                 learnEmojiAfterWord(s.emoji)
                 val before = ic.getTextBeforeCursor(1, 0)?.toString() ?: ""
@@ -1397,15 +1437,17 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
             val gh = 3 * d
             canvas.drawRoundRect(width / 2f - gw, m - gh, width / 2f + gw, m + gh, gh, gh, fill)
             canvas.drawRoundRect(width / 2f - gw, height - m - gh, width / 2f + gw, height - m + gh, gh, gh, fill)
-            canvas.drawText("↕  Oben ziehen: Größe", width / 2f, height * 0.36f, text)
-            canvas.drawText("↕  Unten ziehen: Abstand zum Rand", width / 2f, height * 0.70f, text)
+            canvas.drawText("↕  Ziehen: Größe", width / 2f, height * 0.42f, text)
+            canvas.drawText("Unterer Griff: Abstand zum Rand", width / 2f, height - 24 * d, text)
         }
 
         @android.annotation.SuppressLint("ClickableViewAccessibility")
         override fun onTouchEvent(e: MotionEvent): Boolean {
             when (e.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
-                    dragMode = if (e.y < height / 2f) 1 else 2
+                    // Nur der untere Griff verschiebt die Tastatur, alles andere ändert die Größe –
+                    // die Tastatur bleibt unten am Rand
+                    dragMode = if (e.y > height - 36 * d) 2 else 1
                     startRaw = e.rawY
                     startPercent = prefs.keyHeightPercent
                     startPad = prefs.bottomPadDp

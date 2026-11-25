@@ -35,6 +35,11 @@ class Prefs(context: Context) {
         get() = sp.getBoolean(KEY_EMOJI_SUGG, true)
         set(v) = sp.edit().putBoolean(KEY_EMOJI_SUGG, v).apply()
 
+    /** Emoji-Vorschlag ersetzt das Wort („Geige“ -> 🎻) statt es dahinter zu setzen. */
+    var emojiReplacesWord: Boolean
+        get() = sp.getBoolean(KEY_EMOJI_REPLACE, true)
+        set(v) = sp.edit().putBoolean(KEY_EMOJI_REPLACE, v).apply()
+
     /** Größe der Tastatur in Prozent (100 = Standard). */
     var keyHeightPercent: Int
         get() = sp.getInt(KEY_SIZE, 100).coerceIn(SIZE_MIN, SIZE_MAX)
@@ -131,6 +136,7 @@ class Prefs(context: Context) {
         const val KEY_NUMBER_ROW = "number_row"
         const val KEY_MARK_TYPOS = "mark_typos"
         const val KEY_EMOJI_SUGG = "emoji_suggestions"
+        const val KEY_EMOJI_REPLACE = "emoji_replaces_word"
         const val KEY_SIZE = "key_size"
         const val KEY_BOTTOM_PAD = "bottom_pad"
         const val KEY_LAYOUT = "layout"
@@ -142,7 +148,7 @@ class Prefs(context: Context) {
         const val KEY_CLIP_HISTORY = "clipboard_history"
         const val KEY_ONLINE_ANIMATED = "online_animated"
         const val SIZE_MIN = 75
-        const val SIZE_MAX = 165
-        const val BOTTOM_MAX = 90
+        const val SIZE_MAX = 140
+        const val BOTTOM_MAX = 36
     }
 }

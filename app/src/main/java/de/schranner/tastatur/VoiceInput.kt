@@ -159,7 +159,14 @@ class VoiceInput(private val context: Context, private val prefs: Prefs) {
                     offline.transcribe(pcm.toByteArray(), language, buildPrompt())
                         ?: throw IllegalStateException("offline")
                 } else {
-                    transcribe(wav(pcm.toByteArray(), rate))
+                    try {
+                        transcribe(wav(pcm.toByteArray(), rate))
+                    } catch (net: java.io.IOException) {
+                        // Kein Internet: mit dem Offline-Modell weitermachen, wenn es da ist
+                        if (!offline.ready()) throw net
+                        val language = if (prefs.voiceLanguage == "auto") "auto" else prefs.voiceLanguage
+                        offline.transcribe(pcm.toByteArray(), language, buildPrompt()) ?: throw net
+                    }
                 }
             } catch (e: Exception) {
                 main.post { callback?.onError(if (engine == Engine.OFFLINE) "Offline-Erkennung fehlgeschlagen" else friendlyError(e)) }

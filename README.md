@@ -13,7 +13,7 @@ Eine dunkle, schlichte Android-Tastatur für Deutsch und Englisch. Sie bringt Ti
 - **Layouts:** QWERTZ (Umlaute per langem Druck auf a, o, u, s), QWERTZ mit Ä Ö Ü, QWERTY. Eine eigene ß-Taste und die Zahlenreihe sind zuschaltbar.
 
 **Emojis, GIFs und Sticker**
-- **Text zu Emoji, ohne Internet:** Passende Emojis erscheinen in der Vorschlagsleiste, auch für Wendungen („Gute Nacht“ → 😴, „Alles Gute zum Geburtstag“ → 🎂), gebeugte und zusammengesetzte Wörter („gefeiert“ → 🥳, „Lieblingspizza“ → 🍕) und Smileys aus Zeichen („:)“ → 🙂). Die Tastatur merkt sich, welches Emoji du nach einem Wort benutzt. Langer Druck auf das Emoji zeigt weitere passende.
+- **Text zu Emoji, ohne Internet:** Passende Emojis erscheinen in der Vorschlagsleiste, auch für Wendungen („Gute Nacht“ → 😴, „Alles Gute zum Geburtstag“ → 🎂), gebeugte und zusammengesetzte Wörter („gefeiert“ → 🥳, „Lieblingspizza“ → 🍕) und Smileys aus Zeichen („:)“ → 🙂). Standardmäßig ersetzt das Emoji das Wort („Geige“ → 🎻, abschaltbar), bei Wendungen bleibt der Text stehen. Die Tastatur merkt sich, welches Emoji du nach einem Wort benutzt. Langer Druck auf das Emoji zeigt weitere passende.
 - **Alle Emojis** in den Gruppen und der Reihenfolge von Gboard. Suche auf Deutsch und Englisch, Hauttöne per langem Druck (die Wahl wird gemerkt). Emojis, die das Handy nicht darstellen kann, werden ausgeblendet.
 - **Animierte Emojis:** Die 60 beliebtesten stecken in der App, bewegen sich schon in der Übersicht und werden ohne Internet als GIF gesendet. Weitere werden nach Zustimmung geladen.
 - **GIFs aus Filmen und Memes** kommen von GIPHY und brauchen einen kostenlosen Schlüssel. Mit Schlüssel werden die Trend-GIFs beim Öffnen des Emoji-Bereichs schon vorgeladen. Dazu eigene Sticker aus der Galerie und Emoji-Sticker.
@@ -22,13 +22,13 @@ Eine dunkle, schlichte Android-Tastatur für Deutsch und Englisch. Sie bringt Ti
 - **Zwischenablage:** Verlauf mit Anheften. Passwörter werden nicht gespeichert.
 - **Textbearbeitung:** Cursor-Pfeile, Auswählen, Kopieren, Einfügen, Ausschneiden, Rückgängig.
 - **Einhandmodus:** schmale Tastatur links oder rechts.
-- **Größe ändern:** oben ziehen ändert die Größe, unten ziehen den Abstand zum Rand.
+- **Größe ändern:** ziehen ändert die Größe, die Tastatur bleibt dabei unten. Der untere Griff hebt sie ein kleines Stück vom Rand an.
 
 **Diktieren**
 - 🎤 antippen und sprechen. Die Aufnahme endet von selbst, wenn du fertig bist.
 - **Offline (privat):** Whisper läuft direkt auf dem Handy (whisper.cpp). Dafür wird in den Einstellungen einmal ein Modell geladen: „Genau“ (190 MB) oder „Schnell“ (60 MB). Danach braucht das Diktieren kein Internet und die Aufnahme verlässt das Handy nicht.
 - **Ohne Modell** nutzt die Tastatur die Spracherkennung des Handys. Gesprochene Satzzeichen („Komma“, „Fragezeichen“, „neue Zeile“) werden umgewandelt.
-- **Mit kostenlosem Groq-Schlüssel** läuft die Erkennung online über Whisper large-v3 (nur wenn du das einschaltest).
+- **Mit kostenlosem Groq-Schlüssel** läuft die Erkennung online über Whisper large-v3 (nur wenn du das einschaltest). Ohne Internet springt automatisch das Offline-Modell ein.
 
 **Rechtschreibung (ohne Internet)**
 - Die Tastatur kennt rund 500.000 gültige Wortformen. Unbekannte Wörter werden im Text rot markiert und in der Vorschlagsleiste rot unterkringelt, daneben stehen Korrekturen.

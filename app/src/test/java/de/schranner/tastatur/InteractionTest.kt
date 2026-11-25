@@ -253,6 +253,31 @@ class InteractionTest {
         assertTrue("${h2.suggestions()}", "🍻" in h2.suggestions())
     }
 
+    @Test fun emojiReplacesTheWord() {
+        // Standard: „Geige“ wird zu 🎻
+        val h = KeyboardHarness { it.emojiSuggestions = true; it.emojiReplacesWord = true; it.learnFromTyping = false }
+        assertTrue(h.prefs.emojiReplacesWord)
+        h.type("ich spiele geige")
+        println("Geige beim Tippen: ${h.suggestions()}")
+        h.pick("🎻")
+        assertEquals("Ich spiele 🎻 ", h.text)
+        // Nach dem Leerzeichen geht es auch
+        h.type("und fahre auto ")
+        println("Auto danach: ${h.suggestions()}")
+        h.pick("🚗")
+        assertEquals("Ich spiele 🎻 und fahre 🚗 ", h.text)
+        // Wendungen bleiben stehen
+        h.type("gute nacht ")
+        h.pick("😴")
+        assertEquals("Ich spiele 🎻 und fahre 🚗 gute nacht 😴 ", h.text)
+        // Option aus: Emoji kommt hinter das Wort
+        val h2 = KeyboardHarness { it.emojiSuggestions = true; it.emojiReplacesWord = false }
+        h2.type("geige")
+        h2.pick("🎻")
+        assertEquals("Geige 🎻 ", h2.text)
+        h2.prefs.emojiReplacesWord = true
+    }
+
     @Test fun emojiListScrollsWithTheFinger() {
         val h = KeyboardHarness()
         h.tap(KeyType.EMOJI)
@@ -319,7 +344,22 @@ class InteractionTest {
         overlay.dispatchTouchEvent(MotionEvent.obtain(t, t + 160, MotionEvent.ACTION_UP, 500f, overlay.height - 110f, 0))
         h.settle()
         println("Abstand nach Ziehen: ${h.prefs.bottomPadDp} dp")
-        assertTrue(h.prefs.bottomPadDp in 20..45)
+        assertTrue(h.prefs.bottomPadDp in 20..36)
+        // Weit nach oben ziehen: die Tastatur bleibt unten (Abstand höchstens 36 dp)
+        overlay.dispatchTouchEvent(MotionEvent.obtain(t, t + 200, MotionEvent.ACTION_DOWN, 500f, overlay.height - 20f, 0))
+        overlay.dispatchTouchEvent(MotionEvent.obtain(t, t + 250, MotionEvent.ACTION_MOVE, 500f, -1500f, 0))
+        overlay.dispatchTouchEvent(MotionEvent.obtain(t, t + 260, MotionEvent.ACTION_UP, 500f, -1500f, 0))
+        h.settle()
+        assertEquals(36, h.prefs.bottomPadDp)
+        // In der unteren Hälfte (nicht am Griff) ziehen ändert nur die Größe
+        overlay.dispatchTouchEvent(MotionEvent.obtain(t, t + 300, MotionEvent.ACTION_DOWN, 500f, overlay.height * 0.7f, 0))
+        overlay.dispatchTouchEvent(MotionEvent.obtain(t, t + 350, MotionEvent.ACTION_MOVE, 500f, overlay.height * 0.7f + 200, 0))
+        overlay.dispatchTouchEvent(MotionEvent.obtain(t, t + 360, MotionEvent.ACTION_UP, 500f, overlay.height * 0.7f + 200, 0))
+        h.settle()
+        assertEquals(36, h.prefs.bottomPadDp)
+        println("Größe nach Ziehen in der unteren Hälfte: ${h.prefs.keyHeightPercent} %")
+        assertTrue(h.prefs.keyHeightPercent < 115)
+        h.prefs.bottomPadDp = 0
         h.call("endResize")
         h.type("ok")
         assertEquals("Ok", h.text)
