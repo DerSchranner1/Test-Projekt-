@@ -8,12 +8,12 @@
 | Titel wechseln | oben auf den **Titelnamen ▾** tippen → Titel antippen |
 | Abspielen / Pause | großer oranger Knopf |
 | Stopp (zurück an den Anfang) | **Stopp** |
-| Nochmal | **Von vorn** oder **Ab Marker nochmal** (letzter Marker vor der aktuellen Stelle) |
+| Nochmal | **Von vorn** oder **Ab Marker** (letzter Marker vor der aktuellen Stelle) |
 | Springen | **−1 Achter / +1 Achter**, oder in die Musik-Leiste tippen |
 | In der Musik schieben | große Wellenform mit dem Finger nach links/rechts ziehen |
 | Sanft aufhören | **Sanft stoppen** – in 3 Sekunden leiser, dann Stopp |
 | Mitzählen 1–8 | **Mitzählen**: Aus / Stimme / Klick, daneben die Lautstärke |
-| Marker setzen | **+ Marker hier**; farbigen Marker antippen = startet genau dort |
+| Marker setzen | **Marker setzen** (unter den Abspielknöpfen) → Namen antippen oder eintippen; farbigen Marker antippen = startet genau dort |
 | Rückgängig | erscheint nach jeder Änderung unten kurz – antippen |
 
 Scrollt man am Handy nach unten, bleibt unten eine kleine Leiste mit Abspielen/Pause, Stopp und Von vorn.

@@ -6,7 +6,7 @@
 
 const $ = (id) => document.getElementById(id);
 const STATE_KEY = 'narrhalla.state.v1';
-const APP_VERSION = '0.9.3';
+const APP_VERSION = '0.9.4';
 const PEAK_COUNT = 600;   // Punkte der Übersichts-Wellenform
 const HI_RATE = 100;      // Punkte pro Sekunde der Detail-Wellenform
 const PALETTE = [
@@ -233,7 +233,7 @@ function ctx() {
 // iPhone/iPad: Web Audio pausiert beim Sperren – dann die Musik direkt ausgeben
 const isTouch = matchMedia('(pointer: coarse)').matches;
 const svg = (d) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
-const ICON_PLAY = svg('M8 5v14l11-7z');
+const ICON_PLAY = svg('M8 5v14l11-7z').replace('<svg', '<svg class="play"');
 const ICON_PAUSE = svg('M6 19h4V5H6v14zm8-14v14h4V5h-4z');
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 function ensureGraph() {
@@ -423,23 +423,23 @@ function renderBanners() {
     }
     box.append(row);
   }
-  // sonst: eine dünne Zeile mit dem wichtigsten Hinweis – die App bleibt ganz normal nutzbar
+  // sonst: je Hinweis eine dünne Zeile – die App bleibt ganz normal nutzbar
   const rest = active.filter(([, b]) => b.kind !== 'error').sort((x, y) => (x[1].kind === 'info') - (y[1].kind === 'info'));
-  if (!rest.length) { if ($('noticeDlg').open) renderNoticeList(); return; }
-  const [id, top] = rest[0];
-  const line = el('div', { className: 'notice-line' + (top.kind === 'info' ? ' info' : '') });
-  const msg = el('button', { className: 'nl-msg', textContent: (top.kind === 'info' ? 'ℹ ' : '⚠ ') + top.msg + (rest.length > 1 ? `  (+${rest.length - 1})` : ''), title: 'Alle Hinweise' });
-  msg.onclick = openNotices;
-  line.append(msg);
-  if (top.action) {
-    const fix = el('button', { className: 'nl-btn fix', textContent: top.actionLabel });
-    fix.onclick = top.action;
-    line.append(fix);
+  for (const [id, top] of rest) {
+    const line = el('div', { className: 'notice-line' + (top.kind === 'info' ? ' info' : '') });
+    const msg = el('button', { className: 'nl-msg', textContent: (top.kind === 'info' ? 'ℹ ' : '⚠ ') + top.msg, title: top.msg });
+    msg.onclick = openNotices;
+    line.append(msg);
+    if (top.action) {
+      const fix = el('button', { className: 'nl-btn fix', textContent: top.actionLabel });
+      fix.onclick = top.action;
+      line.append(fix);
+    }
+    const later = el('button', { className: 'nl-btn', textContent: 'Später', title: '3 Tage nicht mehr anzeigen' });
+    later.onclick = () => snooze(id, Date.now() + 3 * 864e5);
+    line.append(later);
+    box.append(line);
   }
-  const later = el('button', { className: 'nl-btn', textContent: 'Später', title: '3 Tage nicht mehr anzeigen' });
-  later.onclick = () => snooze(id, Date.now() + 3 * 864e5);
-  line.append(later);
-  box.append(line);
   if ($('noticeDlg').open) renderNoticeList();
 }
 function renderNoticeList() {
@@ -1540,6 +1540,20 @@ function addMarker(time = viewTime()) {
   }, t);
 }
 
+// Marker an der aktuellen Stelle setzen und gleich den Namen abfragen
+function quickMarker() {
+  const t = current();
+  if (!t) return toast('Erst einen Titel wählen');
+  const before = t.markers.length;
+  addMarker();
+  if (t.markers.length > before) {
+    const at = snap(viewTime());
+    const m = t.markers.reduce((a, b) => (Math.abs(b.time - at) < Math.abs(a.time - at) ? b : a));
+    openMarkerDialog(m, true);
+  }
+}
+const QUICK_NAMES = ['Einmarsch', 'Einsatz', 'Hebefigur', 'Platzwechsel', 'Formation', 'Tusch', 'Übergang', 'Schluss'];
+
 function removeMarker(id) {
   const t = current();
   if (!t) return;
@@ -2260,7 +2274,7 @@ async function replaceAudio(t, file) {
   }
 }
 
-function openMarkerDialog(m) {
+function openMarkerDialog(m, fresh = false) {
   const t = current();
   if (!t) return;
   const dlg = $('markerDlg');
@@ -2268,6 +2282,13 @@ function openMarkerDialog(m) {
   let color = m.color;
   $('markerDlgTitle').textContent = `Marker ${i + 1} bei ${fmt(m.time, true)}`;
   $('markerDlgName').value = m.label || '';
+  const qn = $('markerDlgQuick');
+  qn.replaceChildren(...QUICK_NAMES.map((n) => {
+    const b = el('button', { type: 'button', textContent: n });
+    b.onclick = () => { $('markerDlgName').value = n; };
+    return b;
+  }));
+  if (fresh) setTimeout(() => $('markerDlgName').focus(), 50);
   const paint = () => swatches($('markerDlgColors'), color, (c) => { color = c; paint(); });
   paint();
   $('markerDlgIn').onclick = () => { dlg.close(); setCue('in', m.time); };
@@ -2615,21 +2636,23 @@ function gesture(canvas, { onScrubStart, onScrubMove, onTap }) {
   let g = null;
   canvas.addEventListener('pointerdown', (e) => {
     if (!current() || e.button === 2) return;
-    g = { x0: e.clientX, y0: e.clientY, t: performance.now(), mode: null, id: e.pointerId };
+    g = { x0: e.clientX, y0: e.clientY, ly: e.clientY, t: performance.now(), mode: null, id: e.pointerId };
+    canvas.setPointerCapture(e.pointerId);
   });
   canvas.addEventListener('pointermove', (e) => {
     if (!g || e.pointerId !== g.id) return;
     const dx = e.clientX - g.x0, dy = e.clientY - g.y0;
     if (!g.mode) {
-      if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) g.mode = 'scroll';
-      else if (Math.abs(dx) > 10 && Math.abs(dx) > 2 * Math.abs(dy)) {
+      if (Math.abs(dy) > 12 && Math.abs(dy) > 1.5 * Math.abs(dx)) g.mode = 'scroll';
+      else if (Math.abs(dx) > 8 && Math.abs(dx) >= Math.abs(dy)) {
         if (state.settings.waveLock) { g.mode = 'locked'; toast('Musik-Leiste ist gesperrt (⚙ → Bedienung)'); return; }
         g.mode = 'scrub';
-        canvas.setPointerCapture(e.pointerId);
         onScrubStart(e);
       }
     }
     if (g.mode === 'scrub') { e.preventDefault(); onScrubMove(e, dx); }
+    else if (g.mode === 'scroll') window.scrollBy(0, g.ly - e.clientY);
+    g.ly = e.clientY;
   });
   const end = (e, cancel) => {
     if (!g || e.pointerId !== g.id) return;
@@ -2855,7 +2878,8 @@ $('replayMarkerBtn').onclick = replayFromMarker;
 $('backBtn').onclick = () => jump(-1);
 $('fwdBtn').onclick = () => jump(1);
 $('fadeBtn').onclick = () => fadeOut();
-$('addMarkerBtn').onclick = () => addMarker();
+$('addMarkerBtn').onclick = quickMarker;
+$('quickMarkerBtn').onclick = quickMarker;
 $('cueInBtn').onclick = () => setCue('in');
 $('cueOutBtn').onclick = () => setCue('out');
 $('cueResetBtn').onclick = () => setCue('reset');

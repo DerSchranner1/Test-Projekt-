@@ -72,13 +72,14 @@
       <div class="transport">
         <button id="replayBtn" class="tbtn" title="Nochmal von vorn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg><span class="cap">Von vorn</span></button>
         <button id="backBtn" class="tbtn" title="Einen Achter zurück"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6 8.5 6V6l-8.5 6z"/></svg><span class="cap" id="backCap">−1 Achter</span></button>
-        <button id="playBtn" class="tbtn big" title="Abspielen / Pause"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></button>
+        <button id="playBtn" class="tbtn big" title="Abspielen / Pause"><svg class="play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></button>
         <button id="fwdBtn" class="tbtn" title="Einen Achter vor"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg><span class="cap" id="fwdCap">+1 Achter</span></button>
         <button id="stopBtn" class="tbtn" title="Stopp – zurück an den Anfang"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h12v12H6z"/></svg><span class="cap">Stopp</span></button>
       </div>
 
       <div class="actions">
-        <button id="replayMarkerBtn" class="abtn" title="Ab dem letzten Marker vor der aktuellen Stelle nochmal"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.4 6 14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg> Ab Marker nochmal</button>
+        <button id="replayMarkerBtn" class="abtn" title="Ab dem letzten Marker vor der aktuellen Stelle nochmal"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.4 6 14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg> Ab Marker</button>
+        <button id="quickMarkerBtn" class="abtn mark" title="Marker an dieser Stelle setzen und benennen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2zm-4 10h-2v-2H9V9h2V7h2v2h2v2h-2v2z"/></svg> Marker setzen</button>
         <button id="fadeBtn" class="abtn" title="Die Musik wird in 3 Sekunden leiser und stoppt dann"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM5 9v6h4l5 5V4L9 9H5z"/></svg> Sanft stoppen</button>
       </div>
 
@@ -258,6 +259,7 @@
     <form method="dialog" class="dlg">
       <h2 id="markerDlgTitle">Marker</h2>
       <label class="field">Beschriftung <input id="markerDlgName" type="text" maxlength="40" placeholder="z. B. Einsatz Garde, Hebefigur"></label>
+      <div class="quick-names" id="markerDlgQuick"></div>
       <div class="field">Farbe <div id="markerDlgColors" class="swatches"></div></div>
       <div class="field">Für das Stück
         <div class="row-inline">
