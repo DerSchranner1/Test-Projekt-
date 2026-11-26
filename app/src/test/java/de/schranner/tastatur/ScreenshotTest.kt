@@ -159,6 +159,36 @@ class ScreenshotTest {
         }
     }
 
+    @Test fun debugGuide() {
+        Prefs(org.robolectric.RuntimeEnvironment.getApplication()).debugTouch = true
+        val activity = org.robolectric.Robolectric.buildActivity(SettingsActivity::class.java).setup().get()
+        val view = activity.window.decorView
+        val h = 9000
+        view.measure(
+            android.view.View.MeasureSpec.makeMeasureSpec(1080, android.view.View.MeasureSpec.EXACTLY),
+            android.view.View.MeasureSpec.makeMeasureSpec(h, android.view.View.MeasureSpec.EXACTLY),
+        )
+        view.layout(0, 0, 1080, h)
+        // Die Anleitung finden und nur diesen Teil abbilden
+        fun find(v: android.view.View): android.view.View? {
+            if (v is android.widget.TextView && v.text.toString() == "So liest du die Anzeige") return v
+            if (v is android.view.ViewGroup) for (i in 0 until v.childCount) find(v.getChildAt(i))?.let { return it }
+            return null
+        }
+        val title = find(view)!!
+        val loc = IntArray(2); title.getLocationInWindow(loc)
+        val top = (loc[1] - 260).coerceAtLeast(0)
+        val bmp = android.graphics.Bitmap.createBitmap(1080, 2050, android.graphics.Bitmap.Config.ARGB_8888)
+        val c = android.graphics.Canvas(bmp)
+        c.translate(0f, -top.toFloat())
+        view.draw(c)
+        java.io.File("build/screenshots").mkdirs()
+        java.io.File("build/screenshots/23_treffhilfe_anleitung.png").outputStream().use {
+            bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+        }
+        Prefs(org.robolectric.RuntimeEnvironment.getApplication()).debugTouch = false
+    }
+
     @Test fun tools() {
         val h = KeyboardHarness()
         h.call("startResize")

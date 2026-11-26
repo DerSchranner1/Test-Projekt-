@@ -181,8 +181,12 @@ class SettingsActivity : Activity() {
         }
         slider("Treffhilfe", prefs.touchAssist, { if (it == 0) "Aus" else "$it %" }) { prefs.touchAssist = it }
         hint("Wie beim iPhone: Buchstaben, die als nächstes wahrscheinlich sind, lassen sich leichter treffen. Die Tasten sehen dabei gleich aus.")
-        switch("Treffhilfe sichtbar machen (Debug)", prefs.debugTouch) { prefs.debugTouch = it }
-        hint("Zum Prüfen: Türkis zeigt, welche Tasten gerade größer sind (Zahl = Bonus in %). Orange heißt: Wer hier tippt, bekommt wegen der Treffhilfe die Nachbartaste. Punkte zeigen deine letzten Berührungen, die Linie führt zur Taste, die daraus wurde.")
+        switch("Treffhilfe sichtbar machen (Debug)", prefs.debugTouch) { prefs.debugTouch = it; build() }
+        if (!prefs.debugTouch) {
+            hint("Zeigt auf der Tastatur, was die Treffhilfe gerade tut – praktisch, wenn mal nicht das Richtige getippt wird.")
+        } else {
+            debugGuide()
+        }
         hint("Größe, Einhandmodus und Textbearbeitung: in der Tastatur oben links auf das Kachel-Symbol tippen.")
 
         // ---- Diktieren
@@ -519,6 +523,67 @@ class SettingsActivity : Activity() {
     }.also { card!!.addView(it) }
 
     private fun body(s: String) = text(s, 15f, textColor)
+
+    /** Eine Zeile der Legende: kleines Farbmuster links, Erklärung rechts. */
+    private fun legend(swatch: View, title: String, explain: String) {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(6f), 0, dp(6f))
+        }
+        row.addView(swatch, LinearLayout.LayoutParams(dp(40f), dp(30f)).apply { rightMargin = dp(12f) })
+        row.addView(TextView(this).apply {
+            text = android.text.SpannableStringBuilder().apply {
+                append(title, android.text.style.StyleSpan(Typeface.BOLD), 0)
+                append("\n")
+                append(explain)
+            }
+            setTextColor(textColor)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+            setLineSpacing(0f, 1.1f)
+        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        card!!.addView(row)
+    }
+
+    /** Kleine Tasten-Grafik für die Legende. */
+    private fun keySwatch(fill: Int, border: Int = 0, label: String = "", dot: Boolean = false) = object : View(this) {
+        private val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+        override fun onDraw(c: android.graphics.Canvas) {
+            val r = dp(6f).toFloat()
+            if (border != 0) { p.color = border; c.drawRoundRect(0f, 0f, width.toFloat(), height.toFloat(), r, r, p) }
+            val inset = if (border != 0) dp(5f).toFloat() else 0f
+            p.color = Color.parseColor("#262E33")
+            c.drawRoundRect(inset, inset, width - inset, height - inset, r, r, p)
+            if (fill != 0) { p.color = fill; c.drawRoundRect(inset, inset, width - inset, height - inset, r, r, p) }
+            if (label.isNotEmpty()) {
+                p.color = accent; p.textSize = dp(9f).toFloat(); p.textAlign = android.graphics.Paint.Align.RIGHT
+                c.drawText(label, width - inset - dp(3f), inset + dp(10f), p)
+            }
+            if (dot) {
+                p.color = Color.WHITE
+                c.drawCircle(width * 0.3f, height * 0.7f, dp(3.5f).toFloat(), p)
+                p.strokeWidth = dp(1.5f).toFloat()
+                c.drawLine(width * 0.3f, height * 0.7f, width * 0.7f, height * 0.35f, p)
+            }
+        }
+    }
+
+    /** Anleitung zur Debug-Anzeige der Treffhilfe – erscheint, sobald sie eingeschaltet ist. */
+    private fun debugGuide() {
+        label("So liest du die Anzeige")
+        hint("Öffne irgendeine App und tippe. Die Tastatur zeigt jetzt bei jedem Buchstaben, was die Treffhilfe vorhat:")
+        legend(keySwatch(Color.argb(140, 0x5F, 0xD3, 0xC4), label = "80"), "Türkis = größer",
+            "Diese Taste ist gerade leichter zu treffen, weil sie als Nächstes wahrscheinlich ist. Die Zahl ist der Bonus in Prozent – je kräftiger die Farbe, desto mehr.")
+        legend(keySwatch(0, border = Color.parseColor("#FFB74D")), "Orange = umgelenkt",
+            "Tippst du in den orangen Bereich, kommt die wahrscheinlichere Nachbartaste heraus – nicht die, die du siehst.")
+        legend(keySwatch(0, dot = true), "Punkt und Linie = deine Berührung",
+            "Der Punkt ist, wo dein Finger war, die Linie zeigt auf den Buchstaben, der daraus wurde. Ein oranger Punkt heißt: Hier hat die Treffhilfe eingegriffen.")
+        label("Wenn etwas falsch getippt wird")
+        body("1.  Ist der Punkt orange? Dann hat die Treffhilfe dich umgelenkt – stell sie oben kleiner (z. B. 20–30 %).")
+        body("2.  Ist der Punkt weiß, aber auf der falschen Taste? Dann lag der Finger wirklich daneben – die Treffhilfe war es nicht.")
+        body("3.  Mach einen Screenshot und schick ihn mir, dann kann ich gezielt nachbessern.")
+        hint("Die Anzeige ist nur zum Prüfen gedacht. Schalte sie danach wieder aus – die Treffhilfe selbst bleibt dabei an.")
+    }
     private fun hint(s: String) = text(s, 13f, dim, 2f, 6f)
     private fun label(s: String) = text(s, 16f, textColor, 10f, 0f)
     private fun status(s: String, color: Int) = text(s, 15f, color, 2f, 6f).apply { setTypeface(null, Typeface.BOLD) }
