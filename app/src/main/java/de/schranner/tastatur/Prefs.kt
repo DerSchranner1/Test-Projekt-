@@ -35,6 +35,16 @@ class Prefs(context: Context) {
         get() = sp.getBoolean(KEY_EMOJI_SUGG, true)
         set(v) = sp.edit().putBoolean(KEY_EMOJI_SUGG, v).apply()
 
+    /** Groq benutzen, wenn ein Schlüssel da ist und Internet besteht (sonst offline). */
+    var useGroq: Boolean
+        get() = voiceEngine == "groq"
+        set(v) { voiceEngine = if (v) "groq" else "auto" }
+
+    /** Offline zweistufig: erst das schnelle Modell (Text sofort), dann das genaue (Text wird verbessert). */
+    var voiceTwoPass: Boolean
+        get() = sp.getBoolean(KEY_VOICE_TWO_PASS, true)
+        set(v) = sp.edit().putBoolean(KEY_VOICE_TWO_PASS, v).apply()
+
     /** Debug: Treffhilfe auf der Tastatur sichtbar machen. */
     var debugTouch: Boolean
         get() = sp.getBoolean(KEY_DEBUG_TOUCH, false)
@@ -149,6 +159,7 @@ class Prefs(context: Context) {
         const val KEY_EMOJI_REPLACE = "emoji_replaces_word"
         const val KEY_BAVARIAN = "bavarian"
         const val KEY_DEBUG_TOUCH = "debug_touch"
+        const val KEY_VOICE_TWO_PASS = "voice_two_pass"
         const val KEY_SIZE = "key_size"
         const val KEY_BOTTOM_PAD = "bottom_pad"
         const val KEY_LAYOUT = "layout"

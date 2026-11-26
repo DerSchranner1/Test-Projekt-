@@ -38,6 +38,10 @@ class VoiceInput(private val context: Context, private val prefs: Prefs) {
         fun onSegment(text: String)
         fun onProcessing()
         fun onResult(text: String)
+        /** Das schnelle Ergebnis kam schon, das genaue wird gerade berechnet. */
+        fun onRefining() {}
+        /** Genaueres Ergebnis zum zuletzt eingefügten Text (null = nichts Besseres gefunden). */
+        fun onRefined(text: String?) {}
         fun onError(message: String)
         fun onIdle()
     }
@@ -56,15 +60,47 @@ class VoiceInput(private val context: Context, private val prefs: Prefs) {
 
     val offline = OfflineWhisper(context)
 
-    /** Welche Erkennung wird benutzt? Ohne andere Wahl gilt: erst offline, dann Groq, sonst die des Handys. */
+    /**
+     * Welche Erkennung wird benutzt?
+     * 1. Groq, wenn eingeschaltet, ein Schlüssel da ist und Internet besteht
+     * 2. sonst auf dem Handy (offline) – erst schnell, dann genau
+     * 3. sonst Groq (falls Schlüssel und Internet, aber kein Modell), zuletzt die Erkennung des Handys
+     */
     fun engine(): Engine {
         val hasKey = prefs.groqKey.isNotBlank()
+        val net = hasKey && isOnline()
         return when {
-            prefs.voiceEngine == "groq" && hasKey -> Engine.GROQ
+            prefs.useGroq && net -> Engine.GROQ
             offline.ready() -> Engine.OFFLINE
-            hasKey -> Engine.GROQ
+            net -> Engine.GROQ
             else -> Engine.ANDROID
         }
+    }
+
+    /** Gibt es gerade eine funktionierende Internetverbindung? */
+    fun isOnline(): Boolean = try {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+        val caps = cm.getNetworkCapabilities(cm.activeNetwork)
+        caps != null && caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+            caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    } catch (_: Exception) { true }
+
+    /**
+     * Auf dem Handy erkennen. Mit beiden Modellen und „erst schnell, dann genau“:
+     * das schnelle Ergebnis sofort zeigen, das genaue danach nachreichen.
+     * @return das (erste) Ergebnis
+     */
+    private fun transcribeOffline(pcm: ByteArray, onFast: ((String) -> Unit)? = null): String? {
+        val language = if (prefs.voiceLanguage == "auto") "auto" else prefs.voiceLanguage
+        val prompt = buildPrompt()
+        if (prefs.voiceTwoPass && offline.bothInstalled() && onFast != null) {
+            val fast = offline.transcribe(pcm, language, prompt, OfflineWhisper.Model.BASE)
+            if (fast != null) {
+                onFast(fast)
+                return offline.transcribe(pcm, language, prompt, OfflineWhisper.Model.SMALL)
+            }
+        }
+        return offline.transcribe(pcm, language, prompt)
     }
 
     fun useWhisper() = engine() != Engine.ANDROID
@@ -152,28 +188,39 @@ class VoiceInput(private val context: Context, private val prefs: Prefs) {
                 return@Thread
             }
             main.post { callback?.onProcessing() }
+            // Zweistufig: Das schnelle Ergebnis geht sofort raus, das genaue kommt als Verbesserung
+            var fastSent = false
+            val onFast: (String) -> Unit = { fast ->
+                val clean = cleanWhisper(fast)
+                if (clean.isNotEmpty() && !cancelled) {
+                    fastSent = true
+                    main.post { callback?.onResult(clean); callback?.onRefining() }
+                }
+            }
             val result = try {
                 if (engine == Engine.OFFLINE) {
                     // Auf dem Gerät – die Aufnahme bleibt im Arbeitsspeicher und wird danach verworfen
-                    val language = if (prefs.voiceLanguage == "auto") "auto" else prefs.voiceLanguage
-                    offline.transcribe(pcm.toByteArray(), language, buildPrompt())
-                        ?: throw IllegalStateException("offline")
+                    transcribeOffline(pcm.toByteArray(), onFast) ?: throw IllegalStateException("offline")
                 } else {
                     try {
                         transcribe(wav(pcm.toByteArray(), rate))
                     } catch (net: java.io.IOException) {
-                        // Kein Internet: mit dem Offline-Modell weitermachen, wenn es da ist
+                        // Kein Internet: mit der Erkennung auf dem Handy weitermachen, wenn sie da ist
                         if (!offline.ready()) throw net
-                        val language = if (prefs.voiceLanguage == "auto") "auto" else prefs.voiceLanguage
-                        offline.transcribe(pcm.toByteArray(), language, buildPrompt()) ?: throw net
+                        transcribeOffline(pcm.toByteArray(), onFast) ?: throw net
                     }
                 }
             } catch (e: Exception) {
+                if (fastSent) { main.post { callback?.onRefined(null) }; return@Thread }
                 main.post { callback?.onError(if (engine == Engine.OFFLINE) "Offline-Erkennung fehlgeschlagen" else friendlyError(e)) }
                 return@Thread
             }
             if (cancelled) return@Thread
             val clean = cleanWhisper(result)
+            if (fastSent) {
+                main.post { callback?.onRefined(clean.ifEmpty { null }) }
+                return@Thread
+            }
             main.post {
                 if (clean.isEmpty()) callback?.onError("Nichts erkannt – bitte nochmal")
                 else callback?.onResult(clean)

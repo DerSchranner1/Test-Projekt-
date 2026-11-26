@@ -676,6 +676,13 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
 
     private fun refreshSuggestions() {
         if (!::keyboard.isInitialized || voice.isActive) return
+        if (refining) {
+            // Diktat wird gerade verbessert: Hinweis stehen lassen, solange der Text unverändert ist
+            val old = lastVoiceInsert
+            val before = old?.let { currentInputConnection?.getTextBeforeCursor(it.length, 0)?.toString() }
+            if (composing.isEmpty() && before == old) return
+            refining = false
+        }
         fieldEmpty = composing.isEmpty() && (currentInputConnection?.getTextBeforeCursor(1, 0)?.isEmpty() ?: true)
         updateBar()
         updateTouchAssist()
@@ -1058,12 +1065,21 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         ic.setComposingText(voicePrefix + shapeVoice(text), 1)
     }
 
+    /** Zuletzt eingefügter Diktat-Text – wird ersetzt, wenn das genaue Ergebnis kommt. */
+    private var lastVoiceInsert: String? = null
+    private var lastVoicePrefix = ""
+    private var lastVoiceStart = false
+
     private fun commitVoice(text: String) {
         val ic = currentInputConnection ?: return
         if (text.isBlank()) { keepVoicePartial(); return }
         if (!voiceLive) beginVoiceSegment()
         val t = shapeVoice(text)
-        ic.commitText(voicePrefix + t + if (t.endsWith("\n")) "" else " ", 1)
+        val inserted = voicePrefix + t + if (t.endsWith("\n")) "" else " "
+        ic.commitText(inserted, 1)
+        lastVoiceInsert = inserted
+        lastVoicePrefix = voicePrefix
+        lastVoiceStart = voiceSentenceStart
         voiceLive = false
         lastAutoSpace = true
         // Diktierte Wörter für Vorhersagen lernen
@@ -1086,6 +1102,45 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     override fun onResult(text: String) {
         commitVoice(text)
         endVoiceUi()
+        updateAutoShift()
+        refreshSuggestions()
+    }
+
+    override fun onRefining() {
+        // Der schnelle Text steht schon da; Hinweis, dass er noch verbessert wird
+        suggestToken++   // noch ausstehende Vorschläge nicht mehr anzeigen
+        show(emptyList())
+        slots[1]?.apply {
+            text = "✨ wird genauer …"
+            setTextColor(theme.hint)
+            setTypeface(null, Typeface.NORMAL)
+        }
+        refining = true
+    }
+
+    private var refining = false
+
+    override fun onRefined(text: String?) {
+        if (!refining) return
+        refining = false
+        val old = lastVoiceInsert
+        val ic = currentInputConnection
+        if (text != null && old != null && ic != null) {
+            val before = ic.getTextBeforeCursor(old.length, 0)?.toString()
+            // Nur ersetzen, wenn seitdem nichts getippt wurde
+            if (before == old) {
+                voiceSentenceStart = lastVoiceStart
+                val t = shapeVoice(text)
+                val better = lastVoicePrefix + t + if (t.endsWith("\n")) "" else " "
+                if (better != old) {
+                    ic.beginBatchEdit()
+                    ic.deleteSurroundingText(old.length, 0)
+                    ic.commitText(better, 1)
+                    ic.endBatchEdit()
+                    lastVoiceInsert = better
+                }
+            }
+        }
         updateAutoShift()
         refreshSuggestions()
     }
@@ -1405,7 +1460,8 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
             // Nach einem gewischten Wort beginnt mit dem nächsten Buchstaben ein neues Wort
             prev2 = prev; prev = typed; typed = ""; start = false
         }
-        val keys = keyboard.letterKeys()
+        // Leertaste zählt mit: ist das Wort fertig, wird sie leichter getroffen
+        val keys = keyboard.letterKeys() + ' '
         val token = ++assistToken
         worker.execute {
             val weights = TouchModel.weights(engine.nextLetters(typed, prev, prev2, start), keys)

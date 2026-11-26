@@ -298,6 +298,10 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
                 else -> 0f
             }
         }
+        // Leertaste: ist das Wort fertig, reicht ihre Trefferfläche etwas in die Buchstabenreihe darüber
+        if (assist && base != null && touchAssist > 0f && touchWeights.isNotEmpty()) {
+            spaceAssist(x, y, base, r)?.let { return it }
+        }
         // Treffhilfe: wahrscheinliche Buchstaben haben unsichtbar eine größere Trefferfläche
         if (assist && base != null && touchAssist > 0f && touchWeights.isNotEmpty() && isLetter(base)) {
             val t = TouchModel.pick(x, y, targets, letterKeyWidth(), heightOf(rows[r]), touchWeights, touchAssist)
@@ -309,6 +313,45 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
             }
         }
         return base
+    }
+
+    /**
+     * Grenze zwischen Leertaste und der Buchstabenreihe darüber verschieben – nur zugunsten der
+     * wahrscheinlicheren Seite (wie bei den Buchstaben).
+     */
+    private fun spaceAssist(x: Float, y: Float, base: Key, r: Int): Key? {
+        val space = rows.lastOrNull()?.firstOrNull { it.type == KeyType.SPACE } ?: return null
+        val spaceRow = rows.size - 1
+        val baseIsSpace = base === space
+        if (!baseIsSpace && !(isLetter(base) && r == spaceRow - 1)) return null
+        val wSpace = touchWeights[' '] ?: 0f
+        val pitchX = letterKeyWidth()
+        val pitchY = heightOf(rows[maxOf(0, spaceRow - 1)])
+        val bonus = 2f * TouchModel.MAX_SHIFT * touchAssist.coerceIn(0f, 1f)
+        fun spaceCost(): Float {
+            val dx = when {
+                x < space.bounds.left -> (space.bounds.left - x) / pitchX
+                x > space.bounds.right -> (x - space.bounds.right) / pitchX
+                else -> 0f
+            }
+            val dy = (y - space.bounds.centerY()) / pitchY
+            return dx * dx + dy * dy - bonus * wSpace
+        }
+        fun letterCost(k: Key): Float {
+            val dx = (x - k.bounds.centerX()) / pitchX
+            val dy = (y - k.bounds.centerY()) / pitchY
+            return dx * dx + dy * dy - bonus * (touchWeights[k.label[0].lowercaseChar()] ?: 0f)
+        }
+        if (!baseIsSpace) {
+            val wBase = touchWeights[base.label[0].lowercaseChar()] ?: 0f
+            if (wSpace > wBase && spaceCost() < letterCost(base)) return space
+            return null
+        }
+        // Auf der Leertaste: ein deutlich wahrscheinlicherer Buchstabe direkt darüber gewinnt die obere Kante
+        val above = rows[spaceRow - 1].filter { isLetter(it) }.minByOrNull { kotlin.math.abs(it.bounds.centerX() - x) } ?: return null
+        val wAbove = touchWeights[above.label[0].lowercaseChar()] ?: 0f
+        if (wAbove > wSpace && letterCost(above) < spaceCost()) return above
+        return null
     }
 
     // ---------------------------------------------------------------- Zeichnen
@@ -350,8 +393,14 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
     // ---------------------------------------------------------------- Debug: Treffhilfe sichtbar
 
     private fun rememberTap(x: Float, y: Float, key: Key?) {
-        val hit = key?.takeIf { isLetter(it) }?.label?.get(0)?.lowercaseChar()
-        val plain = findKey(x, y, assist = false)?.takeIf { isLetter(it) }?.label?.get(0)?.lowercaseChar()
+        fun ch(k: Key?): Char? = when {
+            k == null -> null
+            k.type == KeyType.SPACE -> ' '
+            isLetter(k) -> k.label[0].lowercaseChar()
+            else -> null
+        }
+        val hit = ch(key)
+        val plain = ch(findKey(x, y, assist = false))
         debugTaps.addLast(DebugTap(x, y, hit, plain))
         while (debugTaps.size > 6) debugTaps.removeFirst()
     }
@@ -369,8 +418,11 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
             val x = i * step + step / 2
             val y = j * step + step / 2
             val k = findKey(x, y) ?: continue
-            if (!isLetter(k)) continue
-            val ch = k.label[0].lowercaseChar()
+            val ch = when {
+                k.type == KeyType.SPACE -> ' '
+                isLetter(k) -> k.label[0].lowercaseChar()
+                else -> continue
+            }
             val w = touchWeights[ch] ?: 0f
             val plain = findKey(x, y, assist = false)
             val color = when {
@@ -392,7 +444,8 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
         }
         // Gewicht je Taste in Prozent (oben rechts auf der Taste)
         debugText.textSize = dp(9f)
-        for ((ch, k) in targetKeys) {
+        val spaceKey = rows.lastOrNull()?.firstOrNull { it.type == KeyType.SPACE }
+        for ((ch, k) in targetKeys + listOfNotNull(spaceKey?.let { ' ' to it })) {
             val w = touchWeights[ch] ?: continue
             if (w <= 0.01f) continue
             debugText.color = if (w > 0.6f) theme.accent else theme.hint
@@ -405,7 +458,7 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
             debugPaint.color = if (changed) 0xFFFFB74D.toInt() else 0xFFFFFFFF.toInt()
             debugPaint.alpha = fresh
             canvas.drawCircle(t.x, t.y, dp(4f), debugPaint)
-            val k = t.hit?.let { targetKeys[it] } ?: continue
+            val k = t.hit?.let { if (it == ' ') rows.lastOrNull()?.firstOrNull { k -> k.type == KeyType.SPACE } else targetKeys[it] } ?: continue
             debugPaint.strokeWidth = dp(1.5f)
             canvas.drawLine(t.x, t.y, k.bounds.centerX(), k.bounds.centerY(), debugPaint)
         }

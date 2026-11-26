@@ -9,6 +9,7 @@ Eine dunkle, schlichte Android-Tastatur für Deutsch und Englisch. Sie bringt Ti
 - **Deutsch und Englisch gleichzeitig:** Die Tastatur erkennt an den letzten Wörtern, in welcher Sprache du schreibst, und schlägt passend vor.
 - **Wortvorhersagen auf dem Handy, ohne Internet:** 115.000 Wörter und Wortfolgen aus rund 4 Millionen Sätzen. Nach „Vielen“ kommt „Dank“, nach „how are“ kommt „you“. Großschreibung und ß stimmen im Zusammenhang („Guten Morgen“, „beim Essen“, „WhatsApp“). Die Tastatur lernt deine eigenen Wörter dazu.
 - **Unsichtbare Treffhilfe (wie beim iPhone):** Buchstaben, die als nächstes wahrscheinlich sind, haben eine größere Trefferfläche. Die Tasten sehen gleich aus, und die Mitte einer Taste trifft immer diese Taste. Die Stärke ist per Regler einstellbar.
+- **Leertaste in der Treffhilfe:** Ist das getippte Wort fertig („ich“), reicht die Leertaste etwas in die Buchstabenreihe darüber.
 - **Treffhilfe sichtbar machen (Debug):** schattiert auf der Tastatur, welche Tasten gerade größer sind, und zeigt die letzten Berührungen. Die Treffhilfe lenkt nur noch zu wahrscheinlicheren Tasten um, nie in den Lücken zwischen den Reihen.
 - **Wischen zum Schreiben:** Finger über die Buchstaben ziehen. ⌫ löscht das ganze gewischte Wort.
 - **Autokorrektur wählbar:** Standardmäßig aus, dann werden Tippfehler nur rot markiert und oben Korrekturen angeboten. Eingeschaltet ersetzt sie eindeutige Fehler, ⌫ macht das rückgängig.
@@ -28,9 +29,10 @@ Eine dunkle, schlichte Android-Tastatur für Deutsch und Englisch. Sie bringt Ti
 
 **Diktieren**
 - 🎤 antippen und sprechen. Die Aufnahme endet von selbst, wenn du fertig bist.
-- **Offline (privat):** Whisper läuft direkt auf dem Handy (whisper.cpp). Dafür wird in den Einstellungen einmal ein Modell geladen: „Genau“ (190 MB) oder „Schnell“ (60 MB). Danach braucht das Diktieren kein Internet und die Aufnahme verlässt das Handy nicht.
-- **Ohne Modell** nutzt die Tastatur die Spracherkennung des Handys. Gesprochene Satzzeichen („Komma“, „Fragezeichen“, „neue Zeile“) werden umgewandelt.
-- **Mit kostenlosem Groq-Schlüssel** läuft die Erkennung online über Whisper large-v3 (nur wenn du das einschaltest). Ohne Internet springt automatisch das Offline-Modell ein.
+- **Reihenfolge:** 1. mit Internet Groq (wenn eingeschaltet), 2. ohne Internet auf dem Handy, 3. sonst die Spracherkennung des Handys. Ob Internet da ist, prüft die Tastatur selbst.
+- **Auf dem Handy (offline, privat):** whisper.cpp mit zwei Modellen, die einmal geladen werden: „Schnell“ (60 MB) und „Genau“ (190 MB). Mit „Erst schnell, dann genau“ (standardmäßig an) steht der Text sofort da und wird ein paar Sekunden später verbessert. Die Aufnahme verlässt das Handy nicht.
+- **Online mit Groq (optional):** Whisper large-v3 mit kostenlosem Schlüssel, per Schalter „Groq benutzen, wenn Internet da ist“.
+- Gesprochene Satzzeichen („Komma“, „Fragezeichen“, „neue Zeile“) werden umgewandelt.
 
 **Rechtschreibung (ohne Internet)**
 - Die Tastatur kennt rund 500.000 gültige Wortformen. Unbekannte Wörter werden im Text rot markiert und in der Vorschlagsleiste rot unterkringelt, daneben stehen Korrekturen.

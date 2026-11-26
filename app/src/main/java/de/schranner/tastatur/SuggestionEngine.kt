@@ -517,6 +517,8 @@ class SuggestionEngine(
             var i = lowerBound(low)
             while (i < sorted.size && sorted[i].startsWith(low)) {
                 val w = sorted[i++]
+                // Das Getippte ist schon ein ganzes Wort: Leertaste ist ein möglicher „nächster Buchstabe“
+                if (w == low) { sums[' '] = (sums[' '] ?: 0.0) + 10.0.pow(score(w, c) / 1.667); continue }
                 if (w.length <= low.length) continue
                 val ch = w[low.length]
                 if (!ch.isLetter()) continue

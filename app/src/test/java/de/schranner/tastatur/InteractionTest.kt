@@ -253,6 +253,50 @@ class InteractionTest {
         assertTrue("${h2.suggestions()}", "🍻" in h2.suggestions())
     }
 
+    @Test fun spaceBarGrowsAfterACompleteWord() {
+        fun tapLowB(assist: Int, typed: String): String {
+            val h = KeyboardHarness { it.touchAssist = assist }
+            h.type(typed)
+            val b = h.letter('b')
+            // knapp über der Leertaste: im unteren Rand der b-Taste
+            h.tapKey(b, dy = 0.40f)
+            return h.text
+        }
+        val without = tapLowB(0, "ich")
+        val with = tapLowB(100, "ich")
+        println("Unten auf b nach „ich“: ohne Treffhilfe „$without“, mit „$with“")
+        assertEquals("Ichb", without)
+        assertEquals("Ich ", with)
+        // Mitten auf b bleibt immer b
+        val h = KeyboardHarness { it.touchAssist = 100 }
+        h.type("ich")
+        h.tapKey(h.letter('b'))
+        assertEquals("Ichb", h.text)
+    }
+
+    @Test fun dictationIsRefinedWhenTheExactModelIsDone() {
+        val h = KeyboardHarness()
+        h.type("so ")
+        h.service.onResult("des is a test")
+        h.service.onRefining()
+        h.settle()
+        println("Schnell: „${h.text}“, Leiste: ${h.suggestions()}")
+        assertTrue(h.suggestions().any { it.contains("genauer") })
+        h.service.onRefined("das ist ein Test")
+        h.settle()
+        println("Genau: „${h.text}“")
+        assertEquals("So das ist ein Test ", h.text)
+        // Wird dazwischen getippt, bleibt der schnelle Text stehen
+        val h2 = KeyboardHarness()
+        h2.service.onResult("hallo welt")
+        h2.service.onRefining()
+        h2.type("x")
+        h2.service.onRefined("Hallo Welt!")
+        h2.settle()
+        println("Dazwischen getippt: „${h2.text}“")
+        assertTrue(h2.text.startsWith("Hallo welt"))
+    }
+
     @Test fun bavarianIsNotMarkedAsTypo() {
         val h = KeyboardHarness { it.bavarian = true; it.autocorrect = true; it.markTypos = true }
         h.type("griass di oida i hob des ned gwusst ")

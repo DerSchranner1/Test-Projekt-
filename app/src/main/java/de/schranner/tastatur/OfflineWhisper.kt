@@ -21,8 +21,8 @@ class OfflineWhisper(context: Context) {
 
     private val dir = File(context.applicationContext.filesDir, "whisper").apply { mkdirs() }
     private val main = Handler(Looper.getMainLooper())
-    private var ctx = 0L
-    private var loaded: Model? = null
+    /** Geladene Modelle (beide können gleichzeitig bereitstehen: erst schnell, dann genau). */
+    private val contexts = HashMap<Model, Long>()
     private val releaseLater = Runnable { release() }
 
     fun file(m: Model) = File(dir, m.file)
@@ -32,11 +32,14 @@ class OfflineWhisper(context: Context) {
     /** Das beste vorhandene Modell („Genau“ vor „Schnell“). */
     fun installed(): Model? = Model.entries.firstOrNull { isInstalled(it) }
 
+    /** Sind beide Modelle da (für „erst schnell, dann genau“)? */
+    fun bothInstalled(): Boolean = Model.entries.all { isInstalled(it) }
+
     /** Kann dieses Gerät die Offline-Erkennung ausführen und ist ein Modell da? */
     fun ready(): Boolean = installed() != null && WhisperNative.ensureLoaded()
 
     fun delete(m: Model) {
-        if (loaded == m) release()
+        release()
         file(m).delete()
         partFile(m).delete()
     }
@@ -46,15 +49,15 @@ class OfflineWhisper(context: Context) {
      * @return erkannter Text, oder null wenn die Erkennung nicht möglich war
      */
     @Synchronized
-    fun transcribe(pcm: ByteArray, language: String, prompt: String?): String? {
-        val model = installed() ?: return null
+    fun transcribe(pcm: ByteArray, language: String, prompt: String?, which: Model? = null): String? {
+        val model = which?.takeIf { isInstalled(it) } ?: installed() ?: return null
         if (!WhisperNative.ensureLoaded()) return null
         main.removeCallbacks(releaseLater)
-        if (ctx == 0L || loaded != model) {
-            if (ctx != 0L) WhisperNative.free(ctx)
+        var ctx = contexts[model] ?: 0L
+        if (ctx == 0L) {
             ctx = WhisperNative.init(file(model).absolutePath)
-            loaded = if (ctx != 0L) model else null
             if (ctx == 0L) return null
+            contexts[model] = ctx
         }
         val n = pcm.size / 2
         val audio = FloatArray(n) { i -> ((pcm[2 * i + 1].toInt() shl 8) or (pcm[2 * i].toInt() and 0xFF)) / 32768f }
@@ -69,9 +72,8 @@ class OfflineWhisper(context: Context) {
     @Synchronized
     fun release() {
         main.removeCallbacks(releaseLater)
-        if (ctx != 0L) WhisperNative.free(ctx)
-        ctx = 0L
-        loaded = null
+        for (c in contexts.values) if (c != 0L) WhisperNative.free(c)
+        contexts.clear()
     }
 
     /**
@@ -134,6 +136,18 @@ object ModelDownload {
     private var lastNotify = 0L
 
     val running: Boolean get() = model != null
+    /** Modelle, die nach dem aktuellen noch geladen werden. */
+    private val queue = ArrayDeque<OfflineWhisper.Model>()
+
+    /** Mehrere Modelle nacheinander laden (erst „Schnell“, dann „Genau“). */
+    fun startAll(context: Context, models: List<OfflineWhisper.Model>) {
+        val app = context.applicationContext
+        val todo = models.filter { !OfflineWhisper(app).isInstalled(it) }
+        if (todo.isEmpty()) return
+        queue.clear()
+        queue.addAll(todo.drop(1))
+        start(app, todo.first())
+    }
 
     fun start(context: Context, m: OfflineWhisper.Model) {
         if (running) return
@@ -150,9 +164,13 @@ object ModelDownload {
             }, { cancel })
             message = error ?: "Modell „${m.title}“ ist bereit ✓"
             model = null
-            main.post { onChange?.invoke() }
+            val next = if (error == null) queue.removeFirstOrNull() else null.also { queue.clear() }
+            main.post {
+                if (next != null) start(context, next)
+                onChange?.invoke()
+            }
         }.start()
     }
 
-    fun cancel() { cancel = true }
+    fun cancel() { cancel = true; queue.clear() }
 }

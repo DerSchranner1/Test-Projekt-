@@ -193,20 +193,36 @@ class SettingsActivity : Activity() {
         anchors[PAGE_VOICE] = card("Diktieren")
         val groq = prefs.groqKey.isNotBlank()
         val whisper = OfflineWhisper(this)
-        val model = whisper.installed()
+        val fast = whisper.isInstalled(OfflineWhisper.Model.BASE)
+        val exact = whisper.isInstalled(OfflineWhisper.Model.SMALL)
         val canOffline = WhisperNative.ensureLoaded()
-        val online = groq && (prefs.voiceEngine == "groq" || model == null || !canOffline)
-        when {
-            online && groqOk == false -> status("✗  Der Groq-Schlüssel funktioniert nicht", bad)
-            online -> status("✓  Aktiv: Whisper über Groq (online, am genauesten)", good)
-            model != null && canOffline -> status("✓  Aktiv: Offline-Erkennung „${model.title}“ – nichts verlässt das Handy", good)
-            else -> status("Aktiv: Spracherkennung des Handys", dim)
-        }
+        val hasOffline = canOffline && (fast || exact)
+        val groqOn = groq && prefs.useGroq && groqOk != false
+        if (groq && groqOk == false) status("✗  Der Groq-Schlüssel funktioniert nicht", bad)
 
-        label("Offline (privat)")
+        // So wird erkannt – in dieser Reihenfolge
+        label("So wird erkannt")
+        fun step(n: Int, on: Boolean, title: String, detail: String) {
+            text("${if (on) "✓" else "–"}  $n.  $title", 15f, if (on) good else dim, 6f, 0f).setTypeface(null, Typeface.BOLD)
+            text(detail, 13f, dim, 0f, 4f).setPadding(dp(30f), 0, 0, dp(4f))
+        }
+        step(1, groqOn, "Mit Internet: Groq",
+            if (groqOn) "Am genauesten. Die Aufnahme wird dafür an Groq geschickt." else if (groq) "Ausgeschaltet – siehe unten." else "Nicht eingerichtet (optional, siehe unten).")
+        val offlineDetail = when {
+            !canOffline -> "Auf diesem Gerät nicht möglich (braucht einen 64-Bit-Prozessor)."
+            fast && exact && prefs.voiceTwoPass -> "Erst „Schnell“: Der Text steht sofort da. Dann „Genau“: Er wird ein paar Sekunden später verbessert. Nichts verlässt das Handy."
+            fast && exact -> "Mit „Genau“. Nichts verlässt das Handy."
+            exact -> "Mit „Genau“ (ein paar Sekunden). Tipp: „Schnell“ dazuladen, dann steht der Text sofort da."
+            fast -> "Mit „Schnell“. Tipp: „Genau“ dazuladen, dann wird der Text danach noch verbessert."
+            else -> "Noch kein Modell geladen – siehe unten."
+        }
+        step(2, hasOffline, if (groqOn) "Ohne Internet: auf dem Handy" else "Auf dem Handy (offline)", offlineDetail)
+        step(3, !hasOffline && !groqOn, "Sonst: Spracherkennung des Handys", "Wenn nichts anderes geht.")
+
+        label("Auf dem Handy (offline, privat)")
         val dl = ModelDownload
         when {
-            !canOffline -> hint("Auf diesem Gerät nicht verfügbar (braucht einen 64-Bit-Prozessor).")
+            !canOffline -> hint("Auf diesem Gerät nicht verfügbar.")
             dl.running -> {
                 val m = dl.model!!
                 body("Lädt „${m.title}“ … ${dl.done * 100 / m.bytes} %  (${dl.done / 1_000_000} von ${m.bytes / 1_000_000} MB)")
@@ -214,26 +230,36 @@ class SettingsActivity : Activity() {
             }
             else -> {
                 dl.message?.let { hint(it) }
-                if (model == null) {
-                    body("Die Spracherkennung läuft dann komplett auf dem Handy: kein Konto, kein Schlüssel, und deine Aufnahme verlässt das Gerät nicht. Dafür wird einmal ein Modell geladen (am besten im WLAN).")
-                }
-                for (m in OfflineWhisper.Model.entries) {
-                    if (whisper.isInstalled(m)) {
-                        button("„${m.title}“ löschen (${m.size} frei machen)") { whisper.delete(m); build() }
-                    } else {
-                        val what = if (m == OfflineWhisper.Model.SMALL) "erkennt deutlich besser, braucht ein paar Sekunden" else "schneller, macht mehr Fehler"
-                        button("„${m.title}“ laden – ${m.size}", primary = model == null && m == OfflineWhisper.Model.SMALL) {
-                            dl.start(this, m); build()
+                if (!fast && !exact) {
+                    body("Kein Konto, kein Schlüssel – die Aufnahme verlässt das Handy nicht. Dafür werden einmal zwei Modelle geladen, am besten im WLAN: erst „Schnell“ (60 MB), danach „Genau“ (190 MB).")
+                    button("Offline-Erkennung laden (250 MB)", primary = true) {
+                        dl.startAll(this, listOf(OfflineWhisper.Model.BASE, OfflineWhisper.Model.SMALL)); build()
+                    }
+                } else {
+                    for (m in listOf(OfflineWhisper.Model.BASE, OfflineWhisper.Model.SMALL)) {
+                        val what = if (m == OfflineWhisper.Model.BASE) "Schnell: Text sofort da" else "Genau: erkennt deutlich besser"
+                        if (whisper.isInstalled(m)) {
+                            text("✓  $what (${m.size})", 14f, textColor, 6f, 0f)
+                        } else {
+                            button("„${m.title}“ dazuladen – ${m.size}") { dl.start(this, m); build() }
+                            hint(what + ".")
                         }
-                        hint("${m.title}: $what.")
+                    }
+                    if (fast && exact) {
+                        switch("Erst schnell, dann genau", prefs.voiceTwoPass) { prefs.voiceTwoPass = it; build() }
+                        hint(if (prefs.voiceTwoPass) "Der Text erscheint sofort und wird kurz danach verbessert. Tippst du in der Zwischenzeit weiter, bleibt der schnelle Text stehen."
+                             else "Es wird nur „Genau“ benutzt: etwas warten, dafür gleich der bessere Text.")
+                    }
+                    for (m in OfflineWhisper.Model.entries) if (whisper.isInstalled(m)) {
+                        button("„${m.title}“ löschen (${m.size} frei machen)") { whisper.delete(m); build() }
                     }
                 }
             }
         }
 
-        label("Online mit Groq (am genauesten)")
+        label("Online mit Groq (optional)")
         if (!groq) {
-            body("Noch genauer und schneller ist Whisper im Netz. Dafür brauchst du einmalig einen kostenlosen Schlüssel (etwa 1 Minute):")
+            body("Noch genauer ist Whisper im Netz. Dafür brauchst du einmalig einen kostenlosen Schlüssel (etwa 1 Minute):")
             body("1. Unten auf den Knopf tippen und mit Google anmelden\n2. „Create API Key“ antippen und den Schlüssel kopieren\n3. Zurück in diese App wechseln – der Schlüssel wird automatisch erkannt")
             button("Schlüssel-Seite öffnen") {
                 awaitingGroq = true
@@ -242,12 +268,13 @@ class SettingsActivity : Activity() {
             button("Kopierten Schlüssel einfügen") { if (!takeFromClipboard(force = "groq")) manualKey("groq") }
             hint("Mit Groq wird die Aufnahme zum Erkennen an diesen Dienst geschickt.")
         } else {
-            if (model != null && canOffline) {
-                switch("Groq statt Offline-Erkennung benutzen", prefs.voiceEngine == "groq") {
-                    prefs.voiceEngine = if (it) "groq" else "auto"; build()
-                }
-            }
-            button("Groq-Schlüssel entfernen") { prefs.groqKey = ""; groqOk = null; prefs.voiceEngine = "auto"; build() }
+            switch("Groq benutzen, wenn Internet da ist", prefs.useGroq) { prefs.useGroq = it; build() }
+            hint(when {
+                !prefs.useGroq -> "Aus: Es wird nur auf dem Handy erkannt, auch mit Internet. Nichts wird verschickt."
+                hasOffline -> "An: Mit Internet erkennt Groq. Ohne Internet – oder wenn Groq nicht antwortet – springt automatisch die Erkennung auf dem Handy ein."
+                else -> "An: Mit Internet erkennt Groq. Ohne Internet geht es nur mit der Spracherkennung des Handys – lade dafür oben die Offline-Erkennung."
+            })
+            button("Groq-Schlüssel entfernen") { prefs.groqKey = ""; groqOk = null; prefs.useGroq = false; build() }
         }
 
         // ---- GIFs & Sticker
@@ -364,6 +391,7 @@ class SettingsActivity : Activity() {
         } catch (_: Exception) { null } ?: return false
         if (GROQ.matches(text) && force != "giphy" && text != prefs.groqKey && (force == "groq" || awaitingGroq || prefs.groqKey.isBlank())) {
             prefs.groqKey = text
+            prefs.useGroq = true
             awaitingGroq = false
             Toast.makeText(this, "Groq-Schlüssel übernommen ✓", Toast.LENGTH_SHORT).show()
             build(); check("groq")
@@ -393,7 +421,7 @@ class SettingsActivity : Activity() {
             .setPositiveButton("Speichern") { _, _ ->
                 val v = field.text.toString().trim()
                 if (v.isNotEmpty()) {
-                    if (kind == "groq") prefs.groqKey = v else prefs.giphyKey = v
+                    if (kind == "groq") { prefs.groqKey = v; prefs.useGroq = true } else prefs.giphyKey = v
                     build(); check(kind)
                 }
             }

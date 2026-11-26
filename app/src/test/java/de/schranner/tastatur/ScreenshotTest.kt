@@ -80,10 +80,17 @@ class ScreenshotTest {
         h.type("ich hab")
         val e = h.letter('e')
         // leicht daneben tippen, damit man die Umlenkung sieht
-        h.tapKey(e, dx = e.bounds.width() * 0.45f)
+        h.tapKey(e, dx = 0.45f)
         h.backspace()
         h.settle()
         h.screenshot("22_treffhilfe_debug")
+    }
+
+    @Test fun touchAssistDebugSpace() {
+        val h = KeyboardHarness { it.debugTouch = true; it.touchAssist = 60 }
+        h.type("ich")
+        h.screenshot("24_treffhilfe_leertaste")
+        h.prefs.debugTouch = false
     }
 
     @Test fun logo() {
@@ -157,6 +164,46 @@ class ScreenshotTest {
         java.io.File("build/screenshots/14_einstellungen.png").outputStream().use {
             bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
         }
+    }
+
+    private fun settingsCrop(title: String, file: String, height: Int, before: Int = 120) {
+        val activity = org.robolectric.Robolectric.buildActivity(SettingsActivity::class.java).setup().get()
+        val view = activity.window.decorView
+        val h = 9000
+        view.measure(
+            android.view.View.MeasureSpec.makeMeasureSpec(1080, android.view.View.MeasureSpec.EXACTLY),
+            android.view.View.MeasureSpec.makeMeasureSpec(h, android.view.View.MeasureSpec.EXACTLY),
+        )
+        view.layout(0, 0, 1080, h)
+        fun find(v: android.view.View): android.view.View? {
+            if (v is android.widget.TextView && v.text.toString() == title) return v
+            if (v is android.view.ViewGroup) for (i in 0 until v.childCount) find(v.getChildAt(i))?.let { return it }
+            return null
+        }
+        val t = find(view)!!
+        val loc = IntArray(2); t.getLocationInWindow(loc)
+        val top = (loc[1] - before).coerceAtLeast(0)
+        val bmp = android.graphics.Bitmap.createBitmap(1080, height, android.graphics.Bitmap.Config.ARGB_8888)
+        val c = android.graphics.Canvas(bmp)
+        c.translate(0f, -top.toFloat())
+        view.draw(c)
+        java.io.File("build/screenshots").mkdirs()
+        java.io.File("build/screenshots/$file.png").outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+    }
+
+    @Test fun dictationSettings() {
+        val app = org.robolectric.RuntimeEnvironment.getApplication()
+        val p = Prefs(app)
+        p.groqKey = "gsk_test"; p.useGroq = true
+        // so tun, als wären beide Modelle geladen
+        val w = OfflineWhisper(app)
+        for (m in OfflineWhisper.Model.entries) java.io.RandomAccessFile(w.file(m), "rw").use { it.setLength(m.bytes) }
+        // Im Test gibt es die native Bibliothek nicht – für das Bild so tun, als ob
+        org.robolectric.util.ReflectionHelpers.setField(WhisperNative, "loaded", true)
+        settingsCrop("So wird erkannt", "25_diktieren", 2300, 200)
+        org.robolectric.util.ReflectionHelpers.setField(WhisperNative, "loaded", null)
+        for (m in OfflineWhisper.Model.entries) w.file(m).delete()
+        p.groqKey = ""; p.useGroq = false
     }
 
     @Test fun debugGuide() {
