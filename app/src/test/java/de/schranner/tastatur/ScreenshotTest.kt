@@ -75,6 +75,17 @@ class ScreenshotTest {
         h.screenshot("21_emoji_vorschlag")
     }
 
+    @Test fun touchAssistDebug() {
+        val h = KeyboardHarness { it.debugTouch = true; it.touchAssist = 60 }
+        h.type("ich hab")
+        val e = h.letter('e')
+        // leicht daneben tippen, damit man die Umlenkung sieht
+        h.tapKey(e, dx = e.bounds.width() * 0.45f)
+        h.backspace()
+        h.settle()
+        h.screenshot("22_treffhilfe_debug")
+    }
+
     @Test fun logo() {
         val ctx = org.robolectric.RuntimeEnvironment.getApplication()
         val size = 432

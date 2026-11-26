@@ -181,6 +181,8 @@ class SettingsActivity : Activity() {
         }
         slider("Treffhilfe", prefs.touchAssist, { if (it == 0) "Aus" else "$it %" }) { prefs.touchAssist = it }
         hint("Wie beim iPhone: Buchstaben, die als nächstes wahrscheinlich sind, lassen sich leichter treffen. Die Tasten sehen dabei gleich aus.")
+        switch("Treffhilfe sichtbar machen (Debug)", prefs.debugTouch) { prefs.debugTouch = it }
+        hint("Zum Prüfen: Türkis zeigt, welche Tasten gerade größer sind (Zahl = Bonus in %). Orange heißt: Wer hier tippt, bekommt wegen der Treffhilfe die Nachbartaste. Punkte zeigen deine letzten Berührungen, die Linie führt zur Taste, die daraus wurde.")
         hint("Größe, Einhandmodus und Textbearbeitung: in der Tastatur oben links auf das Kachel-Symbol tippen.")
 
         // ---- Diktieren

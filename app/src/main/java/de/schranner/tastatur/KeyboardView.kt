@@ -49,8 +49,24 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
 
     /** Treffhilfe: Gewicht je Buchstabentaste (1 = wahrscheinlichster nächster Buchstabe). */
     var touchWeights: Map<Char, Float> = emptyMap()
+        set(v) { field = v; if (debugTouch) { debugDirty = true; invalidate() } }
     /** Stärke der Treffhilfe, 0..1 (0 = aus). Die Tasten sehen immer gleich aus. */
     var touchAssist = 0f
+        set(v) { field = v; if (debugTouch) { debugDirty = true; invalidate() } }
+
+    /**
+     * Debug-Anzeige der Treffhilfe: schattiert, wie groß jede Buchstabentaste gerade wirklich ist,
+     * zeigt die Gewichte und markiert die letzten Berührungen.
+     */
+    var debugTouch = false
+        set(v) { field = v; debugDirty = true; invalidate() }
+    private var debugDirty = true
+    private var debugBitmap: android.graphics.Bitmap? = null
+    private val debugPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val debugText = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.RIGHT }
+    /** Letzte Berührungen: Ort, getroffene Taste, Taste ohne Treffhilfe. */
+    private class DebugTap(val x: Float, val y: Float, val hit: Char?, val plain: Char?)
+    private val debugTaps = ArrayDeque<DebugTap>()
 
     var rows: KeyRows = emptyList()
         set(value) {
@@ -244,6 +260,7 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
         targetKeys.clear()
         for (row in rows) for (k in row) if (isLetter(k)) targetKeys[k.label[0].lowercaseChar()] = k
         targets = targetKeys.map { (ch, k) -> TouchModel.Target(ch, k.bounds.centerX(), k.bounds.centerY()) }
+        debugDirty = true
     }
 
     private var targets: List<TouchModel.Target> = emptyList()
@@ -266,7 +283,7 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
 
     private fun isLetter(k: Key) = k.type == KeyType.CHAR && k.label.length == 1 && k.label[0].isLetter()
 
-    private fun findKey(x: Float, y: Float): Key? {
+    private fun findKey(x: Float, y: Float, assist: Boolean = true): Key? {
         if (rows.isEmpty()) return null
         var r = rows.size - 1
         var top = topPad
@@ -282,9 +299,14 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
             }
         }
         // Treffhilfe: wahrscheinliche Buchstaben haben unsichtbar eine größere Trefferfläche
-        if (base != null && touchAssist > 0f && touchWeights.isNotEmpty() && isLetter(base)) {
+        if (assist && base != null && touchAssist > 0f && touchWeights.isNotEmpty() && isLetter(base)) {
             val t = TouchModel.pick(x, y, targets, letterKeyWidth(), heightOf(rows[r]), touchWeights, touchAssist)
-            if (t != null) return targetKeys[t.ch] ?: base
+            // Nur zu einer WAHRSCHEINLICHEREN Taste umlenken. Sonst gilt die sichtbare Taste –
+            // auch in den Lücken zwischen den Reihen und am eingerückten Rand (links vom a).
+            val baseCh = base.label[0].lowercaseChar()
+            if (t != null && t.ch != baseCh && (touchWeights[t.ch] ?: 0f) > (touchWeights[baseCh] ?: 0f)) {
+                return targetKeys[t.ch] ?: base
+            }
         }
         return base
     }
@@ -310,6 +332,7 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
             return
         }
         for (row in rows) for (k in row) drawKey(canvas, k, k in pressed)
+        if (debugTouch) drawTouchDebug(canvas)
         if (gestureTrail) {
             val g = touches.values.firstOrNull { it.gesture } ?: return
             trailPath.reset()
@@ -323,6 +346,76 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
     }
 
     private val pillRect = RectF()
+
+    // ---------------------------------------------------------------- Debug: Treffhilfe sichtbar
+
+    private fun rememberTap(x: Float, y: Float, key: Key?) {
+        val hit = key?.takeIf { isLetter(it) }?.label?.get(0)?.lowercaseChar()
+        val plain = findKey(x, y, assist = false)?.takeIf { isLetter(it) }?.label?.get(0)?.lowercaseChar()
+        debugTaps.addLast(DebugTap(x, y, hit, plain))
+        while (debugTaps.size > 6) debugTaps.removeFirst()
+    }
+
+    /** Die echten Trefferflächen als Farbfläche berechnen (alle ~4 dp ein Messpunkt). */
+    private fun buildDebugBitmap(): android.graphics.Bitmap? {
+        if (width <= 0 || height <= 0 || targets.isEmpty()) return null
+        val step = dp(4f).coerceAtLeast(2f)
+        val cols = (width / step).toInt() + 1
+        val rowsN = (height / step).toInt() + 1
+        val bmp = android.graphics.Bitmap.createBitmap(cols, rowsN, android.graphics.Bitmap.Config.ARGB_8888)
+        val accent = theme.accent
+        val warn = 0xFFFFB74D.toInt()
+        for (j in 0 until rowsN) for (i in 0 until cols) {
+            val x = i * step + step / 2
+            val y = j * step + step / 2
+            val k = findKey(x, y) ?: continue
+            if (!isLetter(k)) continue
+            val ch = k.label[0].lowercaseChar()
+            val w = touchWeights[ch] ?: 0f
+            val plain = findKey(x, y, assist = false)
+            val color = when {
+                // Hier landet man wegen der Treffhilfe auf einer anderen Taste als sichtbar
+                plain !== k -> (warn and 0x00FFFFFF) or (150 shl 24)
+                w > 0f -> (accent and 0x00FFFFFF) or ((25 + 110 * w).toInt() shl 24)
+                else -> 0
+            }
+            bmp.setPixel(i, j, color)
+        }
+        return bmp
+    }
+
+    private fun drawTouchDebug(canvas: Canvas) {
+        if (debugDirty) { debugBitmap = buildDebugBitmap(); debugDirty = false }
+        debugBitmap?.let { b ->
+            debugPaint.isFilterBitmap = false
+            canvas.drawBitmap(b, null, RectF(0f, 0f, b.width * dp(4f).coerceAtLeast(2f), b.height * dp(4f).coerceAtLeast(2f)), debugPaint)
+        }
+        // Gewicht je Taste in Prozent (oben rechts auf der Taste)
+        debugText.textSize = dp(9f)
+        for ((ch, k) in targetKeys) {
+            val w = touchWeights[ch] ?: continue
+            if (w <= 0.01f) continue
+            debugText.color = if (w > 0.6f) theme.accent else theme.hint
+            canvas.drawText("${(w * 100).toInt()}", k.bounds.right - dp(3f), k.bounds.top + dp(10f), debugText)
+        }
+        // Letzte Berührungen: Punkt = Finger, Linie zur getroffenen Taste; orange = Treffhilfe hat umgelenkt
+        for ((n, t) in debugTaps.withIndex()) {
+            val fresh = 90 + 165 * (n + 1) / debugTaps.size
+            val changed = t.hit != null && t.plain != null && t.hit != t.plain
+            debugPaint.color = if (changed) 0xFFFFB74D.toInt() else 0xFFFFFFFF.toInt()
+            debugPaint.alpha = fresh
+            canvas.drawCircle(t.x, t.y, dp(4f), debugPaint)
+            val k = t.hit?.let { targetKeys[it] } ?: continue
+            debugPaint.strokeWidth = dp(1.5f)
+            canvas.drawLine(t.x, t.y, k.bounds.centerX(), k.bounds.centerY(), debugPaint)
+        }
+        // Legende
+        debugText.textAlign = Paint.Align.LEFT
+        debugText.color = theme.hint
+        debugText.textSize = dp(9f)
+        canvas.drawText("Treffhilfe ${(touchAssist * 100).toInt()} % · türkis = Bonus · orange = umgelenkt", dp(4f), height - dp(3f), debugText)
+        debugText.textAlign = Paint.Align.RIGHT
+    }
 
     private fun drawKey(canvas: Canvas, k: Key, pressed: Boolean) {
         val rh = rowHeight()
@@ -410,6 +503,7 @@ class KeyboardView(context: Context, private val theme: KeyboardTheme) : View(co
                 cancelTimers()
                 hidePreview()
                 val t = Touch(e.getPointerId(idx), findKey(e.getX(idx), e.getY(idx)), e.getX(idx))
+                if (debugTouch) rememberTap(e.getX(idx), e.getY(idx), t.key)
                 t.downY = e.getY(idx)
                 t.gesturePossible = gestureEnabled && touches.isEmpty() && t.key?.let { isLetter(it) } == true
                 if (t.gesturePossible) t.points += GestureDecoder.Pt(e.getX(idx), t.downY)

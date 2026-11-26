@@ -259,6 +259,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         clip.enabled = prefs.clipboardHistory
         keyboard.keyHeightPercent = prefs.keyHeightPercent
         keyboard.spaceLabel = "DE · EN"
+        keyboard.debugTouch = prefs.debugTouch
         applyOneHanded()
         applyBottomPadding()
         tintNavigationBar()

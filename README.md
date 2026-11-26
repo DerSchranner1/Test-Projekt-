@@ -9,6 +9,7 @@ Eine dunkle, schlichte Android-Tastatur für Deutsch und Englisch. Sie bringt Ti
 - **Deutsch und Englisch gleichzeitig:** Die Tastatur erkennt an den letzten Wörtern, in welcher Sprache du schreibst, und schlägt passend vor.
 - **Wortvorhersagen auf dem Handy, ohne Internet:** 115.000 Wörter und Wortfolgen aus rund 4 Millionen Sätzen. Nach „Vielen“ kommt „Dank“, nach „how are“ kommt „you“. Großschreibung und ß stimmen im Zusammenhang („Guten Morgen“, „beim Essen“, „WhatsApp“). Die Tastatur lernt deine eigenen Wörter dazu.
 - **Unsichtbare Treffhilfe (wie beim iPhone):** Buchstaben, die als nächstes wahrscheinlich sind, haben eine größere Trefferfläche. Die Tasten sehen gleich aus, und die Mitte einer Taste trifft immer diese Taste. Die Stärke ist per Regler einstellbar.
+- **Treffhilfe sichtbar machen (Debug):** schattiert auf der Tastatur, welche Tasten gerade größer sind, und zeigt die letzten Berührungen. Die Treffhilfe lenkt nur noch zu wahrscheinlicheren Tasten um, nie in den Lücken zwischen den Reihen.
 - **Wischen zum Schreiben:** Finger über die Buchstaben ziehen. ⌫ löscht das ganze gewischte Wort.
 - **Autokorrektur wählbar:** Standardmäßig aus, dann werden Tippfehler nur rot markiert und oben Korrekturen angeboten. Eingeschaltet ersetzt sie eindeutige Fehler, ⌫ macht das rückgängig.
 - **Layouts:** QWERTZ (Umlaute per langem Druck auf a, o, u, s), QWERTZ mit Ä Ö Ü, QWERTY. Eine eigene ß-Taste und die Zahlenreihe sind zuschaltbar.
