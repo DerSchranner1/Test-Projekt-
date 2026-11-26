@@ -66,6 +66,9 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         class Emoji(val emoji: String, val word: String? = null, val replace: Boolean = false) : Sugg(emoji)
         /** Smiley aus Zeichen („:)“) durch ein echtes Emoji ersetzen. */
         class EmojiReplace(val emoticon: String, val emoji: String) : Sugg(emoji)
+        /** Auswahl nach langem Druck auf ein Emoji: ersetzen, dahinter setzen oder mehr Emojis. */
+        class EmojiChoice(val emoji: String, val word: String, val replace: Boolean, label: String) : Sugg(label)
+        class EmojiMore(val word: String) : Sugg("Mehr …")
         class Paste(val text: String) : Sugg(ClipboardStore.smartLabel(text))
     }
 
@@ -832,7 +835,11 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
             // Unbekanntes Wort: rot unterkringelt (sichtbar auch in Apps, die im Text nichts markieren)
             (tv as? SquiggleTextView)?.squiggle = s is Sugg.AddWord
             // Emojis etwas größer, damit man sie gut erkennt
-            tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, if (s is Sugg.Emoji || s is Sugg.EmojiReplace) 23f else 16f)
+            tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, when (s) {
+                is Sugg.Emoji, is Sugg.EmojiReplace -> 23f
+                is Sugg.EmojiChoice -> if (s.replace) 23f else 17f
+                else -> 16f
+            })
             tv.setTypeface(null, if (i == 1 && s is Sugg.Word) Typeface.BOLD else Typeface.NORMAL)
             tv.setTextColor(
                 when (s) {
@@ -902,6 +909,24 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
                 addRecentEmoji(s.emoji)
                 lastAutoSpace = true
                 correctionTarget = null
+            }
+            is Sugg.EmojiChoice -> {
+                if (!(s.replace && replaceWordWithEmoji(s.word, s.emoji))) {
+                    commitWord()
+                    learnEmojiAfterWord(s.emoji)
+                    val before = ic.getTextBeforeCursor(1, 0)?.toString() ?: ""
+                    val prefix = if (before.isNotEmpty() && !before.last().isWhitespace()) " " else ""
+                    ic.commitText(prefix + s.emoji + " ", 1)
+                }
+                addRecentEmoji(s.emoji)
+                lastAutoSpace = true
+                correctionTarget = null
+            }
+            is Sugg.EmojiMore -> {
+                startSearch(MediaPanel.Tab.EMOJI)
+                searchQuery.append(s.word.lowercase())
+                updateSearchUi()
+                return
             }
             is Sugg.EmojiReplace -> {
                 val before = ic.getTextBeforeCursor(s.emoticon.length + 4, 0)?.toString() ?: ""
@@ -1167,6 +1192,18 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
                 setOnClickListener { pickSuggestion(i) }
                 setOnLongClickListener {
                     val s = shown[i]
+                    if (s is Sugg.Emoji && s.replace && s.word != null) {
+                        // Langer Druck: selbst wählen – „Geige 🎻“, „🎻“ oder mehr Emojis
+                        haptics.play(Haptics.Kind.POPUP)
+                        val w = s.word
+                        val shownWord = if (composing.isNotEmpty()) composing.toString() else w
+                        show(listOf(
+                            Sugg.EmojiChoice(s.emoji, w, false, "$shownWord ${s.emoji}"),
+                            Sugg.EmojiChoice(s.emoji, w, true, s.emoji),
+                            Sugg.EmojiMore(w),
+                        ))
+                        return@setOnLongClickListener true
+                    }
                     if (s is Sugg.Emoji || s is Sugg.EmojiReplace) {
                         // Mehr passende Emojis: Suche mit dem Wort öffnen
                         val w = (s as? Sugg.Emoji)?.word ?: ""

@@ -210,6 +210,39 @@ class StickerStore(private val context: Context) {
 
     fun clear() { dir.listFiles()?.forEach { it.delete() } }
 
+    /**
+     * Eigene Sticker und die eingebauten animierten Emojis in die Galerie kopieren
+     * (Ordner „Bilder/KlarTastatur“). Bleibt auf dem Handy, nichts wird hochgeladen.
+     * @return Anzahl gespeicherter Bilder
+     */
+    fun exportToGallery(): Int {
+        var n = 0
+        val resolver = context.contentResolver
+        fun save(name: String, mime: String, open: () -> java.io.InputStream) {
+            try {
+                val values = android.content.ContentValues().apply {
+                    put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, name)
+                    put(android.provider.MediaStore.Images.Media.MIME_TYPE, mime)
+                    put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, "Pictures/KlarTastatur")
+                    put(android.provider.MediaStore.Images.Media.IS_PENDING, 1)
+                }
+                val uri = resolver.insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: return
+                resolver.openOutputStream(uri)?.use { out -> open().use { it.copyTo(out) } }
+                values.clear()
+                values.put(android.provider.MediaStore.Images.Media.IS_PENDING, 0)
+                resolver.update(uri, values, null, null)
+                n++
+            } catch (_: Exception) { }
+        }
+        for (f in list()) save("Sticker_" + f.name, MediaProvider.mimeOf(f.name)) { f.inputStream() }
+        EmojiData.ensureLoaded(context)
+        for (e in EmojiData.bundledOrder) {
+            val asset = EmojiData.bundledAsset(e) ?: continue
+            save("Emoji_" + asset.substringAfter('/'), "image/gif") { context.assets.open(asset) }
+        }
+        return n
+    }
+
     companion object {
         /** Emoji als großes Sticker-Bild (512 px, transparent). */
         fun renderEmoji(emoji: String, format: Bitmap.CompressFormat, out: File) {

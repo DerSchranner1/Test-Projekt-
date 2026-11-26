@@ -284,6 +284,16 @@ class InteractionTest {
         h.type("gute nacht ")
         h.pick("😴")
         assertEquals("Ich spiele 🎻 und fahre 🚗 gute nacht 😴 ", h.text)
+        // Langer Druck auf das Emoji: selbst wählen
+        h.type("meine geige")
+        val slots: Array<android.widget.TextView?> = ReflectionHelpers.getField(h.service, "slots")
+        val i = h.suggestions().indexOf("🎻")
+        slots[i]!!.performLongClick()
+        h.settle()
+        println("Auswahl nach langem Druck: ${h.suggestions()}")
+        assertEquals(listOf("geige 🎻", "🎻", "Mehr …"), h.suggestions())
+        h.pick("geige 🎻")
+        assertEquals("Ich spiele 🎻 und fahre 🚗 gute nacht 😴 meine geige 🎻 ", h.text)
         // Option aus: Emoji kommt hinter das Wort
         val h2 = KeyboardHarness { it.emojiSuggestions = true; it.emojiReplacesWord = false }
         h2.type("geige")

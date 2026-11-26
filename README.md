@@ -14,10 +14,10 @@ Eine dunkle, schlichte Android-Tastatur für Deutsch und Englisch. Sie bringt Ti
 - **Layouts:** QWERTZ (Umlaute per langem Druck auf a, o, u, s), QWERTZ mit Ä Ö Ü, QWERTY. Eine eigene ß-Taste und die Zahlenreihe sind zuschaltbar.
 
 **Emojis, GIFs und Sticker**
-- **Text zu Emoji, ohne Internet:** Passende Emojis erscheinen in der Vorschlagsleiste, auch für Wendungen („Gute Nacht“ → 😴, „Alles Gute zum Geburtstag“ → 🎂), gebeugte und zusammengesetzte Wörter („gefeiert“ → 🥳, „Lieblingspizza“ → 🍕) und Smileys aus Zeichen („:)“ → 🙂). Standardmäßig ersetzt das Emoji das Wort („Geige“ → 🎻, abschaltbar), bei Wendungen bleibt der Text stehen. Die Tastatur merkt sich, welches Emoji du nach einem Wort benutzt. Langer Druck auf das Emoji zeigt weitere passende.
+- **Text zu Emoji, ohne Internet:** Passende Emojis erscheinen in der Vorschlagsleiste, auch für Wendungen („Gute Nacht“ → 😴, „Alles Gute zum Geburtstag“ → 🎂), gebeugte und zusammengesetzte Wörter („gefeiert“ → 🥳, „Lieblingspizza“ → 🍕) und Smileys aus Zeichen („:)“ → 🙂). Standardmäßig ersetzt das Emoji das Wort („Geige“ → 🎻, abschaltbar), bei Wendungen bleibt der Text stehen. Die Tastatur merkt sich, welches Emoji du nach einem Wort benutzt. Langer Druck auf das Emoji lässt dich im Einzelfall wählen: „Geige 🎻“, nur „🎻“ oder mehr passende Emojis.
 - **Alle Emojis** in den Gruppen und der Reihenfolge von Gboard. Suche auf Deutsch und Englisch, Hauttöne per langem Druck (die Wahl wird gemerkt). Emojis, die das Handy nicht darstellen kann, werden ausgeblendet.
 - **Animierte Emojis:** Die 60 beliebtesten stecken in der App, bewegen sich schon in der Übersicht und werden ohne Internet als GIF gesendet. Weitere werden nach Zustimmung geladen.
-- **GIFs aus Filmen und Memes** kommen von GIPHY und brauchen einen kostenlosen Schlüssel. Mit Schlüssel werden die Trend-GIFs beim Öffnen des Emoji-Bereichs schon vorgeladen. Dazu eigene Sticker aus der Galerie und Emoji-Sticker.
+- **GIFs aus Filmen und Memes** kommen von GIPHY und brauchen einen kostenlosen Schlüssel. Mit Schlüssel werden die Trend-GIFs beim Öffnen des Emoji-Bereichs schon vorgeladen. Dazu eigene Sticker aus der Galerie und Emoji-Sticker. Eigene Sticker und die eingebauten animierten Emojis lassen sich in den Einstellungen in die Galerie speichern (Ordner „KlarTastatur“).
 
 **Werkzeugleiste** (bei leerem Feld sichtbar, sonst über das Kachel-Symbol oben links)
 - **Zwischenablage:** Verlauf mit Anheften. Passwörter werden nicht gespeichert.

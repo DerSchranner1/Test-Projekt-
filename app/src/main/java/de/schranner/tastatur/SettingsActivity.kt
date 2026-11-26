@@ -273,6 +273,17 @@ class SettingsActivity : Activity() {
             }, REQ_STICKERS)
         }
 
+        button("Sticker und animierte Emojis in die Galerie speichern") {
+            Toast.makeText(this, "Wird gespeichert …", Toast.LENGTH_SHORT).show()
+            Thread {
+                val count = StickerStore(this).exportToGallery()
+                runOnUiThread {
+                    Toast.makeText(this, if (count > 0) "$count Bilder in „Bilder/KlarTastatur“ gespeichert" else "Speichern hat nicht geklappt", Toast.LENGTH_LONG).show()
+                }
+            }.start()
+        }
+        hint("Die Bilder landen in deiner Galerie im Ordner „KlarTastatur“. Von dort kannst du sie teilen, sichern oder in einer Sticker-App benutzen. Emojis selbst sind Schriftzeichen – die gibt es auf jedem Handy.")
+
         // ---- Rechtschreibprüfung
         card("Rechtschreibprüfung")
         val spell = spellCheckerActive()
