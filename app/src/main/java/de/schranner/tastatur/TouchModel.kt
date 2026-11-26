@@ -16,11 +16,14 @@ object TouchModel {
     /** Größte Verschiebung einer Tastengrenze bei Stärke 100 % (Anteil am Tastenabstand). */
     const val MAX_SHIFT = 0.35f
 
-    /** Ab diesem Verhältnis zum wahrscheinlichsten Buchstaben gibt es keinen Bonus mehr. */
-    private val RANGE = ln(300f)
+    /** Unter dieser Wahrscheinlichkeit gibt es keinen Bonus (seltene Wörter wie „Bällebad“ vergrößern nichts). */
+    const val MIN_PROB = 0.05f
+    private val RANGE = ln(1f / MIN_PROB)
 
     /**
-     * Wahrscheinlichkeiten je Buchstabe -> Gewicht je vorhandener Taste (1 = wahrscheinlichste, 0 = kein Bonus).
+     * Wahrscheinlichkeiten je Buchstabe -> Gewicht je vorhandener Taste (1 = sicher, 0 = kein Bonus).
+     * Maßgeblich ist die echte Wahrscheinlichkeit: Ist unklar, wie es weitergeht (mehrere Buchstaben
+     * etwa gleich wahrscheinlich), wird keiner stark vergrößert.
      * Buchstaben ohne eigene Taste (ä, ö, ü, ß auf der schlichten Tastatur) zählen für ihre Grundtaste.
      */
     fun weights(probs: Map<Char, Float>, keys: Set<Char>): Map<Char, Float> {
@@ -29,9 +32,10 @@ object TouchModel {
             val k = if (ch in keys) ch else SuggestionEngine.baseChar(ch)
             if (k in keys) folded[k] = (folded[k] ?: 0f) + p
         }
-        val max = folded.values.maxOrNull() ?: return emptyMap()
-        if (max <= 0f) return emptyMap()
-        return folded.mapValues { (1f + ln(it.value / max) / RANGE).coerceIn(0f, 1f) }
+        val total = folded.values.sum()
+        if (total <= 0f) return emptyMap()
+        return folded.mapValues { (ln((it.value / total) / MIN_PROB) / RANGE).coerceIn(0f, 1f) }
+            .filterValues { it > 0f }
     }
 
     /**

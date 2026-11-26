@@ -45,6 +45,11 @@ class Prefs(context: Context) {
         get() = sp.getBoolean(KEY_VOICE_TWO_PASS, true)
         set(v) = sp.edit().putBoolean(KEY_VOICE_TWO_PASS, v).apply()
 
+    /** Vorschläge auch in Feldern, die sie abschalten (viele Webseiten im Browser). */
+    var suggestEverywhere: Boolean
+        get() = sp.getBoolean(KEY_SUGGEST_EVERYWHERE, true)
+        set(v) = sp.edit().putBoolean(KEY_SUGGEST_EVERYWHERE, v).apply()
+
     /** Debug: Treffhilfe auf der Tastatur sichtbar machen. */
     var debugTouch: Boolean
         get() = sp.getBoolean(KEY_DEBUG_TOUCH, false)
@@ -160,6 +165,7 @@ class Prefs(context: Context) {
         const val KEY_BAVARIAN = "bavarian"
         const val KEY_DEBUG_TOUCH = "debug_touch"
         const val KEY_VOICE_TWO_PASS = "voice_two_pass"
+        const val KEY_SUGGEST_EVERYWHERE = "suggest_everywhere"
         const val KEY_SIZE = "key_size"
         const val KEY_BOTTOM_PAD = "bottom_pad"
         const val KEY_LAYOUT = "layout"

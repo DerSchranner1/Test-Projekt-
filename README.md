@@ -35,9 +35,12 @@ Eine dunkle, schlichte Android-Tastatur für Deutsch und Englisch. Sie bringt Ti
 - Gesprochene Satzzeichen („Komma“, „Fragezeichen“, „neue Zeile“) werden umgewandelt.
 
 **Rechtschreibung (ohne Internet)**
-- Die Tastatur kennt rund 500.000 gültige Wortformen. Unbekannte Wörter werden im Text rot markiert und in der Vorschlagsleiste rot unterkringelt, daneben stehen Korrekturen.
-- Großschreibung im Zusammenhang: Nach „Das unterkringeln funktioniert“ wird „Unterkringeln“ vorgeschlagen.
+- Die Tastatur kennt rund 500.000 gültige Wortformen.
+- **Rot unterkringelt:** unbekanntes Wort (Tippfehler?). **Blau:** das Wort gibt es, aber hier gehört es anders geschrieben, meist groß („das auto“ → „Auto“, „Das unterkringeln funktioniert“ → „Unterkringeln“). Die Verbesserung steht oben in der Leiste, daneben bei Bedarf ein passendes Emoji.
+- Setzt du den Cursor später hinter ein Wort, wird es erneut geprüft.
+- Die Markierung im Text selbst zeigen nur Apps, die das unterstützen (blau ab Android 12). In der Leiste ist sie immer zu sehen.
 - Die App bringt außerdem eine Rechtschreibprüfung für das ganze Handy mit, die in den Systemeinstellungen ausgewählt wird.
+- **Vorschläge auch im Browser:** auch in Feldern, in denen Webseiten Vorschläge abschalten (außer Passwort, E-Mail, Adresse).
 
 **Tippgefühl**
 - Unterschiedliche Vibration für Buchstaben, Sondertasten, langes Drücken, Cursor-Schritte, Bestätigungen und Fehler. Die Stärke ist per Regler einstellbar.

@@ -7,12 +7,16 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.widget.TextView
 
-/** Textfeld der Vorschlagsleiste, das ein Wort rot unterkringeln kann (für unbekannte Wörter). */
+/** Textfeld der Vorschlagsleiste, das ein Wort unterkringeln kann (rot: unbekannt, blau: Großschreibung/Grammatik). */
 @SuppressLint("AppCompatCustomView", "ViewConstructor")
 class SquiggleTextView(context: Context, color: Int) : TextView(context) {
 
     var squiggle = false
         set(v) { if (field != v) { field = v; invalidate() } }
+
+    /** Farbe der Wellenlinie. */
+    var squiggleColor: Int = color
+        set(v) { if (field != v) { field = v; wave.color = v; invalidate() } }
 
     private val d = resources.displayMetrics.density
     private val wave = Paint(Paint.ANTI_ALIAS_FLAG).apply {

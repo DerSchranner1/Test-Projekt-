@@ -148,7 +148,10 @@ class SettingsActivity : Activity() {
         hint("Kennt „i hob“, „des is ned“, „griaß di“, „pfiat di“ und über 40.000 bairische Wörter: keine roten Markierungen, passende Vorschläge, und die Treffhilfe rechnet mit Bairisch. Deutsch und Englisch gehen weiterhin.")
         switch("Autokorrektur", prefs.autocorrect) { prefs.autocorrect = it }
         hint("Aus: Tippfehler werden nur rot markiert. An: eindeutige Fehler werden ersetzt, ⌫ macht es rückgängig.")
-        switch("Tippfehler rot markieren", prefs.markTypos) { prefs.markTypos = it }
+        switch("Fehler markieren", prefs.markTypos) { prefs.markTypos = it }
+        hint("Rot unterkringelt: unbekanntes Wort (Tippfehler?). Blau: das Wort gibt es, aber hier gehört es anders geschrieben – meist groß („das Auto“). Oben in der Leiste steht dann die Verbesserung. Setzt du den Cursor später hinter ein Wort, wird es erneut geprüft.")
+        switch("Vorschläge auch im Browser", prefs.suggestEverywhere) { prefs.suggestEverywhere = it }
+        hint("Viele Webseiten schalten Vorschläge ab. Mit diesem Schalter gibt es sie trotzdem – außer in Passwort-, E-Mail- und Adressfeldern.")
         switch("Zahlenreihe", prefs.numberRow) { prefs.numberRow = it }
         switch("Eigene ß-Taste", prefs.eszettKey) { prefs.eszettKey = it }
         switch("Emoji-Vorschläge", prefs.emojiSuggestions) { prefs.emojiSuggestions = it; build() }

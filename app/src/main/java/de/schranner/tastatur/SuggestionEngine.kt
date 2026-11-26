@@ -396,8 +396,11 @@ class SuggestionEngine(
         }
         // 2) Tippfehler-Korrektur
         if (low.length >= 2) {
+            // Umlaute, die bewusst getippt wurden („schö“), nicht wegkorrigieren („scho“)
+            val umlauts = low.filter { it in "äöüß" }
             for ((w, dist) in corrections(low)) {
-                val s = score(w, c) - dist * 4.5f
+                var s = score(w, c) - dist * 4.5f
+                if (umlauts.isNotEmpty() && umlauts.any { it !in w }) s -= 4f
                 if (s > (scores[w] ?: Float.NEGATIVE_INFINITY)) scores[w] = s
             }
         }
@@ -649,6 +652,25 @@ class SuggestionEngine(
     fun rankAll(words: List<String>, prev: String?, prev2: String? = null): FloatArray {
         val c = ctx(prev, prev2)
         return FloatArray(words.size) { score(words[it], c) }
+    }
+
+    /**
+     * Großschreib-Hinweis für ein fertiges Wort: „das auto“ -> „Auto“.
+     * Nur wenn das Wörterbuch es als Hauptwort kennt, der Zusammenhang die große Schreibweise
+     * bestätigt und du es nicht selbst bewusst klein gelernt hast.
+     * @return die richtige Schreibweise oder null
+     */
+    @Synchronized
+    fun capitalHint(prev2: String?, prev: String?, word: String): String? {
+        if (!loaded || prev == null || english > 0.5f) return null
+        if (word.length < 2 || !word[0].isLowerCase() || word.any { !it.isLetter() && it != '-' }) return null
+        val low = word.lowercase()
+        val e = dict[low] ?: return null
+        if (!e.word[0].isUpperCase() || e.scoreDe <= 0f) return null
+        if (userCasing[low]?.firstOrNull()?.isLowerCase() == true) return null
+        val shown = display(low, ctx(prev, prev2))
+        if (!shown[0].isUpperCase() || !shown.equals(word, ignoreCase = true)) return null
+        return shown
     }
 
     @Synchronized

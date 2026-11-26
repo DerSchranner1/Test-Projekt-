@@ -93,6 +93,12 @@ class ScreenshotTest {
         h.prefs.debugTouch = false
     }
 
+    @Test fun blueHint() {
+        val h = KeyboardHarness { it.markTypos = true; it.autocorrect = false }
+        h.type("ich fahre das auto ")
+        h.screenshot("26_blau_unterkringelt")
+    }
+
     @Test fun logo() {
         val ctx = org.robolectric.RuntimeEnvironment.getApplication()
         val size = 432

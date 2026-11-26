@@ -22,6 +22,8 @@ class KeyboardTheme(context: Context) {
     val barText = text
     val divider = Color.parseColor("#1E272B")
     val typo = Color.parseColor("#FF8A80")
+    /** Blau: Großschreibung und Grammatik (das Wort gibt es, aber so passt es hier nicht). */
+    val grammar = Color.parseColor("#82B1FF")
     val recording = Color.parseColor("#FF8A80")
     val popup = Color.parseColor("#3A464D")
     val popupSelected = accent

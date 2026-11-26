@@ -297,6 +297,52 @@ class InteractionTest {
         assertTrue(h2.text.startsWith("Hallo welt"))
     }
 
+    @Test fun blueHintForLowercaseNouns() {
+        val h = KeyboardHarness { it.markTypos = true; it.autocorrect = false }
+        h.type("ich fahre das auto ")
+        println("Blau: „${h.text}“ Leiste: ${h.suggestions()}")
+        assertEquals(listOf("auto", "Auto"), h.suggestions().take(2))
+        val slots: Array<android.widget.TextView?> = ReflectionHelpers.getField(h.service, "slots")
+        val sq = slots[0] as SquiggleTextView
+        assertTrue(sq.squiggle)
+        assertEquals(ReflectionHelpers.getField<KeyboardTheme>(h.service, "theme").grammar, sq.squiggleColor)
+        h.pick("Auto")
+        assertEquals("Ich fahre das Auto ", h.text)
+        // Korrekt geschriebene Sätze bleiben ohne Hinweis
+        val h2 = KeyboardHarness { it.markTypos = true }
+        h2.type("wir gehen morgen essen ")
+        println("Ohne Hinweis: ${h2.suggestions()}")
+        assertTrue(h2.suggestions().none { it == "Essen" || it == "Morgen" })
+    }
+
+    @Test fun wordIsCheckedAgainWhenTheCursorComesBack() {
+        val h = KeyboardHarness { it.markTypos = true }
+        h.type("ein fehelr hier ")
+        // Cursor hinter „fehelr“ setzen, wie mit dem Finger
+        val pos = h.text.indexOf("fehelr") + "fehelr".length
+        h.edit.setSelection(pos)
+        ReflectionHelpers.setField(h.service, "lastEditTime", -100_000L)
+        h.service.onUpdateSelection(h.text.length, h.text.length, pos, pos, -1, -1)
+        h.settle()
+        println("Cursor hinter fehelr: ${h.suggestions()}")
+        assertTrue(h.suggestions().contains("Fehler"))
+        h.pick("Fehler")
+        println("Nach Korrektur: „${h.text}“")
+        assertTrue(h.text.startsWith("Ein Fehler hier"))
+    }
+
+    @Test fun suggestionsAlsoWhereWebPagesTurnThemOff() {
+        val type = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+        val h = KeyboardHarness(type) { it.suggestEverywhere = true }
+        h.type("hall")
+        println("Browserfeld mit Vorschlägen: ${h.suggestions()}")
+        assertTrue(h.suggestions().any { it.equals("hallo", true) })
+        val h2 = KeyboardHarness(type) { it.suggestEverywhere = false }
+        h2.type("hall")
+        assertTrue(h2.suggestions().none { it.equals("hallo", true) })
+        h2.prefs.suggestEverywhere = true
+    }
+
     @Test fun bavarianIsNotMarkedAsTypo() {
         val h = KeyboardHarness { it.bavarian = true; it.autocorrect = true; it.markTypos = true }
         h.type("griass di oida i hob des ned gwusst ")

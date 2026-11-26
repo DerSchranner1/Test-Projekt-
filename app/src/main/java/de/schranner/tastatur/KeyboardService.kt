@@ -20,6 +20,7 @@ import android.os.Looper
 import android.os.SystemClock
 import android.text.InputType
 import android.text.SpannableString
+import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.TextUtils
 import android.text.style.SuggestionSpan
@@ -62,6 +63,8 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         class Word(val word: String, label: String = word) : Sugg(label)
         class Correction(val target: String, val replacement: String) : Sugg(replacement)
         class AddWord(val word: String) : Sugg(word)
+        /** Blau unterkringelt: so stehen lassen (Hinweis verwerfen). */
+        class Dismiss(val word: String) : Sugg(word)
         /** @param replace darf das Wort ersetzen (Emoji steht für genau dieses Wort, nicht für eine Wendung) */
         class Emoji(val emoji: String, val word: String? = null, val replace: Boolean = false) : Sugg(emoji)
         /** Smiley aus Zeichen („:)“) durch ein echtes Emoji ersetzen. */
@@ -121,6 +124,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     private var mode = Mode.LETTERS
     private var field = FieldKind.TEXT
     private var suggestionsOn = true
+    private var marksInText = true
     private val composing = StringBuilder()
     private var composingPrev: String? = null
     private var composingPrev2: String? = null
@@ -281,8 +285,13 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         if (cls == InputType.TYPE_CLASS_NUMBER && info.inputType and InputType.TYPE_NUMBER_VARIATION_PASSWORD != 0) {
             field = FieldKind.NUMBER
         }
+        // Viele Webseiten melden „keine Vorschläge“ (z. B. autocomplete=off). Wie Gboard trotzdem anbieten,
+        // wenn gewünscht – nie aber in Passwort-, E-Mail- oder Adressfeldern.
+        val appWantsNone = info.inputType and InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS != 0
         suggestionsOn = cls == InputType.TYPE_CLASS_TEXT && field == FieldKind.TEXT &&
-            info.inputType and InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS == 0
+            (!appWantsNone || prefs.suggestEverywhere)
+        // Markierungen im Text nur, wo die App Rechtschreibhilfe nicht abgeschaltet hat
+        marksInText = !appWantsNone
         mode = if (field == FieldKind.NUMBER || field == FieldKind.PHONE) Mode.NUMPAD else Mode.LETTERS
         applyLayout()
         keyboard.enterLabel = enterLabel(info)
@@ -329,7 +338,14 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         }
         if (composing.isEmpty() && newSelStart != oldSelStart) {
             updateAutoShift()
-            if (!voice.isActive && newSelStart != oldSelStart + 1) refreshSuggestions()
+            if (!voice.isActive && newSelStart != oldSelStart + 1) {
+                // Vom Nutzer versetzt (nicht durch eigenes Tippen): Wort am Cursor erneut prüfen
+                if (newSelStart == newSelEnd && SystemClock.uptimeMillis() - lastEditTime > 300) {
+                    correctionTarget = null
+                    checkWordAtCursor()
+                }
+                refreshSuggestions()
+            }
         }
     }
 
@@ -629,30 +645,91 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
                 return
             }
         }
-        if (prefs.markTypos && w.length > 1 && w.any { it.isLetter() } && !engine.isKnown(w)) {
+        val known = engine.isKnown(w)
+        val cap = if (prefs.markTypos && known) engine.capitalHint(composingPrev2, prev, w) else null
+        if (prefs.markTypos && w.length > 1 && w.any { it.isLetter() } && !known) {
             val corr = engine.correctionsFor(w, prev)
-            val sp = SpannableString(w)
-            try {
-                sp.setSpan(
-                    SuggestionSpan(this, corr.take(5).toTypedArray(),
-                        SuggestionSpan.FLAG_MISSPELLED),   // rote Markierung des Systems
-                    0, w.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
-                )
-            } catch (_: Exception) { }
-            ic.commitText(sp, 1)
+            ic.commitText(marked(w, corr, grammar = false), 1)
             if (corr.isNotEmpty()) {
                 correctionTarget = w
                 correctionPrev = prev
             }
+        } else if (cap != null && prefs.autocorrect) {
+            // Autokorrektur an: gleich richtig groß schreiben
+            ic.commitText(cap, 1)
+            lastAutocorrect = w to cap
+        } else if (cap != null) {
+            // Blau: das Wort gibt es, aber hier gehört es groß
+            ic.commitText(marked(w, listOf(cap), grammar = true), 1)
+            correctionTarget = w
+            correctionPrev = prev
+            correctionFix = cap
         } else {
             ic.commitText(w, 1)
         }
         engine.learn(w, prev, composingSentenceStart)
         // „Das unterkringeln funktioniert“: das Wort davor war ein Hauptwort und gehört groß
-        val fixed = engine.nounFromVerb(composingPrev2, prev, w)
+        val fixed = if (cap == null) engine.nounFromVerb(composingPrev2, prev, w) else null
         if (fixed != null && prev != null) {
             if (prefs.autocorrect) replaceEarlierWord(prev, fixed)
-            else { correctionTarget = prev; correctionPrev = composingPrev2; correctionFix = fixed }
+            else {
+                markEarlierWord(prev, fixed)
+                correctionTarget = prev; correctionPrev = composingPrev2; correctionFix = fixed
+            }
+        }
+    }
+
+    /**
+     * Wort mit Markierung des Systems: rot (unbekannt) oder blau (Grammatik, ab Android 12).
+     * Apps, die Markierungen nicht zeigen, ignorieren sie – oben in der Leiste steht der Hinweis trotzdem.
+     */
+    private fun marked(w: String, suggestions: List<String>, grammar: Boolean): CharSequence {
+        if (!marksInText) return w
+        val flag = when {
+            !grammar -> SuggestionSpan.FLAG_MISSPELLED
+            Build.VERSION.SDK_INT >= 31 -> SuggestionSpan.FLAG_GRAMMAR_ERROR
+            else -> return w
+        }
+        val sp = SpannableString(w)
+        try {
+            sp.setSpan(SuggestionSpan(this, suggestions.take(5).toTypedArray(), flag), 0, w.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        } catch (_: Exception) { }
+        return sp
+    }
+
+    /** Ein früheres Wort vor dem Cursor blau markieren (z. B. „Das unterkringeln funktioniert“). */
+    private fun markEarlierWord(target: String, fix: String) {
+        if (!marksInText || Build.VERSION.SDK_INT < 31) return
+        val ic = currentInputConnection ?: return
+        val before = ic.getTextBeforeCursor(CONTEXT_CHARS, 0)?.toString() ?: return
+        val m = Regex("(?<![\\p{L}\\p{N}])" + Regex.escape(target) + "(?![\\p{L}\\p{N}])").findAll(before).lastOrNull() ?: return
+        val tail = before.substring(m.range.last + 1)
+        ic.beginBatchEdit()
+        ic.deleteSurroundingText(before.length - m.range.first, 0)
+        ic.commitText(SpannableStringBuilder(marked(target, listOf(fix), grammar = true)).append(tail), 1)
+        ic.endBatchEdit()
+    }
+
+    /**
+     * Cursor wurde hinter ein Wort gesetzt (z. B. zum Nachbessern): das Wort erneut prüfen und
+     * rot/blau mit Verbesserungen oben in der Leiste anzeigen.
+     */
+    private fun checkWordAtCursor() {
+        if (!prefs.markTypos || !suggestionsOn || composing.isNotEmpty()) return
+        val ic = currentInputConnection ?: return
+        val after = ic.getTextAfterCursor(1, 0)?.toString() ?: ""
+        if (after.isNotEmpty() && after[0].isLetterOrDigit()) return
+        val before = ic.getTextBeforeCursor(CONTEXT_CHARS, 0)?.toString() ?: return
+        val m = Regex("([\\p{L}][\\p{L}'’-]*)$").find(before) ?: return
+        val w = m.groupValues[1]
+        if (w.length < 2) return
+        val ctx = TextContext.parse(before.substring(0, m.range.first), complete = before.length < CONTEXT_CHARS)
+        correctionFix = null
+        if (!engine.isKnown(w)) {
+            correctionTarget = w; correctionPrev = ctx.prev
+        } else {
+            val cap = engine.capitalHint(ctx.prev2, ctx.prev, w) ?: return
+            correctionTarget = w; correctionPrev = ctx.prev; correctionFix = cap
         }
     }
 
@@ -729,6 +806,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         val prev = composingPrev
         val prev2 = composingPrev2
         val atStart = composingSentenceStart
+        val beforeNow = if (typed.isEmpty()) currentInputConnection?.getTextBeforeCursor(CONTEXT_CHARS, 0)?.toString() ?: "" else ""
         worker.execute {
             val items = mutableListOf<Sugg>()
             if (typed.isNotEmpty()) {
@@ -755,8 +833,11 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
                     }
                 }
             } else if (target != null && fix != null) {
-                // Grammatik-Hinweis: nur die richtige Schreibweise anbieten
+                // Blauer Hinweis: links so lassen (blau unterkringelt), daneben die richtige Schreibweise
+                items += Sugg.Dismiss(target)
                 items += Sugg.Correction(target, fix)
+                // Passt ein Emoji („gute nacht“ -> 😴), kommt es rechts dazu
+                emojiAfter(beforeNow)?.let { items += it }
             } else if (target != null) {
                 val corr = engine.correctionsFor(target, targetPrev)
                 items += Sugg.AddWord(target)
@@ -841,7 +922,10 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
             val s = shown[i]
             tv.text = s?.label ?: ""
             // Unbekanntes Wort: rot unterkringelt (sichtbar auch in Apps, die im Text nichts markieren)
-            (tv as? SquiggleTextView)?.squiggle = s is Sugg.AddWord
+            (tv as? SquiggleTextView)?.let {
+                it.squiggle = s is Sugg.AddWord || s is Sugg.Dismiss
+                it.squiggleColor = if (s is Sugg.Dismiss) theme.grammar else theme.typo
+            }
             // Emojis etwas größer, damit man sie gut erkennt
             tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, when (s) {
                 is Sugg.Emoji, is Sugg.EmojiReplace -> 23f
@@ -892,6 +976,9 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
                     applyCorrection(s.target, s.replacement)
                     engine.forget(s.target)
                 }
+            }
+            is Sugg.Dismiss -> {
+                correctionTarget = null
             }
             is Sugg.AddWord -> {
                 engine.addWord(s.word)
@@ -965,9 +1052,12 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         if (idx < 0) { correctionTarget = null; return }
         val tail = before.substring(idx + target.length)
         if (tail.any { it.isLetterOrDigit() }) { correctionTarget = null; return }
+        // Leerzeichen nur anhängen, wenn danach nicht schon Leerzeichen oder Satzzeichen kommen
+        val next = ic.getTextAfterCursor(1, 0)?.toString() ?: ""
+        val space = if (tail.isEmpty() && (next.isEmpty() || next[0].isLetterOrDigit())) " " else ""
         ic.beginBatchEdit()
         ic.deleteSurroundingText(before.length - idx, 0)
-        ic.commitText(replacement + tail.ifEmpty { " " }, 1)
+        ic.commitText(replacement + tail + space, 1)
         ic.endBatchEdit()
         engine.learn(replacement, correctionPrev, false)
         correctionTarget = null

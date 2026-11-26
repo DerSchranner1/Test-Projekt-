@@ -14,7 +14,8 @@ import collections, math, re, sys
 
 basis, bar_txt, words_tsv, out_words, out_ngrams = sys.argv[1:6]
 
-LEVEL = {5: 700, 4: 645, 3: 595, 2: 545, 1: 500}
+# Häufigkeit wie im Hochdeutschen „nichts“/„schön“ (5) bis selten (1) – Hochdeutsch bleibt vorne
+LEVEL = {5: 575, 4: 540, 3: 505, 2: 470, 1: 440}
 TOKEN = re.compile(r"[A-Za-zÄÖÜäöüß]+(?:'[a-zäöü]+)?")
 
 # --- Hochdeutsches Wörterbuch
@@ -85,7 +86,7 @@ for w, n in counts.items():
         continue
     if not re.fullmatch(r"[a-zäöüß]+(?:'[a-zäöü]+)?", w):
         continue
-    score = min(620.0, 900 + 100 * math.log10(n / total) - 60)
+    score = min(500.0, 900 + 100 * math.log10(n / total) - 100)
     out[w] = (cased(w), round(score))
 
 with open(out_words, 'w', encoding='utf-8') as f:
