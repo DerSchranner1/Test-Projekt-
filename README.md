@@ -62,3 +62,11 @@ Die APK liegt danach unter `app/build/outputs/apk/release/app-release.apk`.
 
 Mindestens Android 8.0. Die App nutzt die Berechtigung `USE_EXACT_ALARM`; für eine Veröffentlichung
 im Play Store müsste sie durch `SCHEDULE_EXACT_ALARM` ersetzt werden.
+
+---
+
+# Weitere Projekte in diesem Repo
+
+- [RamWächter](ramwaechter/README.md): Windows-Tool, das zeigt, wohin der RAM geht, ob er bremst,
+  wie sich die Auslagerung auswirkt und ob sich ein Upgrade lohnt.
+  Download: https://github.com/DerSchranner1/Test-Projekt-/releases/download/ramwaechter-latest/RamWaechter.exe
