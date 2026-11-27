@@ -190,7 +190,7 @@ class SettingsActivity : Activity() {
         } else {
             debugGuide()
         }
-        hint("Größe, Einhandmodus und Textbearbeitung: in der Tastatur oben links auf das Kachel-Symbol tippen.")
+        hint("Größe, Einhandmodus und Textbearbeitung: in der Tastatur oben links auf das K-Zeichen tippen.")
 
         // ---- Diktieren
         anchors[PAGE_VOICE] = card("Diktieren")

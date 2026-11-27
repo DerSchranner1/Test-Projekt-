@@ -21,7 +21,7 @@ Eine dunkle, schlichte Android-Tastatur für Deutsch und Englisch. Sie bringt Ti
 - **Animierte Emojis:** Die 60 beliebtesten stecken in der App, bewegen sich schon in der Übersicht und werden ohne Internet als GIF gesendet. Weitere werden nach Zustimmung geladen.
 - **GIFs aus Filmen und Memes** kommen von GIPHY und brauchen einen kostenlosen Schlüssel. Mit Schlüssel werden die Trend-GIFs beim Öffnen des Emoji-Bereichs schon vorgeladen. Dazu eigene Sticker aus der Galerie und Emoji-Sticker. Eigene Sticker und die eingebauten animierten Emojis lassen sich in den Einstellungen in die Galerie speichern (Ordner „KlarTastatur“).
 
-**Werkzeugleiste** (bei leerem Feld sichtbar, sonst über das Kachel-Symbol oben links)
+**Werkzeugleiste** (bei leerem Feld sichtbar, sonst über das K-Zeichen oben links)
 - **Zwischenablage:** Verlauf mit Anheften. Passwörter werden nicht gespeichert.
 - **Textbearbeitung:** Cursor-Pfeile, Auswählen, Kopieren, Einfügen, Ausschneiden, Rückgängig.
 - **Einhandmodus:** schmale Tastatur links oder rechts.

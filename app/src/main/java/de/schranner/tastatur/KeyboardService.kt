@@ -1371,7 +1371,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         }
         suggRow.addView(micView(), LinearLayout.LayoutParams(dp(50f), ViewGroup.LayoutParams.MATCH_PARENT))
 
-        // Werkzeugleiste (bei leerem Feld oder über das Kachel-Symbol)
+        // Werkzeugleiste (bei leerem Feld oder über das K-Zeichen oben links)
         toolRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -1383,7 +1383,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
             v.contentDescription = tip
             toolRow.addView(v, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
         }
-        tool(iconButton(R.drawable.ic_apps) { toolbarForced = false; updateBar(); refreshSuggestions() }, "Wortvorschläge")
+        tool(iconButton(R.drawable.ic_logo) { toolbarForced = false; updateBar(); refreshSuggestions() }, "Wortvorschläge")
         tool(iconButton(R.drawable.ic_clipboard) { togglePanel(Panel.CLIPBOARD) }, "Zwischenablage")
         tool(barButton("GIF") { openMedia(MediaPanel.Tab.GIF) }.apply {
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f); setTypeface(null, Typeface.BOLD)
