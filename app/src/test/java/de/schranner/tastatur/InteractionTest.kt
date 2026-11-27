@@ -331,6 +331,26 @@ class InteractionTest {
         assertTrue(h.text.startsWith("Ein Fehler hier"))
     }
 
+    @Test fun earlierTypoStaysVisibleInTheBar() {
+        val h = KeyboardHarness { it.markTypos = true; it.autocorrect = false }
+        h.type("ein fehller und noch mehr dazu ")
+        println("Früherer Fehler: ${h.suggestions()}")
+        assertEquals("fehller", h.suggestions()[0])
+        val slots: Array<android.widget.TextView?> = ReflectionHelpers.getField(h.service, "slots")
+        assertTrue((slots[0] as SquiggleTextView).squiggle)
+        h.pick("fehller")
+        println("Verbesserungen: ${h.suggestions()}")
+        h.pick("Fehler")
+        println("Nach Korrektur: „${h.text}“")
+        assertEquals("Ein Fehler und noch mehr dazu ", h.text)
+        assertTrue(h.suggestions().none { it == "fehller" })
+        // Langer Druck: in diesem Feld nicht mehr anzeigen
+        h.type("blxrpf ist da ")
+        assertEquals("blxrpf", h.suggestions()[0])
+        slots[0]!!.performLongClick(); h.settle()
+        assertTrue(h.suggestions().none { it == "blxrpf" })
+    }
+
     @Test fun suggestionsAlsoWhereWebPagesTurnThemOff() {
         val type = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
         val h = KeyboardHarness(type) { it.suggestEverywhere = true }

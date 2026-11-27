@@ -38,6 +38,7 @@ Eine dunkle, schlichte Android-Tastatur für Deutsch und Englisch. Sie bringt Ti
 - Die Tastatur kennt rund 500.000 gültige Wortformen.
 - **Rot unterkringelt:** unbekanntes Wort (Tippfehler?). **Blau:** das Wort gibt es, aber hier gehört es anders geschrieben, meist groß („das auto“ → „Auto“, „Das unterkringeln funktioniert“ → „Unterkringeln“). Die Verbesserung steht oben in der Leiste, daneben bei Bedarf ein passendes Emoji.
 - Setzt du den Cursor später hinter ein Wort, wird es erneut geprüft.
+- **Fehler weiter vorne im Text** stehen links in der Leiste rot unterkringelt, auch wenn du schon weitergetippt hast – antippen zeigt Verbesserungen, lange drücken lässt das Wort in diesem Feld stehen. Das hilft vor allem in Apps, die selbst nichts markieren.
 - Die Markierung im Text selbst zeigen nur Apps, die das unterstützen (blau ab Android 12). In der Leiste ist sie immer zu sehen.
 - Die App bringt außerdem eine Rechtschreibprüfung für das ganze Handy mit, die in den Systemeinstellungen ausgewählt wird.
 - **Vorschläge auch im Browser:** auch in Feldern, in denen Webseiten Vorschläge abschalten (außer Passwort, E-Mail, Adresse).

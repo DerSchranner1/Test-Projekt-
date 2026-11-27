@@ -12,8 +12,8 @@ android {
         applicationId = "de.schranner.tastatur"
         minSdk = 29
         targetSdk = 34
-        versionCode = 17
-        versionName = "0.14.1"
+        versionCode = 18
+        versionName = "0.15"
 
         // Offline-Spracherkennung (whisper.cpp) für 64-Bit-ARM – das sind praktisch alle aktuellen Handys
         ndk { abiFilters += "arm64-v8a" }

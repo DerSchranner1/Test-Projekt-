@@ -51,6 +51,8 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     companion object {
         /** So viele Zeichen vor dem Cursor werden für Vorschläge angesehen. */
         private const val CONTEXT_CHARS = 120
+        /** So weit zurück wird nach früheren Tippfehlern gesucht. */
+        const val TYPO_SCAN_CHARS = 400
         /** Höhe der Leiste über den Tasten in dp (wie bei Gboard). */
         private const val BAR_DP = 43f
     }
@@ -65,6 +67,8 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         class AddWord(val word: String) : Sugg(word)
         /** Blau unterkringelt: so stehen lassen (Hinweis verwerfen). */
         class Dismiss(val word: String) : Sugg(word)
+        /** Rot unterkringelt: ein Tippfehler weiter vorne im Text – antippen zeigt Verbesserungen. */
+        class EarlierTypo(val word: String) : Sugg(word)
         /** @param replace darf das Wort ersetzen (Emoji steht für genau dieses Wort, nicht für eine Wendung) */
         class Emoji(val emoji: String, val word: String? = null, val replace: Boolean = false) : Sugg(emoji)
         /** Smiley aus Zeichen („:)“) durch ein echtes Emoji ersetzen. */
@@ -138,7 +142,11 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
     private var assistToken = 0
     private var composingSentenceStart = false
     private var correctionTarget: String? = null
-        set(v) { field = v; if (v == null) correctionFix = null }
+        set(v) { field = v; correctionEarlier = false; if (v == null) correctionFix = null }
+    /** Der Fehler steht weiter vorne im Text (nicht direkt vor dem Cursor). */
+    private var correctionEarlier = false
+    /** Fehler, die in diesem Feld bewusst stehen bleiben sollen (langer Druck). */
+    private val ignoredTypos = HashSet<String>()
     /** Bei einem Grammatik-Hinweis: die richtige Schreibweise des früheren Worts. */
     private var correctionFix: String? = null
     private var correctionPrev: String? = null
@@ -246,6 +254,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         composing.setLength(0)
         correctionTarget = null
         lastAutoSpace = false
+        ignoredTypos.clear()
         gestureAlts = null
         lastWasGesture = false
         lastAutocorrect = null
@@ -733,10 +742,28 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
         }
     }
 
+    /**
+     * Letzter Tippfehler weiter vorne im Text (nicht das Wort direkt am Cursor), oder null.
+     * Links, E-Mail-Adressen, Zahlen und bewusst ignorierte Wörter zählen nicht.
+     */
+    private fun findEarlierTypo(before: String): String? {
+        if (before.isEmpty() || before.last().isLetterOrDigit()) return null
+        val tokens = Regex("\\S+").findAll(before).map { it.value }.toList()
+        for (raw in tokens.asReversed().take(60)) {
+            if (raw.contains('@') || raw.contains('/') || raw.contains("www") || raw.any { it.isDigit() }) continue
+            val w = raw.trim { !it.isLetter() }
+            if (w.length < 3 || w.any { !it.isLetter() && it != '-' && it != '\'' && it != '’' }) continue
+            if (w.all { it.isUpperCase() }) continue          // Abkürzungen
+            if (w in ignoredTypos || engine.isKnown(w)) continue
+            return w
+        }
+        return null
+    }
+
     /** Ein früheres Wort vor dem Cursor ersetzen; alles danach bleibt stehen. */
-    private fun replaceEarlierWord(target: String, replacement: String) {
+    private fun replaceEarlierWord(target: String, replacement: String, window: Int = CONTEXT_CHARS) {
         val ic = currentInputConnection ?: return
-        val before = ic.getTextBeforeCursor(CONTEXT_CHARS, 0)?.toString() ?: return
+        val before = ic.getTextBeforeCursor(window, 0)?.toString() ?: return
         val m = Regex("(?<![\\p{L}\\p{N}])" + Regex.escape(target) + "(?![\\p{L}\\p{N}])").findAll(before).lastOrNull() ?: return
         val tail = before.substring(m.range.last + 1)
         ic.beginBatchEdit()
@@ -782,23 +809,27 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
             return
         }
         if (typed.isEmpty() && target == null) {
-            val before = currentInputConnection?.getTextBeforeCursor(CONTEXT_CHARS, 0)?.toString() ?: ""
+            val fullBefore = currentInputConnection?.getTextBeforeCursor(TYPO_SCAN_CHARS, 0)?.toString() ?: ""
+            val before = fullBefore.takeLast(CONTEXT_CHARS)
             val ctx = contextBefore(before)
             engine.setRecentWords(ctx.recent)
             worker.execute {
                 val preds = engine.predictNext(ctx.prev, ctx.start, ctx.prev2)
                 val emo = emojiAfter(before)
+                val earlier = if (prefs.markTypos) findEarlierTypo(fullBefore) else null
                 main.post {
                     if (token != suggestToken) return@post
                     val items = mutableListOf<Sugg>()
                     if (clipText != null) items += Sugg.Paste(clipText)
+                    // Tippfehler weiter vorne: links rot unterkringelt (auch in Apps, die im Text nichts markieren)
+                    if (earlier != null && clipText == null) items += Sugg.EarlierTypo(earlier)
                     items += preds.map { Sugg.Word(it) }
                     when (emo) {
                         is Sugg.EmojiReplace -> if (items.size >= 2) items.add(1, emo) else items += emo
                         is Sugg.Emoji -> if (items.size >= 3) items[2] = emo else items += emo
                         else -> {}
                     }
-                    show(items.take(3))
+                    show(items.take(3), centerFirst = earlier != null && items.size < 3)
                 }
             }
             return
@@ -923,7 +954,7 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
             tv.text = s?.label ?: ""
             // Unbekanntes Wort: rot unterkringelt (sichtbar auch in Apps, die im Text nichts markieren)
             (tv as? SquiggleTextView)?.let {
-                it.squiggle = s is Sugg.AddWord || s is Sugg.Dismiss
+                it.squiggle = s is Sugg.AddWord || s is Sugg.Dismiss || s is Sugg.EarlierTypo
                 it.squiggleColor = if (s is Sugg.Dismiss) theme.grammar else theme.typo
             }
             // Emojis etwas größer, damit man sie gut erkennt
@@ -969,13 +1000,23 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
                 correctionTarget = null
             }
             is Sugg.Correction -> {
-                if (correctionFix != null) {
+                if (correctionEarlier) {
+                    replaceEarlierWord(s.target, s.replacement, TYPO_SCAN_CHARS)
+                    engine.learn(s.replacement, null, false)
+                    correctionTarget = null
+                } else if (correctionFix != null) {
                     replaceEarlierWord(s.target, s.replacement)
                     correctionTarget = null
                 } else {
                     applyCorrection(s.target, s.replacement)
                     engine.forget(s.target)
                 }
+            }
+            is Sugg.EarlierTypo -> {
+                // Verbesserungen für das frühere Wort zeigen
+                correctionTarget = s.word
+                correctionPrev = null
+                correctionEarlier = true
             }
             is Sugg.Dismiss -> {
                 correctionTarget = null
@@ -1338,6 +1379,13 @@ class KeyboardService : InputMethodService(), KeyboardView.Listener, VoiceInput.
                 setOnClickListener { pickSuggestion(i) }
                 setOnLongClickListener {
                     val s = shown[i]
+                    if (s is Sugg.EarlierTypo) {
+                        // Langer Druck: so lassen und in diesem Feld nicht mehr anzeigen
+                        ignoredTypos += s.word
+                        haptics.play(Haptics.Kind.CONFIRM)
+                        refreshSuggestions()
+                        return@setOnLongClickListener true
+                    }
                     if (s is Sugg.Emoji && s.replace && s.word != null) {
                         // Langer Druck: selbst wählen – „Geige 🎻“, „🎻“ oder mehr Emojis
                         haptics.play(Haptics.Kind.POPUP)
