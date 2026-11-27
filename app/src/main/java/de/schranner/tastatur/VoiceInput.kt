@@ -6,6 +6,7 @@ import android.content.Intent
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -21,18 +22,26 @@ import kotlin.math.sqrt
 
 /**
  * Diktieren.
- * - Mit (kostenlosem) Groq-Schlüssel: Aufnahme auf dem Handy, Erkennung mit Whisper large-v3 –
- *   deutlich genauer als die eingebaute Erkennung, inkl. Satzzeichen.
- * - Ohne Schlüssel: Android-Spracherkennung als Ersatz.
+ * - Offline (privat): Whisper läuft auf dem Handy, sobald das Modell geladen wurde. Nichts verlässt das Gerät.
+ * - Mit (kostenlosem) Groq-Schlüssel: Erkennung mit Whisper large-v3 im Netz – am genauesten.
+ * - Ohne Schlüssel: die Spracherkennung des Handys – wenn möglich auf dem Gerät, als Dauerdiktat
+ *   mit Zwischenergebnissen und automatischen Satzzeichen.
  */
 class VoiceInput(private val context: Context, private val prefs: Prefs) {
 
     interface Callback {
         fun onListening(engineName: String)
         fun onLevel(level: Float)
+        /** Zwischenstand, während noch gesprochen wird. */
         fun onPartial(text: String)
+        /** Ein fertiger Abschnitt; es wird weiter zugehört (Dauerdiktat). */
+        fun onSegment(text: String)
         fun onProcessing()
         fun onResult(text: String)
+        /** Das schnelle Ergebnis kam schon, das genaue wird gerade berechnet. */
+        fun onRefining() {}
+        /** Genaueres Ergebnis zum zuletzt eingefügten Text (null = nichts Besseres gefunden). */
+        fun onRefined(text: String?) {}
         fun onError(message: String)
         fun onIdle()
     }
@@ -47,11 +56,62 @@ class VoiceInput(private val context: Context, private val prefs: Prefs) {
 
     val isActive: Boolean get() = recording || recognizer != null
 
-    fun useWhisper() = prefs.groqKey.isNotBlank()
+    enum class Engine { OFFLINE, GROQ, ANDROID }
+
+    val offline = OfflineWhisper(context)
+
+    /**
+     * Welche Erkennung wird benutzt?
+     * 1. Groq, wenn eingeschaltet, ein Schlüssel da ist und Internet besteht
+     * 2. sonst auf dem Handy (offline) – erst schnell, dann genau
+     * 3. sonst Groq (falls Schlüssel und Internet, aber kein Modell), zuletzt die Erkennung des Handys
+     */
+    fun engine(): Engine {
+        val hasKey = prefs.groqKey.isNotBlank()
+        val net = hasKey && isOnline()
+        return when {
+            prefs.useGroq && net -> Engine.GROQ
+            offline.ready() -> Engine.OFFLINE
+            net -> Engine.GROQ
+            else -> Engine.ANDROID
+        }
+    }
+
+    /** Gibt es gerade eine funktionierende Internetverbindung? */
+    fun isOnline(): Boolean = try {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+        val caps = cm.getNetworkCapabilities(cm.activeNetwork)
+        caps != null && caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+            caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    } catch (_: Exception) { true }
+
+    /**
+     * Auf dem Handy erkennen. Mit beiden Modellen und „erst schnell, dann genau“:
+     * das schnelle Ergebnis sofort zeigen, das genaue danach nachreichen.
+     * @return das (erste) Ergebnis
+     */
+    private fun transcribeOffline(pcm: ByteArray, onFast: ((String) -> Unit)? = null): String? {
+        val language = if (prefs.voiceLanguage == "auto") "auto" else prefs.voiceLanguage
+        val prompt = buildPrompt()
+        if (prefs.voiceTwoPass && offline.twoPassPossible() && onFast != null) {
+            // Erst das schnellste Modell (Text sofort da), dann das genaueste (verbessert den Text)
+            val fast = offline.transcribe(pcm, language, prompt, offline.fastest())
+            if (fast != null) {
+                onFast(fast)
+                return offline.transcribe(pcm, language, prompt, offline.installed())
+            }
+        }
+        return offline.transcribe(pcm, language, prompt)
+    }
+
+    fun useWhisper() = engine() != Engine.ANDROID
 
     fun start() {
         if (isActive) return
-        if (useWhisper()) startWhisper() else startAndroid()
+        when (val e = engine()) {
+            Engine.ANDROID -> startAndroid()
+            else -> startWhisper(e)
+        }
     }
 
     /** Aufnahme beenden – bei Whisper wird danach erkannt. */
@@ -71,10 +131,10 @@ class VoiceInput(private val context: Context, private val prefs: Prefs) {
 
     @Volatile private var cancelled = false
 
-    // ------------------------------------------------------------- Whisper (Groq)
+    // ------------------------------------------------------------- Whisper (offline oder Groq)
 
     @SuppressLint("MissingPermission")
-    private fun startWhisper() {
+    private fun startWhisper(engine: Engine) {
         val rate = 16000
         val minBuf = AudioRecord.getMinBufferSize(rate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
         val rec = try {
@@ -95,6 +155,8 @@ class VoiceInput(private val context: Context, private val prefs: Prefs) {
             var peak = 0.0
             val maxSamples = rate * 60 * 5 // höchstens 5 Minuten
             var total = 0
+            var spoken = 0          // Abschnitte mit Sprache
+            var quiet = 0           // Stille in Folge (je 0,1 s)
             try {
                 rec.startRecording()
                 while (recording && total < maxSamples) {
@@ -109,6 +171,9 @@ class VoiceInput(private val context: Context, private val prefs: Prefs) {
                     total += n
                     val rms = sqrt(sum / n)
                     if (rms > peak) peak = rms
+                    // Nach dem Sprechen und 2,5 Sekunden Stille von selbst aufhören
+                    if (rms > 700) { spoken++; quiet = 0 } else if (rms < 350) quiet++
+                    if (spoken >= 4 && quiet >= 25) recording = false
                     val level = (rms / 3000.0).coerceIn(0.0, 1.0).toFloat()
                     main.post { callback?.onLevel(level) }
                 }
@@ -124,14 +189,39 @@ class VoiceInput(private val context: Context, private val prefs: Prefs) {
                 return@Thread
             }
             main.post { callback?.onProcessing() }
+            // Zweistufig: Das schnelle Ergebnis geht sofort raus, das genaue kommt als Verbesserung
+            var fastSent = false
+            val onFast: (String) -> Unit = { fast ->
+                val clean = cleanWhisper(fast)
+                if (clean.isNotEmpty() && !cancelled) {
+                    fastSent = true
+                    main.post { callback?.onResult(clean); callback?.onRefining() }
+                }
+            }
             val result = try {
-                transcribe(wav(pcm.toByteArray(), rate))
+                if (engine == Engine.OFFLINE) {
+                    // Auf dem Gerät – die Aufnahme bleibt im Arbeitsspeicher und wird danach verworfen
+                    transcribeOffline(pcm.toByteArray(), onFast) ?: throw IllegalStateException("offline")
+                } else {
+                    try {
+                        transcribe(wav(pcm.toByteArray(), rate))
+                    } catch (net: java.io.IOException) {
+                        // Kein Internet: mit der Erkennung auf dem Handy weitermachen, wenn sie da ist
+                        if (!offline.ready()) throw net
+                        transcribeOffline(pcm.toByteArray(), onFast) ?: throw net
+                    }
+                }
             } catch (e: Exception) {
-                main.post { callback?.onError(friendlyError(e)) }
+                if (fastSent) { main.post { callback?.onRefined(null) }; return@Thread }
+                main.post { callback?.onError(if (engine == Engine.OFFLINE) "Offline-Erkennung fehlgeschlagen" else friendlyError(e)) }
                 return@Thread
             }
             if (cancelled) return@Thread
             val clean = cleanWhisper(result)
+            if (fastSent) {
+                main.post { callback?.onRefined(clean.ifEmpty { null }) }
+                return@Thread
+            }
             main.post {
                 if (clean.isEmpty()) callback?.onError("Nichts erkannt – bitte nochmal")
                 else callback?.onResult(clean)
@@ -212,22 +302,49 @@ class VoiceInput(private val context: Context, private val prefs: Prefs) {
 
     // ------------------------------------------------------------- Android-Erkennung
 
-    private fun startAndroid() {
-        if (!SpeechRecognizer.isRecognitionAvailable(context)) {
-            callback?.onError("Keine Spracherkennung verfügbar – Groq-Schlüssel eintragen")
+    private var gotAnything = false
+
+    /**
+     * Versuch 0: Erkennung auf dem Gerät als Dauerdiktat mit automatischen Satzzeichen (Android 13+).
+     * Versuch 1: normale Erkennung mit automatischen Satzzeichen.
+     * Versuch 2: normale Erkennung ohne Extras.
+     * Unterstützt das Handy eine Stufe nicht, wird automatisch die nächste genommen.
+     */
+    private fun startAndroid(attempt: Int = 0) {
+        gotAnything = false
+        val onDevice = attempt == 0 && Build.VERSION.SDK_INT >= 33 &&
+            try { SpeechRecognizer.isOnDeviceRecognitionAvailable(context) } catch (_: Exception) { false }
+        if (attempt == 0 && !onDevice) { startAndroid(1); return }
+        if (!onDevice && !SpeechRecognizer.isRecognitionAvailable(context)) {
+            callback?.onError("Auf diesem Handy ist keine Spracherkennung installiert")
             return
         }
         cancelled = false
-        val sr = SpeechRecognizer.createSpeechRecognizer(context)
+        val sr = try {
+            if (onDevice && Build.VERSION.SDK_INT >= 31) SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
+            else SpeechRecognizer.createSpeechRecognizer(context)
+        } catch (e: Exception) {
+            if (attempt < 2) startAndroid(attempt + 1) else callback?.onError("Spracherkennung fehlgeschlagen")
+            return
+        }
         recognizer = sr
+        fun best(b: Bundle?) = b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull() ?: ""
         sr.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) { callback?.onListening("Android") }
             override fun onBeginningOfSpeech() {}
             override fun onRmsChanged(rmsdB: Float) { callback?.onLevel(((rmsdB + 2f) / 12f).coerceIn(0f, 1f)) }
             override fun onBufferReceived(buffer: ByteArray?) {}
-            override fun onEndOfSpeech() { callback?.onProcessing() }
+            override fun onEndOfSpeech() { if (!onDevice) callback?.onProcessing() }
             override fun onError(error: Int) {
                 finishAndroid()
+                if (cancelled) return
+                val heardNothing = error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT
+                val hopeless = error == SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS || error == SpeechRecognizer.ERROR_AUDIO
+                if (!gotAnything && !heardNothing && !hopeless && attempt < 2) {
+                    startAndroid(attempt + 1)
+                    return
+                }
+                if (gotAnything && heardNothing) { callback?.onIdle(); return }
                 callback?.onError(
                     when (error) {
                         SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Nichts erkannt – bitte nochmal"
@@ -238,25 +355,53 @@ class VoiceInput(private val context: Context, private val prefs: Prefs) {
                 )
             }
             override fun onResults(results: Bundle?) {
-                val text = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull() ?: ""
+                val text = best(results)
                 finishAndroid()
-                if (text.isBlank()) callback?.onError("Nichts erkannt – bitte nochmal") else callback?.onResult(text)
+                when {
+                    text.isNotBlank() -> callback?.onResult(text)
+                    gotAnything -> callback?.onIdle()
+                    else -> callback?.onError("Nichts erkannt – bitte nochmal")
+                }
             }
             override fun onPartialResults(partialResults: Bundle?) {
-                partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
-                    ?.let { callback?.onPartial(it) }
+                val text = best(partialResults)
+                if (text.isNotBlank()) { gotAnything = true; callback?.onPartial(text) }
+            }
+            override fun onSegmentResults(segmentResults: Bundle) {
+                val text = best(segmentResults)
+                if (text.isNotBlank()) { gotAnything = true; callback?.onSegment(text) }
+            }
+            override fun onEndOfSegmentedSession() {
+                finishAndroid()
+                callback?.onIdle()
             }
             override fun onEvent(eventType: Int, params: Bundle?) {}
         })
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, if (prefs.voiceLanguage == "auto") "de-DE" else "de-DE")
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "de-DE")
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 2500L)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 2500L)
+            val silence = if (onDevice) 6000L else 2500L
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, silence)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, silence)
+            if (attempt < 2 && Build.VERSION.SDK_INT >= 33) {
+                // Satzzeichen und Großschreibung automatisch; eigene Wörter (Namen) bevorzugen
+                putExtra(RecognizerIntent.EXTRA_ENABLE_FORMATTING, RecognizerIntent.FORMATTING_OPTIMIZE_QUALITY)
+                if (vocabulary.isNotEmpty()) {
+                    putStringArrayListExtra(RecognizerIntent.EXTRA_BIASING_STRINGS, ArrayList(vocabulary.take(40)))
+                }
+                if (onDevice) {
+                    // Dauerdiktat: Pausen beenden die Aufnahme nicht, Abschnitte kommen einzeln an
+                    putExtra(
+                        RecognizerIntent.EXTRA_SEGMENTED_SESSION,
+                        RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS,
+                    )
+                }
+            }
         }
         try { sr.startListening(intent) } catch (e: Exception) {
-            finishAndroid(); callback?.onError("Spracherkennung fehlgeschlagen")
+            finishAndroid()
+            if (attempt < 2) startAndroid(attempt + 1) else callback?.onError("Spracherkennung fehlgeschlagen")
         }
     }
 

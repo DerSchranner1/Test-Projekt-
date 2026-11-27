@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KlarTastatur-Logo: eine Taste mit „K“ und einem kleinen Funken -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- Tastenrand (unten sichtbar, wirkt plastisch) -->
+    <path android:fillColor="#FF0B3B47"
+        android:pathData="M42,35h24a11,11 0 0 1 11,11v22a11,11 0 0 1 -11,11h-24a11,11 0 0 1 -11,-11v-22a11,11 0 0 1 11,-11z" />
+    <!-- Tastenoberfläche -->
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M42,30h24a11,11 0 0 1 11,11v22a11,11 0 0 1 -11,11h-24a11,11 0 0 1 -11,-11v-22a11,11 0 0 1 11,-11z" />
+    <!-- K -->
+    <path android:strokeColor="#FF0F766E" android:strokeWidth="6.5"
+        android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:pathData="M45,41V63M59.5,41L46.5,52.5M50,49.5L60.5,63" />
+    <!-- Funke -->
+    <path android:fillColor="#FF14B8A6"
+        android:pathData="M69,35Q69,40 74,40Q69,40 69,45Q69,40 64,40Q69,40 69,35Z" />
+</vector>

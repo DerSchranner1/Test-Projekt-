@@ -9,8 +9,8 @@ import org.json.JSONObject
 import java.io.File
 
 /**
- * Verlauf der Zwischenablage: merkt sich alles Kopierte (außer Passwörtern),
- * angeheftete Einträge bleiben dauerhaft, der Rest wird nach 3 Tagen gelöscht.
+ * Verlauf der Zwischenablage: merkt sich Kopiertes (außer Passwörtern) für eine Stunde,
+ * angeheftete Einträge bleiben dauerhaft. Liegt nur im privaten Speicher der App.
  */
 class ClipboardStore(private val context: Context) {
 
@@ -20,6 +20,13 @@ class ClipboardStore(private val context: Context) {
     private val file = File(context.filesDir, "clipboard.json")
     private val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     var onNewClip: ((Item) -> Unit)? = null
+
+    /** Verlauf führen? Beim Abschalten wird alles Nicht-Angeheftete sofort gelöscht. */
+    var enabled = true
+        set(v) {
+            if (field && !v) clearUnpinned()
+            field = v
+        }
     /** Zeitpunkt des letzten neuen Eintrags (für den „Einfügen“-Vorschlag). */
     var lastNewClipTime = 0L
         private set
@@ -38,6 +45,7 @@ class ClipboardStore(private val context: Context) {
 
     /** Aktuellen Inhalt der Zwischenablage übernehmen (falls neu). */
     fun capture() {
+        if (!enabled) return
         try {
             val clip = cm.primaryClip ?: return
             if (clip.itemCount == 0) return
@@ -65,7 +73,8 @@ class ClipboardStore(private val context: Context) {
     fun markUsed() { lastNewClipTime = 0L }
 
     private fun trim() {
-        val cutoff = System.currentTimeMillis() - 3L * 24 * 3600 * 1000
+        // Wie bei Gboard: Kopiertes bleibt eine Stunde, Angeheftetes dauerhaft
+        val cutoff = System.currentTimeMillis() - RETENTION_MS
         items.removeAll { !it.pinned && it.time < cutoff }
         var unpinned = 0
         val it = items.iterator()
@@ -96,6 +105,7 @@ class ClipboardStore(private val context: Context) {
     }
 
     companion object {
+        const val RETENTION_MS = 3600_000L
         private const val EXTRA_SENSITIVE = "android.content.extra.IS_SENSITIVE"
 
         /** Erkennt Codes, Links, E-Mails und Telefonnummern im kopierten Text. */

@@ -1,27 +1,30 @@
 package de.schranner.tastatur
 
 import android.content.Context
-import android.content.res.Configuration
 import android.graphics.Color
 
-/** Farben für helles und dunkles Design – folgt automatisch dem System. */
+/**
+ * Eigenes dunkles Design der KlarTastatur: tiefes Petrol-Schwarz mit türkisem Akzent
+ * (bewusst anders als Gboard, gleich kompakte Maße). Nur Dark Mode.
+ */
+@Suppress("UNUSED_PARAMETER")
 class KeyboardTheme(context: Context) {
-    val dark: Boolean =
-        (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
-            Configuration.UI_MODE_NIGHT_YES
+    val dark = true
 
-    val background = if (dark) Color.parseColor("#1B1C1F") else Color.parseColor("#E8EAED")
-    val key = if (dark) Color.parseColor("#3A3B3F") else Color.WHITE
-    val keyPressed = if (dark) Color.parseColor("#5A5C61") else Color.parseColor("#C9CDD3")
-    val specialKey = if (dark) Color.parseColor("#2A2B2E") else Color.parseColor("#C4C8CF")
-    val accent = Color.parseColor("#1E6FD9")
-    val accentText = Color.WHITE
-    val text = if (dark) Color.parseColor("#F1F3F4") else Color.parseColor("#202124")
-    val hint = if (dark) Color.parseColor("#9AA0A6") else Color.parseColor("#80868B")
+    val background = Color.parseColor("#11171A")
+    val key = Color.parseColor("#262E33")
+    val keyPressed = Color.parseColor("#3D4950")
+    val specialKey = Color.parseColor("#323C42")
+    val accent = Color.parseColor("#5FD3C4")
+    val accentText = Color.parseColor("#00312C")
+    val text = Color.parseColor("#E6ECEE")
+    val hint = Color.parseColor("#A9B6BC")
     val barText = text
-    val divider = if (dark) Color.parseColor("#3C4043") else Color.parseColor("#C4C8CF")
-    val typo = Color.parseColor("#D93025")
-    val recording = Color.parseColor("#D93025")
-    val popup = if (dark) Color.parseColor("#4A4C51") else Color.WHITE
+    val divider = Color.parseColor("#1E272B")
+    val typo = Color.parseColor("#FF8A80")
+    /** Blau: Großschreibung und Grammatik (das Wort gibt es, aber so passt es hier nicht). */
+    val grammar = Color.parseColor("#82B1FF")
+    val recording = Color.parseColor("#FF8A80")
+    val popup = Color.parseColor("#3A464D")
     val popupSelected = accent
 }

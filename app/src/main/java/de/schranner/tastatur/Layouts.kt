@@ -10,24 +10,50 @@ class Key(
     val weight: Float = 1f,
     val alts: List<String> = emptyList(),
 ) {
-    /** Kleiner Hinweis oben rechts (z. B. Ziffer bei langem Drücken). */
-    val hint: String? = alts.firstOrNull()?.takeIf { it.length == 1 && it[0].isDigit() }
     val bounds = RectF()
 }
 
 typealias KeyRows = List<List<Key>>
 
+/** Buchstaben-Anordnung. */
+enum class KeyLayout(val id: String, val title: String) {
+    QWERTZ("qwertz", "QWERTZ"),
+    QWERTZ_UMLAUT("qwertz_umlaut", "QWERTZ mit Ä Ö Ü"),
+    QWERTY("qwerty", "QWERTY");
+
+    companion object {
+        fun of(id: String) = entries.firstOrNull { it.id == id } ?: QWERTZ
+    }
+}
+
 object Layouts {
     private fun c(label: String, alts: String = "") =
         Key(label, KeyType.CHAR, 1f, if (alts.isEmpty()) emptyList() else alts.split(" "))
 
-    private fun bottomRow(left: Key, comma: String, period: String, emoji: Boolean): List<Key> {
-        val list = mutableListOf(left)
-        list += Key(comma, KeyType.CHAR, 1f, commaAlts(comma))
-        if (emoji) list += Key("☺", KeyType.EMOJI, 1f)
-        list += Key(" ", KeyType.SPACE, if (emoji) 4.5f else 5.5f)
-        list += Key(period, KeyType.CHAR, 1f, listOf(".", "…", "!", "?", ",", "-", ":", ";", "'", "\"").filter { it != period })
-        list += Key("⏎", KeyType.ENTER, 2f)
+    // Lang drücken: der Umlaut ist automatisch vorausgewählt (a → ä, o → ö, u → ü, s → ß)
+    private val ALTS = mapOf(
+        'e' to "é è ê ë €", 'u' to "ü ú ù û", 'i' to "í ì î ï", 'o' to "ö ó ò ô œ ø",
+        'a' to "ä á à â æ å", 's' to "ß ś š", 'c' to "ç č", 'n' to "ñ", 'ß' to "ẞ",
+    )
+
+    /** Die drei Buchstabenreihen als Text – auch für Tippfehler-Erkennung (Nachbartasten). */
+    fun letterRows(layout: KeyLayout, eszett: Boolean): List<String> {
+        val umlaut = layout == KeyLayout.QWERTZ_UMLAUT
+        val qwerty = layout == KeyLayout.QWERTY
+        return listOf(
+            (if (qwerty) "qwertyuiop" else "qwertzuiop") + (if (umlaut) "ü" else ""),
+            "asdfghjkl" + (if (umlaut) "öä" else if (eszett) "ß" else ""),
+            (if (qwerty) "zxcvbnm" else "yxcvbnm") + (if (umlaut && eszett) "ß" else ""),
+        )
+    }
+
+    private fun bottomRow(left: Key, comma: String, period: String, emoji: Boolean, scale: Float = 1f): List<Key> {
+        val list = mutableListOf(Key(left.label, left.type, left.weight * scale))
+        list += Key(comma, KeyType.CHAR, scale, commaAlts(comma))
+        if (emoji) list += Key("☺", KeyType.EMOJI, scale)
+        list += Key(" ", KeyType.SPACE, (if (emoji) 4f else 5f) * scale)
+        list += Key(period, KeyType.CHAR, scale, listOf(".", "…", "!", "?", ",", "-", ":", ";", "'", "\"").filter { it != period })
+        list += Key("⏎", KeyType.ENTER, 1.5f * scale)
         return list
     }
 
@@ -37,26 +63,25 @@ object Layouts {
         else -> listOf(";", ":", "!", "?", "'", "\"", "-")
     }
 
-    fun letters(numberRow: Boolean, field: FieldKind): KeyRows {
+    fun letters(
+        numberRow: Boolean, field: FieldKind,
+        layout: KeyLayout = KeyLayout.QWERTZ, eszett: Boolean = false,
+    ): KeyRows {
+        val text = letterRows(layout, eszett)
+        val cols = text[0].length                 // 10 oder 11
+        val scale = cols / 10f
         val rows = mutableListOf<List<Key>>()
         if (numberRow) {
-            rows += "1234567890".map { Key(it.toString(), KeyType.CHAR, 1.1f, numberAlts(it)) }
+            rows += "1234567890".map { Key(it.toString(), KeyType.CHAR, scale, numberAlts(it)) }
         }
-        rows += listOf(
-            c("q", "1"), c("w", "2"), c("e", "3 € é è ê ë"), c("r", "4"), c("t", "5"),
-            c("z", "6"), c("u", "7 ü ú ù û"), c("i", "8 í ì î ï"), c("o", "9 ö ó ò ô œ"),
-            c("p", "0"), c("ü", "u"),
-        )
-        rows += listOf(
-            c("a", "@ ä á à â æ å"), c("s", "ß $ š"), c("d", "&"), c("f", "_"), c("g", "-"),
-            c("h", "+"), c("j", "("), c("k", ")"), c("l", "/"), c("ö", "o"), c("ä", "a"),
-        )
-        rows += listOf(Key("⇧", KeyType.SHIFT, 1.5f)) +
-            listOf(c("y", "*"), c("x", "\""), c("c", "' ç"), c("v", ":"), c("b", ";"),
-                c("n", "! ñ"), c("m", "?"), c("ß", "s")) +
-            listOf(Key("⌫", KeyType.DELETE, 1.5f))
+        rows += text[0].map { c(it.toString(), ALTS[it] ?: "") }
+        rows += text[1].map { c(it.toString(), ALTS[it] ?: "") }
+        val side = (cols - text[2].length) / 2f
+        rows += listOf(Key("⇧", KeyType.SHIFT, side)) +
+            text[2].map { c(it.toString(), ALTS[it] ?: "") } +
+            listOf(Key("⌫", KeyType.DELETE, side))
         val comma = when (field) { FieldKind.EMAIL -> "@"; FieldKind.URL -> "/"; else -> "," }
-        rows += bottomRow(Key("?123", KeyType.SYMBOLS, 1.5f), comma, ".", true)
+        rows += bottomRow(Key("?123", KeyType.SYMBOLS, 1.5f), comma, ".", true, scale)
         return rows
     }
 

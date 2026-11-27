@@ -6,13 +6,20 @@ plugins {
 android {
     namespace = "de.schranner.tastatur"
     compileSdk = 35
+    ndkVersion = "28.2.13676358"
 
     defaultConfig {
         applicationId = "de.schranner.tastatur"
         minSdk = 29
-        targetSdk = 35
-        versionCode = 1
-        versionName = "0.1"
+        targetSdk = 34
+        versionCode = 20
+        versionName = "0.17"
+
+        // Offline-Spracherkennung (whisper.cpp) für 64-Bit-ARM – das sind praktisch alle aktuellen Handys
+        ndk { abiFilters += "arm64-v8a" }
+        externalNativeBuild {
+            cmake { arguments += listOf("-DCMAKE_BUILD_TYPE=Release", "-DANDROID_STL=c++_static") }
+        }
     }
 
     signingConfigs {
@@ -39,8 +46,24 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
+
+    testOptions {
+        unitTests {
+            // Für die Bild-Tests (Tastatur wird ohne Handy gerendert)
+            isIncludeAndroidResources = true
+            all { it.maxHeapSize = "2g" }
+        }
+    }
 }
 
 dependencies {
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.14.1")
 }
