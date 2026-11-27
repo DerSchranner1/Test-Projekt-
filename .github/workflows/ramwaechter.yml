@@ -1,0 +1,73 @@
+name: RamWächter
+
+on:
+  push:
+    paths:
+      - 'ramwaechter/**'
+      - '.github/workflows/ramwaechter.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ramwaechter-exe
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Tests
+        run: dotnet test ramwaechter/tests/RamWaechter.Core.Tests -c Release
+
+      - name: EXE bauen
+        run: >
+          dotnet publish ramwaechter/src/RamWaechter -c Release -r win-x64 --self-contained
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true
+          -p:Version=1.0.${{ github.run_number }} -o out
+
+      - name: Selbsttest auf echtem Windows
+        run: |
+          $dir = Join-Path $PWD 'selbsttest'
+          $p = Start-Process -FilePath out/RamWaechter.exe -ArgumentList '--selftest', "`"$dir`"" -PassThru
+          $null = $p.Handle  # sonst ist ExitCode später leer
+          if (-not $p.WaitForExit(180000)) { $p.Kill(); throw 'Selbsttest hängt' }
+          Get-ChildItem $dir | Format-Table Name, Length
+          foreach ($f in 'diagnose.txt', 'fehler.log', 'bericht.txt', '2-apps-details.txt') {
+            $path = Join-Path $dir $f
+            if (Test-Path $path) { "===== $f ====="; Get-Content $path -Encoding utf8 }
+          }
+          Compress-Archive -Path "$dir/*" -DestinationPath RamWaechter-Selbsttest.zip -Force
+          if ($p.ExitCode -ne 0) { throw "Selbsttest fehlgeschlagen (Exit-Code $($p.ExitCode))" }
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: selbsttest
+          path: selbsttest
+          if-no-files-found: ignore
+
+      - name: Als Release veröffentlichen (fester Download-Link)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TITLE="RamWächter – Windows (Build ${{ github.run_number }})"
+          NOTES="Automatisch gebaut aus ${GITHUB_REF_NAME} (${GITHUB_SHA::7}). RamWaechter.exe herunterladen und starten, keine Installation nötig (Windows 10/11, 64 Bit). Die EXE ist nicht signiert: Bei der SmartScreen-Warnung auf „Weitere Informationen“ → „Trotzdem ausführen“ klicken. RamWaechter-Selbsttest.zip enthält Bericht und Bilder vom Testlauf auf dem Build-Server."
+          if gh release view ramwaechter-latest >/dev/null 2>&1; then
+            gh release upload ramwaechter-latest out/RamWaechter.exe RamWaechter-Selbsttest.zip --clobber
+            gh release edit ramwaechter-latest --title "$TITLE" --notes "$NOTES" --prerelease
+          else
+            gh release create ramwaechter-latest out/RamWaechter.exe RamWaechter-Selbsttest.zip --target "$GITHUB_SHA" \
+              --title "$TITLE" --notes "$NOTES" --prerelease
+          fi
