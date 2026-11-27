@@ -30,7 +30,7 @@ Eine dunkle, schlichte Android-Tastatur für Deutsch und Englisch. Sie bringt Ti
 **Diktieren**
 - 🎤 antippen und sprechen. Die Aufnahme endet von selbst, wenn du fertig bist.
 - **Reihenfolge:** 1. mit Internet Groq (wenn eingeschaltet), 2. ohne Internet auf dem Handy, 3. sonst die Spracherkennung des Handys. Ob Internet da ist, prüft die Tastatur selbst.
-- **Auf dem Handy (offline, privat):** whisper.cpp mit zwei Modellen, die einmal geladen werden: „Schnell“ (60 MB) und „Genau“ (190 MB). Mit „Erst schnell, dann genau“ (standardmäßig an) steht der Text sofort da und wird ein paar Sekunden später verbessert. Die Aufnahme verlässt das Handy nicht.
+- **Auf dem Handy (offline, privat):** whisper.cpp mit Modellen, die einmal geladen werden: „Schnell“ (60 MB), „Genau“ (190 MB) und freiwillig „Sehr genau“ (Whisper large-v3-turbo, 574 MB – am besten bei Geräuschen und Dialekt, aber auf dem Handy etwa 10–25 Sekunden). Mit „Erst schnell, dann genau“ (standardmäßig an) steht der Text sofort da und wird danach mit dem genauesten vorhandenen Modell verbessert. Die Aufnahme verlässt das Handy nicht.
 - **Online mit Groq (optional):** Whisper large-v3 mit kostenlosem Schlüssel, per Schalter „Groq benutzen, wenn Internet da ist“.
 - Gesprochene Satzzeichen („Komma“, „Fragezeichen“, „neue Zeile“) werden umgewandelt.
 

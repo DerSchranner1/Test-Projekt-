@@ -14,7 +14,10 @@ import java.net.URL
  */
 class OfflineWhisper(context: Context) {
 
+    /** Reihenfolge: genauestes zuerst. */
     enum class Model(val file: String, val bytes: Long, val title: String, val size: String) {
+        /** Whisper large-v3-turbo: am besten bei Geräuschen, Dialekt und undeutlicher Aussprache – aber langsam. */
+        TURBO("ggml-large-v3-turbo-q5_0.bin", 574_041_195L, "Sehr genau", "574 MB"),
         SMALL("ggml-small-q5_1.bin", 190_085_487L, "Genau", "190 MB"),
         BASE("ggml-base-q5_1.bin", 59_707_625L, "Schnell", "60 MB"),
     }
@@ -29,11 +32,14 @@ class OfflineWhisper(context: Context) {
     fun partFile(m: Model) = File(dir, m.file + ".part")
     fun isInstalled(m: Model) = file(m).let { it.exists() && it.length() == m.bytes }
 
-    /** Das beste vorhandene Modell („Genau“ vor „Schnell“). */
+    /** Das genaueste vorhandene Modell („Sehr genau“ vor „Genau“ vor „Schnell“). */
     fun installed(): Model? = Model.entries.firstOrNull { isInstalled(it) }
 
-    /** Sind beide Modelle da (für „erst schnell, dann genau“)? */
-    fun bothInstalled(): Boolean = Model.entries.all { isInstalled(it) }
+    /** Das schnellste vorhandene Modell. */
+    fun fastest(): Model? = Model.entries.lastOrNull { isInstalled(it) }
+
+    /** Gibt es ein schnelles UND ein genaueres Modell (für „erst schnell, dann genau“)? */
+    fun twoPassPossible(): Boolean = installed() != null && installed() != fastest()
 
     /** Kann dieses Gerät die Offline-Erkennung ausführen und ist ein Modell da? */
     fun ready(): Boolean = installed() != null && WhisperNative.ensureLoaded()

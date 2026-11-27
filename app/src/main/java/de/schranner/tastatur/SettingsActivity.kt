@@ -206,8 +206,11 @@ class SettingsActivity : Activity() {
         val whisper = OfflineWhisper(this)
         val fast = whisper.isInstalled(OfflineWhisper.Model.BASE)
         val exact = whisper.isInstalled(OfflineWhisper.Model.SMALL)
+        val turbo = whisper.isInstalled(OfflineWhisper.Model.TURBO)
+        val best = whisper.installed()
+        val quick = whisper.fastest()
         val canOffline = WhisperNative.ensureLoaded()
-        val hasOffline = canOffline && (fast || exact)
+        val hasOffline = canOffline && best != null
         val groqOn = groq && prefs.useGroq && groqOk != false
         if (groq && groqOk == false) status("✗  Der Groq-Schlüssel funktioniert nicht", bad)
 
@@ -218,14 +221,16 @@ class SettingsActivity : Activity() {
             text(detail, 13f, dim, 0f, 4f).setPadding(dp(30f), 0, 0, dp(4f))
         }
         step(1, groqOn, "Mit Internet: Groq",
-            if (groqOn) "Am genauesten. Die Aufnahme wird dafür an Groq geschickt." else if (groq) "Ausgeschaltet – siehe unten." else "Nicht eingerichtet (optional, siehe unten).")
+            if (groqOn) "Am genauesten und schnell. Die Aufnahme wird dafür an Groq geschickt." else if (groq) "Ausgeschaltet – siehe unten." else "Nicht eingerichtet (optional, siehe unten).")
+        val twoPass = whisper.twoPassPossible() && prefs.voiceTwoPass
         val offlineDetail = when {
             !canOffline -> "Auf diesem Gerät nicht möglich (braucht einen 64-Bit-Prozessor)."
-            fast && exact && prefs.voiceTwoPass -> "Erst „Schnell“: Der Text steht sofort da. Dann „Genau“: Er wird ein paar Sekunden später verbessert. Nichts verlässt das Handy."
-            fast && exact -> "Mit „Genau“. Nichts verlässt das Handy."
-            exact -> "Mit „Genau“ (ein paar Sekunden). Tipp: „Schnell“ dazuladen, dann steht der Text sofort da."
-            fast -> "Mit „Schnell“. Tipp: „Genau“ dazuladen, dann wird der Text danach noch verbessert."
-            else -> "Noch kein Modell geladen – siehe unten."
+            best == null -> "Noch kein Modell geladen – siehe unten."
+            twoPass && best == OfflineWhisper.Model.TURBO ->
+                "Erst „${quick!!.title}“: Der Text steht sofort da. Dann „Sehr genau“: Er wird verbessert – das dauert auf dem Handy etwa 10–25 Sekunden. Nichts verlässt das Handy."
+            twoPass -> "Erst „${quick!!.title}“: Der Text steht sofort da. Dann „${best.title}“: Er wird ein paar Sekunden später verbessert. Nichts verlässt das Handy."
+            else -> "Mit „${best.title}“. Nichts verlässt das Handy." +
+                if (!fast) " Tipp: „Schnell“ dazuladen, dann steht der Text sofort da." else ""
         }
         step(2, hasOffline, if (groqOn) "Ohne Internet: auf dem Handy" else "Auf dem Handy (offline)", offlineDetail)
         step(3, !hasOffline && !groqOn, "Sonst: Spracherkennung des Handys", "Wenn nichts anderes geht.")
@@ -241,25 +246,34 @@ class SettingsActivity : Activity() {
             }
             else -> {
                 dl.message?.let { hint(it) }
-                if (!fast && !exact) {
+                if (best == null) {
                     body("Kein Konto, kein Schlüssel – die Aufnahme verlässt das Handy nicht. Dafür werden einmal zwei Modelle geladen, am besten im WLAN: erst „Schnell“ (60 MB), danach „Genau“ (190 MB).")
                     button("Offline-Erkennung laden (250 MB)", primary = true) {
                         dl.startAll(this, listOf(OfflineWhisper.Model.BASE, OfflineWhisper.Model.SMALL)); build()
                     }
+                    hint("Später kannst du noch „Sehr genau“ (574 MB) dazuladen.")
                 } else {
-                    for (m in listOf(OfflineWhisper.Model.BASE, OfflineWhisper.Model.SMALL)) {
-                        val what = if (m == OfflineWhisper.Model.BASE) "Schnell: Text sofort da" else "Genau: erkennt deutlich besser"
+                    val what = mapOf(
+                        OfflineWhisper.Model.BASE to "Schnell: Text sofort da",
+                        OfflineWhisper.Model.SMALL to "Genau: erkennt deutlich besser",
+                        OfflineWhisper.Model.TURBO to "Sehr genau: am besten bei Geräuschen, Dialekt und Nuscheln – aber langsam (auf dem Handy etwa 10–25 Sekunden)",
+                    )
+                    for (m in listOf(OfflineWhisper.Model.BASE, OfflineWhisper.Model.SMALL, OfflineWhisper.Model.TURBO)) {
                         if (whisper.isInstalled(m)) {
-                            text("✓  $what (${m.size})", 14f, textColor, 6f, 0f)
+                            text("✓  ${what[m]} (${m.size})", 14f, textColor, 6f, 0f)
                         } else {
-                            button("„${m.title}“ dazuladen – ${m.size}") { dl.start(this, m); build() }
-                            hint(what + ".")
+                            val optional = m == OfflineWhisper.Model.TURBO
+                            button("„${m.title}“ dazuladen – ${m.size}" + if (optional) " (freiwillig)" else "") { dl.start(this, m); build() }
+                            hint(what[m] + ".")
                         }
                     }
-                    if (fast && exact) {
+                    if (turbo && exact) {
+                        hint("Mit „Sehr genau“ wird „Genau“ nicht mehr gebraucht – du kannst es löschen und 190 MB frei machen.")
+                    }
+                    if (whisper.twoPassPossible()) {
                         switch("Erst schnell, dann genau", prefs.voiceTwoPass) { prefs.voiceTwoPass = it; build() }
-                        hint(if (prefs.voiceTwoPass) "Der Text erscheint sofort und wird kurz danach verbessert. Tippst du in der Zwischenzeit weiter, bleibt der schnelle Text stehen."
-                             else "Es wird nur „Genau“ benutzt: etwas warten, dafür gleich der bessere Text.")
+                        hint(if (prefs.voiceTwoPass) "Der Text erscheint sofort und wird danach mit „${best.title}“ verbessert. Tippst du in der Zwischenzeit weiter, bleibt der schnelle Text stehen."
+                             else "Es wird nur „${best.title}“ benutzt: warten, dafür gleich der beste Text.")
                     }
                     for (m in OfflineWhisper.Model.entries) if (whisper.isInstalled(m)) {
                         button("„${m.title}“ löschen (${m.size} frei machen)") { whisper.delete(m); build() }

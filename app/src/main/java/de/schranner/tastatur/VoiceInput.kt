@@ -93,11 +93,12 @@ class VoiceInput(private val context: Context, private val prefs: Prefs) {
     private fun transcribeOffline(pcm: ByteArray, onFast: ((String) -> Unit)? = null): String? {
         val language = if (prefs.voiceLanguage == "auto") "auto" else prefs.voiceLanguage
         val prompt = buildPrompt()
-        if (prefs.voiceTwoPass && offline.bothInstalled() && onFast != null) {
-            val fast = offline.transcribe(pcm, language, prompt, OfflineWhisper.Model.BASE)
+        if (prefs.voiceTwoPass && offline.twoPassPossible() && onFast != null) {
+            // Erst das schnellste Modell (Text sofort da), dann das genaueste (verbessert den Text)
+            val fast = offline.transcribe(pcm, language, prompt, offline.fastest())
             if (fast != null) {
                 onFast(fast)
-                return offline.transcribe(pcm, language, prompt, OfflineWhisper.Model.SMALL)
+                return offline.transcribe(pcm, language, prompt, offline.installed())
             }
         }
         return offline.transcribe(pcm, language, prompt)
