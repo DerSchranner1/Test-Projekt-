@@ -35,6 +35,9 @@ public sealed record MemoryHardware
     public string Board { get; init; } = "";
     public bool IsLaptop { get; init; }
 
+    /// <summary>Läuft in einer virtuellen Maschine: Riegel und Slots sind dann nur nachgebildet.</summary>
+    public bool IsVirtual => Hardware.LooksVirtual(SystemName) || Hardware.LooksVirtual(Board);
+
     public int FreeSlots => Math.Max(0, SlotCount - Modules.Count);
     public ulong InstalledCapacity => (ulong)Modules.Sum(m => (decimal)m.Capacity);
     public int SmbiosType => Modules.GroupBy(m => m.SmbiosType).OrderByDescending(g => g.Count()).Select(g => g.Key).FirstOrDefault();
@@ -61,6 +64,11 @@ public static class Hardware
         0 or 1 or 2 => "unbekannt",
         _ => $"Typ {smbios}",
     };
+
+    private static readonly string[] VirtualMarkers = { "Virtual Machine", "VMware", "VirtualBox", "QEMU", "KVM", "Xen", "Parallels", "Bochs" };
+
+    public static bool LooksVirtual(string text) =>
+        VirtualMarkers.Any(m => text.Contains(m, StringComparison.OrdinalIgnoreCase));
 
     public static bool IsLowPower(int smbios) => smbios is 27 or 28 or 29 or 30 or 35;
 
@@ -95,6 +103,11 @@ public static class Hardware
         var mods = hw.Modules;
         var notes = new List<string>();
         if (mods.Count == 0) return new ChannelReport("unbekannt", notes, false);
+        if (hw.IsVirtual)
+        {
+            notes.Add("Windows läuft in einer virtuellen Maschine. Riegel, Steckplätze und Takt sind nur nachgebildet und sagen nichts über die echte Hardware. Mehr RAM bekommt die VM über die Einstellungen des Hosts.");
+            return new ChannelReport("virtuelle Maschine", notes, false);
+        }
 
         if (mods.Count == 1 && !mods[0].IsSoldered)
         {

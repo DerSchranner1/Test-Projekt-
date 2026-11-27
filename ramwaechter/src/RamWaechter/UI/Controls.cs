@@ -108,12 +108,12 @@ internal abstract class CardControl : Control, IHeightForWidth
     }
 
     protected static int Measure(string text, Font font, int width) =>
-        string.IsNullOrEmpty(text) ? 0 : TextRenderer.MeasureText(text, font, new Size(Math.Max(10, width), int.MaxValue), TextFormatFlags.WordBreak | TextFormatFlags.NoPadding).Height;
+        string.IsNullOrEmpty(text) ? 0 : TextRenderer.MeasureText(text, font, new Size(Math.Max(10, width), int.MaxValue), TextFormatFlags.WordBreak | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix).Height;
 
     protected static int Draw(Graphics g, string text, Font font, Color color, int x, int y, int width)
     {
         int h = Measure(text, font, width);
-        TextRenderer.DrawText(g, text, font, new Rectangle(x, y, width, h + 2), color, TextFormatFlags.WordBreak | TextFormatFlags.NoPadding);
+        TextRenderer.DrawText(g, text, font, new Rectangle(x, y, width, h + 2), color, TextFormatFlags.WordBreak | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
         return h;
     }
 }
@@ -224,14 +224,14 @@ internal sealed class MetricsGrid : CardControl
     protected override void PaintContent(Graphics g)
     {
         _hits.Clear();
-        TextRenderer.DrawText(g, _title, Theme.Bold, new Point(Pad, Pad), Theme.Text);
+        TextRenderer.DrawText(g, _title, Theme.Bold, new Point(Pad, Pad), Theme.Text, TextFormatFlags.NoPrefix);
         int cols = Columns(Width);
         int colW = (Width - 2 * Pad) / cols;
         for (int i = 0; i < _items.Count; i++)
         {
             var (label, value, tip) = _items[i];
             int x = Pad + (i % cols) * colW, y = Pad + D(22) + (i / cols) * RowHeight;
-            var flags = TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding;
+            var flags = TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix;
             TextRenderer.DrawText(g, label + (tip is null ? "" : "  ⓘ"), Theme.Small, new Rectangle(x, y, colW - D(8), D(18)), Theme.Muted, flags);
             TextRenderer.DrawText(g, value, Theme.Value, new Rectangle(x, y + D(17), colW - D(8), D(24)), Theme.Text, flags);
             if (tip is not null) _hits.Add((new Rectangle(x, y, colW - D(8), RowHeight - D(4)), tip));
@@ -290,8 +290,8 @@ internal sealed class RamBar : CardControl
     {
         _hits.Clear();
         int w = Width - 2 * Pad;
-        TextRenderer.DrawText(g, "Wohin geht der RAM?", Theme.Bold, new Point(Pad, Pad), Theme.Text);
-        TextRenderer.DrawText(g, "Maus über einen Bereich: Erklärung", Theme.Small, new Rectangle(Pad, Pad, w, D(18)), Theme.Muted, TextFormatFlags.Right);
+        TextRenderer.DrawText(g, "Wohin geht der RAM?", Theme.Bold, new Point(Pad, Pad), Theme.Text, TextFormatFlags.NoPrefix);
+        TextRenderer.DrawText(g, "Maus über einen Bereich: Erklärung", Theme.Small, new Rectangle(Pad, Pad, w, D(18)), Theme.Muted, TextFormatFlags.Right | TextFormatFlags.NoPrefix);
         if (_total == 0) return;
 
         int barY = Pad + D(40);
@@ -301,11 +301,11 @@ internal sealed class RamBar : CardControl
 
         // Markierung „In Verwendung | Verfügbar“
         double inUseWidth = (double)inUse / _total * w;
-        TextRenderer.DrawText(g, $"In Verwendung {Fmt.Bytes(inUse)}", Theme.Small, new Point(Pad, barY - D(18)), Theme.Text);
+        TextRenderer.DrawText(g, $"In Verwendung {Fmt.Bytes(inUse)}", Theme.Small, new Point(Pad, barY - D(18)), Theme.Text, TextFormatFlags.NoPrefix);
         string availLabel = $"Verfügbar {Fmt.Bytes(NonEmpty.Where(i => i.IsAvailable).Aggregate(0UL, (s, i) => s + i.Bytes))}";
-        var availSize = TextRenderer.MeasureText(availLabel, Theme.Small);
+        var availSize = TextRenderer.MeasureText(availLabel, Theme.Small, Size.Empty, TextFormatFlags.NoPrefix);
         int availX = Math.Min(Pad + (int)inUseWidth + D(6), Width - Pad - availSize.Width);
-        TextRenderer.DrawText(g, availLabel, Theme.Small, new Point(availX, barY - D(18)), Theme.Text);
+        TextRenderer.DrawText(g, availLabel, Theme.Small, new Point(availX, barY - D(18)), Theme.Text, TextFormatFlags.NoPrefix);
 
         g.SmoothingMode = SmoothingMode.None;
         foreach (var it in NonEmpty)
@@ -328,8 +328,8 @@ internal sealed class RamBar : CardControl
             using (var b = new SolidBrush(Theme.SegmentColor(it.Segment))) g.FillRectangle(b, lx, yy + D(3), D(12), D(12));
             string label = $"{it.Label}";
             string value = $"{Fmt.Bytes(it.Bytes)}  ({Fmt.Pct((double)it.Bytes / _total)})";
-            TextRenderer.DrawText(g, label, Theme.Base, new Rectangle(lx + D(18), yy, colW - D(120), D(20)), Theme.Text, TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding);
-            TextRenderer.DrawText(g, value, Theme.Small, new Rectangle(lx + D(18), yy + D(1), colW - D(26), D(20)), Theme.Muted, TextFormatFlags.Right | TextFormatFlags.NoPadding);
+            TextRenderer.DrawText(g, label, Theme.Base, new Rectangle(lx + D(18), yy, colW - D(120), D(20)), Theme.Text, TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+            TextRenderer.DrawText(g, value, Theme.Small, new Rectangle(lx + D(18), yy + D(1), colW - D(26), D(20)), Theme.Muted, TextFormatFlags.Right | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
             _hits.Add((new Rectangle(lx, yy, colW - D(8), LegendRow), it));
             i++;
         }
@@ -400,13 +400,13 @@ internal sealed class LineChart : CardControl
 
     protected override void PaintContent(Graphics g)
     {
-        TextRenderer.DrawText(g, _title, Theme.Bold, new Point(Pad, Pad), Theme.Text);
+        TextRenderer.DrawText(g, _title, Theme.Bold, new Point(Pad, Pad), Theme.Text, TextFormatFlags.NoPrefix);
         int lx = Width - Pad;
         foreach (var s in _series.Reverse())
         {
-            var size = TextRenderer.MeasureText(s.Name, Theme.Small);
+            var size = TextRenderer.MeasureText(s.Name, Theme.Small, Size.Empty, TextFormatFlags.NoPrefix);
             lx -= size.Width;
-            TextRenderer.DrawText(g, s.Name, Theme.Small, new Point(lx, Pad + D(2)), Theme.Muted);
+            TextRenderer.DrawText(g, s.Name, Theme.Small, new Point(lx, Pad + D(2)), Theme.Muted, TextFormatFlags.NoPrefix);
             using var b = new SolidBrush(s.Color);
             g.FillRectangle(b, lx - D(16), Pad + D(8), D(12), D(3));
             lx -= D(28);
@@ -427,10 +427,10 @@ internal sealed class LineChart : CardControl
         {
             int y = plot.Bottom - i * plot.Height / 4;
             g.DrawLine(gridPen, plot.Left, y, plot.Right, y);
-            TextRenderer.DrawText(g, _format(max * i / 4), Theme.Small, new Rectangle(Pad, y - D(8), D(52), D(16)), Theme.Muted, TextFormatFlags.Right);
+            TextRenderer.DrawText(g, _format(max * i / 4), Theme.Small, new Rectangle(Pad, y - D(8), D(52), D(16)), Theme.Muted, TextFormatFlags.Right | TextFormatFlags.NoPrefix);
         }
-        TextRenderer.DrawText(g, $"−{(int)Span.TotalMinutes} min", Theme.Small, new Point(plot.Left, plot.Bottom + D(4)), Theme.Muted);
-        TextRenderer.DrawText(g, "jetzt", Theme.Small, new Rectangle(plot.Left, plot.Bottom + D(4), plot.Width, D(16)), Theme.Muted, TextFormatFlags.Right);
+        TextRenderer.DrawText(g, $"−{(int)Span.TotalMinutes} min", Theme.Small, new Point(plot.Left, plot.Bottom + D(4)), Theme.Muted, TextFormatFlags.NoPrefix);
+        TextRenderer.DrawText(g, "jetzt", Theme.Small, new Rectangle(plot.Left, plot.Bottom + D(4), plot.Width, D(16)), Theme.Muted, TextFormatFlags.Right | TextFormatFlags.NoPrefix);
 
         if (pts.Count < 2) return;
         g.SmoothingMode = SmoothingMode.AntiAlias;
@@ -479,8 +479,8 @@ internal sealed class TopList : CardControl
     {
         _hits.Clear();
         int w = Width - 2 * Pad;
-        TextRenderer.DrawText(g, "Größte Verbraucher", Theme.Bold, new Point(Pad, Pad), Theme.Text);
-        TextRenderer.DrawText(g, "Klick: Details und Tipps", Theme.Small, new Rectangle(Pad, Pad, w, D(18)), Theme.Muted, TextFormatFlags.Right);
+        TextRenderer.DrawText(g, "Größte Verbraucher", Theme.Bold, new Point(Pad, Pad), Theme.Text, TextFormatFlags.NoPrefix);
+        TextRenderer.DrawText(g, "Klick: Details und Tipps", Theme.Small, new Rectangle(Pad, Pad, w, D(18)), Theme.Muted, TextFormatFlags.Right | TextFormatFlags.NoPrefix);
         ulong max = _groups.Count > 0 ? Math.Max(1, _groups.Max(x => x.TotalRam)) : 1;
         int y = Pad + D(24);
         int nameW = Math.Min(D(330), w / 3), valueW = D(90), badgeW = D(190);
@@ -488,17 +488,17 @@ internal sealed class TopList : CardControl
         {
             var rowRect = new Rectangle(Pad, y, w, Row - D(4));
             using (var b = new SolidBrush(Theme.KindRowColor(grp.Kind, grp.LeakSuspect))) g.FillRectangle(b, rowRect);
-            TextRenderer.DrawText(g, grp.Name, Theme.Base, new Rectangle(Pad + D(6), y + D(4), nameW - D(6), D(20)), Theme.Text, TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding);
+            TextRenderer.DrawText(g, grp.Name, Theme.Base, new Rectangle(Pad + D(6), y + D(4), nameW - D(6), D(20)), Theme.Text, TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
             string badge = grp.LeakSuspect ? "⚠ wächst stetig" : grp.Known?.KindLabel ?? "";
             if (grp.Notes.Any(n => n.Contains("kein Limit"))) badge = "⚠ kein Limit gesetzt";
-            TextRenderer.DrawText(g, badge, Theme.Small, new Rectangle(Pad + nameW, y + D(5), badgeW, D(18)), Theme.Muted, TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding);
+            TextRenderer.DrawText(g, badge, Theme.Small, new Rectangle(Pad + nameW, y + D(5), badgeW, D(18)), Theme.Muted, TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
             int barX = Pad + nameW + badgeW, barW = Math.Max(10, w - nameW - badgeW - valueW - D(8));
             int privW = (int)((double)grp.PrivateWs / max * barW), hidW = (int)((double)grp.HiddenBytes / max * barW);
             using (var b = new SolidBrush(Theme.SegmentColor(Segment.Programme))) g.FillRectangle(b, barX, y + D(8), Math.Max(1, privW), D(10));
             if (hidW > 0)
                 using (var b = new SolidBrush(Theme.SegmentColor(grp.Key == AppCatalog.SqlServerKey ? Segment.SqlGesperrt : Segment.VirtuelleMaschinen)))
                     g.FillRectangle(b, barX + privW, y + D(8), hidW, D(10));
-            TextRenderer.DrawText(g, Fmt.Bytes(grp.TotalRam), Theme.Bold, new Rectangle(Pad + w - valueW, y + D(4), valueW - D(6), D(20)), Theme.Text, TextFormatFlags.Right | TextFormatFlags.NoPadding);
+            TextRenderer.DrawText(g, Fmt.Bytes(grp.TotalRam), Theme.Bold, new Rectangle(Pad + w - valueW, y + D(4), valueW - D(6), D(20)), Theme.Text, TextFormatFlags.Right | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
             _hits.Add((rowRect, grp));
             y += Row;
         }
@@ -547,6 +547,7 @@ internal sealed class ListCard : Panel, IHeightForWidth
             Text = hint is null ? title : $"{title}   —   {hint}",
             Dock = DockStyle.Top,
             AutoSize = true,
+            UseMnemonic = false,
             Font = Theme.Bold,
             ForeColor = Theme.Text,
             Padding = new Padding(12, 8, 0, 6),

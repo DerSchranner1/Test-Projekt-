@@ -62,9 +62,10 @@ internal sealed partial class MainForm
             Padding = new Padding(D(12), D(8), D(12), D(8)),
             BackColor = Theme.Card,
             ForeColor = Theme.Muted,
-            Text = "Gelb = reserviert RAM absichtlich (lässt sich begrenzen) · Lila = virtuelle Maschine · Rot = wächst stetig (möglicher Leak).\n" +
-                   "RAM = privater Arbeitsspeicher aller Prozesse der App + RAM, den der Task-Manager nicht zeigt (VM-Gast, gesperrte SQL-Seiten). " +
-                   "Zugesagt = reservierter privater Speicher. Nicht im RAM = davon ausgelagert, komprimiert oder nie benutzt. Zeile anklicken für Erklärung und Tipps.",
+            UseMnemonic = false,
+            Text = "Gelb = reserviert RAM absichtlich (lässt sich begrenzen) · Lila = virtuelle Maschine · Rot = wächst stetig (möglicher Leak). Zeile anklicken für Erklärung und Tipps.\n" +
+                   "RAM = privater Arbeitsspeicher aller Prozesse der App + RAM, den der Task-Manager nicht zeigt (VM-Gast, gesperrte SQL-Seiten).\n" +
+                   "Zugesagt = reservierter privater Speicher · Nicht im RAM = davon ausgelagert, komprimiert oder nie benutzt.",
         };
 
         _appSplit = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal, BackColor = Theme.Border, SplitterWidth = D(6) };

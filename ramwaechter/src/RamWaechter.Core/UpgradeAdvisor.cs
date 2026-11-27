@@ -135,6 +135,11 @@ public static class UpgradeAdvisor
             caveats.Add("Keine Riegel-Informationen verfügbar (WMI). Größe und Typ mit CPU-Z oder im Handbuch prüfen.");
             return;
         }
+        if (hw.IsVirtual)
+        {
+            options.Add("Virtuelle Maschine: mehr RAM in den VM-Einstellungen des Hosts zuweisen (Hyper-V-Manager, VMware, VirtualBox), dort ist nichts zu kaufen.");
+            return;
+        }
         if (hw.AllSoldered)
         {
             options.Add($"Der RAM ist {hw.TypeName} und damit fest verlötet. Aufrüsten ist nicht möglich. Hilfe bringt nur, die Verbraucher zu begrenzen (Tab „Apps“).");

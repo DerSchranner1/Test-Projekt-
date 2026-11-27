@@ -80,9 +80,11 @@ internal sealed partial class MainForm
                 "Pages Output/sec: geänderte Seiten, die in die Auslagerungsdatei oder in Dateien geschrieben werden, um RAM frei zu machen."),
             ("Datenträger-Lesezeit", stall.LatencyMeasured ? $"{Fmt.Num(stall.LatencySeconds * 1000, "0.00")} ms" : "unbekannt (0,3 ms angenommen)",
                 "Mittlere Dauer eines Lesezugriffs aller Datenträger. NVMe-SSD ≈ 0,1–0,5 ms, SATA-SSD ≈ 0,5–1 ms, HDD ≈ 5–15 ms."),
-            ("Geschätzte Wartezeit", $"{Fmt.Num(stall.StallMsPerSec)} ms pro Sekunde",
-                "Lesevorgänge × Lesezeit: so lange warten Programme pro Sekunde (über alle Threads summiert) auf ausgelagerte Daten."),
-            ("Leistungseinbuße", stall.ImpactLabel.Split(' ')[0], stall.ImpactLabel),
+            ("Wartezeit auf Datenträger", $"{Fmt.Num(stall.StallMsPerSec)} ms pro Sekunde",
+                "Lesevorgänge × Lesezeit: so lange warten Programme pro Sekunde (über alle Threads summiert) auf nachgeladene Daten."),
+            PagingAnalyzer.IsLowRam(s)
+                ? ("Einbuße durch Auslagerung", stall.ImpactLabel.Split(' ')[0], stall.ImpactLabel)
+                : ("Einbuße durch Auslagerung", "keine", "Es ist genug RAM frei. Nachladen kommt hier vom Laden von Programmen und Dateien, nicht von Auslagerung."),
             ("Wartet aufs Wegschreiben", Fmt.Bytes(s.Modified),
                 "Modified-Liste: geänderte Seiten, die erst auf die Platte müssen, bevor ihr RAM frei wird."),
             ("Komprimiert im RAM", Fmt.Bytes(s.Compressed), "Statt auszulagern komprimiert Windows zuerst. Das ist deutlich schneller."),

@@ -337,6 +337,17 @@ public class AnalyzerTests
     }
 
     [Fact]
+    public void FileLoadingWithFreeRam_IsNotCalledAPagingPenalty()
+    {
+        // Wie auf dem Build-Runner: 80 % frei, viele Lesevorgänge durch Programmstarts.
+        var h = Make.Steady(t => Make.Sys(16, 12.8, pagesIn: 90, pageReads: 75, diskLatency: 0.001, time: t));
+        var v = PagingAnalyzer.Evaluate(h.Samples[^1], h, PagefileInfo.Empty, NoGroups);
+        Assert.Equal(Level.Gut, v.Level);
+        Assert.DoesNotContain(v.Reasons, r => r.Contains("deutlich") || r.Contains("spürbar"));
+        Assert.Contains(v.Reasons, r => r.Contains("keiner"));
+    }
+
+    [Fact]
     public void StallEstimateUsesMeasuredLatency()
     {
         var h = Make.Steady(t => Make.Sys(16, 1, pagesIn: 2000, pageReads: 500, diskLatency: 0.0005, time: t));
@@ -398,6 +409,23 @@ public class HardwareTests
     {
         var hw = new MemoryHardware { Modules = new[] { Mod("DIMM_A2", "", 8), Mod("DIMM_B2", "", 16, pn: "X") }, SlotCount = 4 };
         Assert.Contains("Flex", Hardware.AnalyzeChannels(hw).Mode);
+    }
+
+    [Fact]
+    public void VirtualMachine_IsNotJudgedLikeRealHardware()
+    {
+        var hw = new MemoryHardware
+        {
+            Modules = new[] { Mod("M0001", "None", 1, type: 0), Mod("M0002", "None", 15, type: 0, pn: "None") },
+            SlotCount = 2,
+            SystemName = "Microsoft Corporation Virtual Machine",
+        };
+        var r = Hardware.AnalyzeChannels(hw);
+        Assert.Equal("virtuelle Maschine", r.Mode);
+        Assert.DoesNotContain(r.Notes, n => n.Contains("Flex"));
+        var a = UpgradeAdvisor.Advise(hw, new UsageProfile(16 * Make.GB, 15 * Make.GB, 0.2, TimeSpan.FromHours(5), 0));
+        Assert.Single(a.Options);
+        Assert.Contains("VM-Einstellungen", a.Options[0]);
     }
 
     [Fact]

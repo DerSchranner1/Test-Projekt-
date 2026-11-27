@@ -38,7 +38,7 @@ internal sealed partial class MainForm
         _top.Set(_groups);
         _usageChart.Set(_history.Samples);
 
-        double inputNow = s.PagesInputPerSec;
+        double inputAvg = _history.Average(RamAnalyzer.RecentWindow, x => x.PagesInputPerSec);
         _overviewMetrics.Set(new (string, string, string?)[]
         {
             ("Eingebaut", Fmt.Bytes(s.Installed),
@@ -55,7 +55,7 @@ internal sealed partial class MainForm
             ("Zugesichert (Commit)", $"{Fmt.Bytes(s.Committed)} / {Fmt.Bytes(s.CommitLimit)}",
                 "Allen Programmen zugesagter Speicher. Grenze = RAM + Auslagerungsdatei. Ist sie erreicht, stürzen Programme ab oder Windows muss die Auslagerungsdatei vergrößern."),
             ("Auslagerungsdatei belegt", Fmt.Bytes(_pagefile.Used), "Details im Tab „Auslagerung“."),
-            ("Nachladen von Platte", Fmt.Num(inputNow) + " Seiten/s",
+            ("Nachladen (60-s-Mittel)", Fmt.Num(inputAvg) + " Seiten/s",
                 "Hard Faults: Daten, die nicht im RAM lagen und von der SSD/HDD geholt werden mussten. Dauerhaft hohe Werte bei wenig verfügbarem RAM bremsen."),
             ("Spitze dieser Sitzung", _history.PeakInUse is { } p ? $"{Fmt.Bytes(p.InUse)} um {p.Time:HH:mm}" : "–",
                 "Höchster RAM-Verbrauch (ohne Cache), seit RamWächter läuft."),

@@ -80,12 +80,13 @@ internal sealed partial class MainForm
 
         var mods = hw.Modules;
         var channels = Hardware.AnalyzeChannels(hw);
-        string speed = mods.Count == 0 ? "–" : $"{mods.Max(m => m.ConfiguredSpeed)} MT/s (max. {mods.Max(m => m.Speed)} MT/s)";
+        uint conf = mods.Count == 0 ? 0 : mods.Max(m => m.ConfiguredSpeed), max = mods.Count == 0 ? 0 : mods.Max(m => m.Speed);
+        string speed = conf == 0 ? "–" : max > 0 ? $"{conf} MT/s (max. {max} MT/s)" : $"{conf} MT/s";
         _hwMetrics.Set(new (string, string, string?)[]
         {
             ("System", string.IsNullOrEmpty(hw.SystemName) ? "–" : hw.SystemName, null),
             ("Mainboard", string.IsNullOrEmpty(hw.Board) ? "–" : hw.Board, "Damit findest du im Handbuch die unterstützten Riegel und die richtige Slot-Belegung."),
-            ("Typ", mods.Count == 0 ? "–" : $"{hw.TypeName} {mods[0].FormFactorName}", null),
+            ("Typ", mods.Count == 0 || hw.SmbiosType <= 2 ? (hw.IsVirtual ? "virtuell" : "–") : $"{hw.TypeName} {mods[0].FormFactorName}", null),
             ("Eingebaut / nutzbar", $"{Fmt.Bytes(hw.InstalledCapacity)} / {Fmt.Bytes(s.Total)}", "Die Differenz reservieren BIOS bzw. integrierte Grafik."),
             ("Steckplätze", hw.SlotCount == 0 ? "–" : $"{mods.Count} belegt von {hw.SlotCount} · {hw.FreeSlots} frei",
                 "Laut BIOS (SMBIOS). Manche Mainboards melden mehr Slots, als verbaut sind, z. B. 4 statt 2. Im Handbuch gegenprüfen."),
@@ -112,10 +113,12 @@ internal sealed partial class MainForm
             list.Items.Add(new ListViewItem(new[] { "(frei)", "", "", "", "", "", "", "", "", "", "" }) { ForeColor = Theme.Muted, BackColor = Color.FromArgb(240, 253, 244) });
         list.EndUpdate();
 
-        Level chLevel = channels.SingleChannel ? Level.Warnung
+        Level chLevel = hw.IsVirtual ? Level.Hinweis
+            : channels.SingleChannel ? Level.Warnung
             : channels.Notes.Any(n => n.Contains("obwohl")) || channels.Mode.Contains("Flex") ? Level.Hinweis
             : Level.Gut;
-        string chHead = channels.SingleChannel ? $"{channels.Mode}: Hier wird Leistung verschenkt."
+        string chHead = hw.IsVirtual ? "Virtuelle Maschine: Die Hardware-Angaben sind nur nachgebildet."
+            : channels.SingleChannel ? $"{channels.Mode}: Hier wird Leistung verschenkt."
             : chLevel == Level.Hinweis ? $"{channels.Mode}, aber nicht optimal."
             : $"{channels.Mode}. Passt.";
         _channelView.Set(new Verdict(chLevel, chHead, channels.Notes));

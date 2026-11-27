@@ -96,6 +96,11 @@ public sealed record StallEstimate(double StallFraction, double ReadsPerSec, dou
 /// <summary>Bewertet die Auslagerung: normal oder bremsend, und wie stark.</summary>
 public static class PagingAnalyzer
 {
+    /// <summary>Unterhalb dieser Reserve gilt Nachladen als Auslagerung wegen RAM-Mangel.</summary>
+    public const double LowRamFraction = 0.15;
+
+    public static bool IsLowRam(SystemSample s) => s.AvailableFraction < LowRamFraction;
+
     /// <summary>Annahme für eine SSD, wenn die gemessene Zugriffszeit fehlt.</summary>
     public const double DefaultLatency = 0.0003;
 
@@ -118,8 +123,7 @@ public static class PagingAnalyzer
         double output = history.Average(RamAnalyzer.RecentWindow, x => x.PagesOutputPerSec);
         if (double.IsNaN(input)) input = 0;
         if (double.IsNaN(output)) output = 0;
-        double avail = s.AvailableFraction;
-        bool lowRam = avail < 0.15;
+        bool lowRam = IsLowRam(s);
 
         Level level;
         string headline;
@@ -147,9 +151,14 @@ public static class PagingAnalyzer
         var r = new List<string>();
         r.Add($"Nachladen von der Platte (Hard Faults): {Fmt.Num(input)} Seiten/s ≈ {Fmt.Num(input * 4096 / Fmt.MiB, "0.0")} MB/s in {Fmt.Num(stall.ReadsPerSec)} Lesevorgängen/s (Mittel der letzten 60 s).");
         r.Add($"Wegschreiben: {Fmt.Num(output)} Seiten/s ≈ {Fmt.Num(output * 4096 / Fmt.MiB, "0.0")} MB/s.");
-        r.Add($"Geschätzter Leistungsverlust: {stall.Describe()}");
-        if (!lowRam && input > 50)
-            r.Add("Es ist genug RAM frei. Das Nachladen kommt vom Starten von Programmen bzw. Lesen von Dateien (gemappte Dateien zählen auch als Hard Fault), nicht von Auslagerung wegen RAM-Mangel.");
+        if (lowRam)
+            r.Add($"Geschätzter Leistungsverlust durch Auslagerung: {stall.Describe()}");
+        else
+        {
+            r.Add("Leistungsverlust durch Auslagerung: keiner, es ist genug RAM frei.");
+            if (input > 50)
+                r.Add($"Das Nachladen ({Fmt.Num(stall.StallMsPerSec)} ms Wartezeit pro Sekunde) kommt vom Starten von Programmen bzw. Lesen von Dateien. Gemappte Dateien zählen auch als Hard Fault. Mit mehr RAM ginge das nicht schneller.");
+        }
 
         if (pf.Files.Count > 0)
         {
