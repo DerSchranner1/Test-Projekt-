@@ -197,6 +197,10 @@ class ScreenshotTest {
         java.io.File("build/screenshots/$file.png").outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
     }
 
+    @Test fun settingsHeader() {
+        settingsCrop("KlarTastatur", "27_einstellungen_kopf", 420, 60)
+    }
+
     @Test fun dictationSettings() {
         val app = org.robolectric.RuntimeEnvironment.getApplication()
         val p = Prefs(app)

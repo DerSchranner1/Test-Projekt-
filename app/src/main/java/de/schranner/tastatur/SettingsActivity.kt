@@ -117,12 +117,20 @@ class SettingsActivity : Activity() {
                 }
             }
         }, LinearLayout.LayoutParams(dp(44f), dp(44f)).apply { rightMargin = dp(12f) })
-        head.addView(TextView(this).apply {
+        // Name und darunter die installierte Version
+        val titleCol = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        titleCol.addView(TextView(this).apply {
             text = "KlarTastatur"
             setTextColor(textColor)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 28f)
             setTypeface(null, Typeface.BOLD)
         })
+        titleCol.addView(TextView(this).apply {
+            text = "Version ${appVersion()}"
+            setTextColor(dim)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+        })
+        head.addView(titleCol)
         page.addView(head)
 
         // ---- Einrichten
@@ -552,6 +560,11 @@ class SettingsActivity : Activity() {
         setLineSpacing(0f, 1.15f)
         setPadding(0, dp(top), 0, dp(bottom))
     }.also { card!!.addView(it) }
+
+    /** Installierte Version, z. B. „0.16“. */
+    private fun appVersion(): String = try {
+        packageManager.getPackageInfo(packageName, 0).versionName ?: "?"
+    } catch (_: Exception) { "?" }
 
     private fun body(s: String) = text(s, 15f, textColor)
 
